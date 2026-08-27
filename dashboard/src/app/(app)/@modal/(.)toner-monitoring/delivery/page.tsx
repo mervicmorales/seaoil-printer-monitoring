@@ -1,0 +1,14 @@
+import DeliveryTonerPage from "@/app/(app)/toner-monitoring/delivery/page";
+import ModalShell from "@/components/ModalShell";
+
+export default function DeliveryTonerModal() {
+  return (
+    <ModalShell
+      title="Delivery Toner"
+      closeHref="/toner-monitoring"
+      showTitle={false}
+    >
+      <DeliveryTonerPage />
+    </ModalShell>
+  );
+}

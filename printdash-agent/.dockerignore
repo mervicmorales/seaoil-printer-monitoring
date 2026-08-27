@@ -1,0 +1,11 @@
+.env
+.git
+node_modules
+npm-debug.log
+
+printers.json
+settings.json
+users.json
+alert-state.json
+
+*.tmp

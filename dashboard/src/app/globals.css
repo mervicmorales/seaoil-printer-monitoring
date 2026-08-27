@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --seaoil-yellow: #fef200;
+  --seaoil-blue: #014171;
+  --seaoil-soft-yellow: #ffd15c;
+  --seaoil-azure: #7da8d0;
+}
+
+@theme {
+  --color-seaoil-yellow: #fef200;
+  --color-seaoil-blue: #014171;
+  --color-seaoil-soft-yellow: #ffd15c;
+  --color-seaoil-azure: #7da8d0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #f4f6f9;
+  color: #0f1e30;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  padding: 0.15rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cdd8e3;
+  border-radius: 8px;
+}

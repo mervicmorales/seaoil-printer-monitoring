@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log
+
+users.json
+printers.json
+settings.json
+seaoil-config-cache.json
+
+*.tmp
+.env

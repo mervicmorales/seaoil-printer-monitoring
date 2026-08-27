@@ -1,0 +1,210 @@
+"use server";
+
+import { db } from "@/db";
+import {
+  locations,
+  departments,
+  itsNames,
+  tonerTypes,
+  tonerInventory,
+  vendors,
+  systemSettings,
+} from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { requireModuleFullAccess } from "@/lib/server-utils";
+
+function str(v: FormDataEntryValue | null) {
+  const s = String(v ?? "").trim();
+  return s.length ? s : null;
+}
+function num(v: FormDataEntryValue | null) {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isNaN(n) ? null : n;
+}
+
+function revalidateAll() {
+  revalidatePath("/system");
+  revalidatePath("/dashboard");
+  revalidatePath("/printers");
+  revalidatePath("/toner-monitoring");
+  revalidatePath("/contracts");
+  revalidatePath("/repair-history");
+}
+
+// ---------- LOCATIONS ----------
+export async function addLocationAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const name = str(formData.get("name"));
+  if (name) await db.insert(locations).values({ name }).onConflictDoNothing();
+  revalidateAll();
+  redirect("/system?tab=locations&success=Location added.");
+}
+export async function updateLocationAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  const name = str(formData.get("name"));
+  if (id && name) await db.update(locations).set({ name }).where(eq(locations.id, id));
+  revalidateAll();
+  redirect("/system?tab=locations&success=Location updated.");
+}
+export async function deleteLocationAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  if (id) await db.delete(locations).where(eq(locations.id, id));
+  revalidateAll();
+  redirect("/system?tab=locations&success=Location deleted.");
+}
+
+// ---------- DEPARTMENTS ----------
+export async function addDepartmentAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const name = str(formData.get("name"));
+  if (name) await db.insert(departments).values({ name }).onConflictDoNothing();
+  revalidateAll();
+  redirect("/system?tab=departments&success=Department added.");
+}
+export async function updateDepartmentAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  const name = str(formData.get("name"));
+  if (id && name) await db.update(departments).set({ name }).where(eq(departments.id, id));
+  revalidateAll();
+  redirect("/system?tab=departments&success=Department updated.");
+}
+export async function deleteDepartmentAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  if (id) await db.delete(departments).where(eq(departments.id, id));
+  revalidateAll();
+  redirect("/system?tab=departments&success=Department deleted.");
+}
+
+// ---------- ITS NAMES ----------
+export async function addItsNameAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const name = str(formData.get("name"));
+  if (name) await db.insert(itsNames).values({ name }).onConflictDoNothing();
+  revalidateAll();
+  redirect("/system?tab=its&success=ITS Name added.");
+}
+export async function deleteItsNameAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  if (id) await db.delete(itsNames).where(eq(itsNames.id, id));
+  revalidateAll();
+  redirect("/system?tab=its&success=ITS Name deleted.");
+}
+
+// ---------- TONER TYPES ----------
+export async function addTonerTypeAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const name = str(formData.get("name"));
+  if (name) {
+    const inserted = await db.insert(tonerTypes).values({ name }).onConflictDoNothing().returning();
+    if (inserted[0]) {
+      await db.insert(tonerInventory).values({ tonerTypeId: inserted[0].id, stock: 0, lowStockThreshold: 5 });
+    }
+  }
+  revalidateAll();
+  redirect("/system?tab=toner&success=Toner Type added. Dashboard alert card created.");
+}
+export async function updateTonerTypeAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  const name = str(formData.get("name"));
+  if (id && name) await db.update(tonerTypes).set({ name }).where(eq(tonerTypes.id, id));
+  revalidateAll();
+  redirect("/system?tab=toner&success=Toner Type updated.");
+}
+export async function deleteTonerTypeAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  if (id) await db.delete(tonerTypes).where(eq(tonerTypes.id, id));
+  revalidateAll();
+  redirect("/system?tab=toner&success=Toner Type deleted. Dashboard alert card removed.");
+}
+export async function updateThresholdAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("tonerTypeId"));
+  const threshold = num(formData.get("threshold"));
+  if (id && threshold !== null) {
+    await db.update(tonerInventory).set({ lowStockThreshold: threshold }).where(eq(tonerInventory.tonerTypeId, id));
+  }
+  revalidateAll();
+  redirect("/system?tab=toner&success=Low-stock threshold updated.");
+}
+export async function updateAlertCardVisibilityAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("tonerTypeId"));
+  if (id) {
+    await db
+      .update(tonerTypes)
+      .set({ showAlertCard: formData.get("showAlertCard") === "on" })
+      .where(eq(tonerTypes.id, id));
+  }
+  revalidateAll();
+  redirect("/system?tab=toner&success=Alert card visibility updated.");
+}
+
+// ---------- VENDORS ----------
+export async function addVendorAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const name = str(formData.get("name"));
+  if (name) {
+    await db.insert(vendors).values({
+      name,
+      email: str(formData.get("email")),
+      mobile: str(formData.get("mobile")),
+      accountManager: str(formData.get("accountManager")),
+    });
+  }
+  revalidateAll();
+  redirect("/system?tab=vendors&success=Vendor added.");
+}
+export async function updateVendorAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  if (id) {
+    await db
+      .update(vendors)
+      .set({
+        name: str(formData.get("name")) || "",
+        email: str(formData.get("email")),
+        mobile: str(formData.get("mobile")),
+        accountManager: str(formData.get("accountManager")),
+      })
+      .where(eq(vendors.id, id));
+  }
+  revalidateAll();
+  redirect("/system?tab=vendors&success=Vendor updated.");
+}
+export async function deleteVendorAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const id = num(formData.get("id"));
+  if (id) await db.delete(vendors).where(eq(vendors.id, id));
+  revalidateAll();
+  redirect("/system?tab=vendors&success=Vendor deleted.");
+}
+
+// ---------- SETTINGS ----------
+export async function updateSettingsAction(formData: FormData) {
+  await requireModuleFullAccess("system");
+  const rows = await db.select().from(systemSettings).limit(1);
+  const values = {
+    notificationEmail: str(formData.get("notificationEmail")) || "itservicedesk@seaoil.com.ph",
+    defaultLowStockThreshold: num(formData.get("defaultLowStockThreshold")) ?? 5,
+    emailReminderEnabled: formData.get("emailReminderEnabled") === "on",
+    systemNotificationEnabled: formData.get("systemNotificationEnabled") === "on",
+  };
+  if (rows.length) {
+    await db.update(systemSettings).set(values).where(eq(systemSettings.id, rows[0].id));
+  } else {
+    await db.insert(systemSettings).values(values);
+  }
+  revalidateAll();
+  redirect("/system?tab=reminders&success=Settings saved.");
+}

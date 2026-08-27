@@ -1,0 +1,456 @@
+import {
+  pgTable,
+  serial,
+  text,
+  integer,
+  bigint,
+  boolean,
+  timestamp,
+  date,
+  numeric,
+  jsonb,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+
+// ---------- USERS & ACCESS ----------
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  email: text("email").notNull().unique(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("user"), // 'admin' | 'user'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const userModuleAccess = pgTable(
+  "user_module_access",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    module: text("module").notNull(), // dashboard | printers | toner | contract | repair | system
+    fullAccess: boolean("full_access").notNull().default(false),
+  },
+  (t) => [uniqueIndex("user_module_unique").on(t.userId, t.module)],
+);
+
+// ---------- LOOKUP DATABASES ----------
+export const locations = pgTable("locations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const itsNames = pgTable("its_names", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const vendors = pgTable("vendors", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email"),
+  mobile: text("mobile"),
+  accountManager: text("account_manager"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const tonerTypes = pgTable("toner_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  showAlertCard: boolean("show_alert_card").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const tonerInventory = pgTable("toner_inventory", {
+  id: serial("id").primaryKey(),
+  tonerTypeId: integer("toner_type_id")
+    .notNull()
+    .unique()
+    .references(() => tonerTypes.id, { onDelete: "cascade" }),
+  stock: integer("stock").notNull().default(0),
+  lowStockThreshold: integer("low_stock_threshold").notNull().default(5),
+});
+
+// ---------- CONTRACTS ----------
+export const contracts = pgTable("contracts", {
+  id: serial("id").primaryKey(),
+  contractNumber: text("contract_number").notNull().unique(),
+  vendorId: integer("vendor_id").references(() => vendors.id, {
+    onDelete: "set null",
+  }),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  documentUrl: text("document_url"),
+  documentName: text("document_name"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------- PRINTERS ----------
+export const printers = pgTable("printers", {
+  id: serial("id").primaryKey(),
+  assetTag: text("asset_tag"),
+  ipAddress: text("ip_address"),
+  serialNumber: text("serial_number").notNull().unique(),
+  brand: text("brand"),
+  model: text("model"),
+  monthlyRate: numeric("monthly_rate", { precision: 12, scale: 2 }).default(
+    "0",
+  ),
+  locationId: integer("location_id").references(() => locations.id, {
+    onDelete: "set null",
+  }),
+  departmentId: integer("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
+  vendorId: integer("vendor_id").references(() => vendors.id, {
+    onDelete: "set null",
+  }),
+  contractId: integer("contract_id").references(() => contracts.id, {
+    onDelete: "set null",
+  }),
+  assignedUser: text("assigned_user"),
+  status: text("status").notNull().default("Active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const printerTonerTypes = pgTable(
+  "printer_toner_types",
+  {
+    id: serial("id").primaryKey(),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    tonerTypeId: integer("toner_type_id")
+      .notNull()
+      .references(() => tonerTypes.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("printer_toner_unique").on(t.printerId, t.tonerTypeId)],
+);
+
+// ---------- LIVE PRINTER MONITORING ----------
+// An agent key is stable, non-secret identity metadata. Authentication uses
+// the bcrypt token hash; plaintext API tokens are never stored.
+export const monitoringAgents = pgTable(
+  "monitoring_agents",
+  {
+    id: serial("id").primaryKey(),
+    agentKey: text("agent_key").notNull().unique(),
+    name: text("name").notNull(),
+    locationId: integer("location_id").references(() => locations.id, {
+      onDelete: "set null",
+    }),
+    hostname: text("hostname"),
+    version: text("version"),
+    status: text("status").notNull().default("inactive"),
+    tokenHash: text("token_hash"),
+    tokenCreatedAt: timestamp("token_created_at", { withTimezone: true }),
+    tokenRevokedAt: timestamp("token_revoked_at", { withTimezone: true }),
+    lastSeen: timestamp("last_seen", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("monitoring_agents_location_idx").on(t.locationId)],
+);
+
+// A row enables monitoring for exactly one printer and assigns it to exactly
+// one authenticated agent. Removing the row disables future polling while
+// preserving the printer's historical readings and alerts.
+export const printerMonitoringAssignments = pgTable(
+  "printer_monitoring_assignments",
+  {
+    printerId: integer("printer_id")
+      .primaryKey()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("printer_monitoring_assignments_agent_idx").on(t.agentId)],
+);
+
+export const printerMonitoringReadings = pgTable(
+  "printer_monitoring_readings",
+  {
+    id: serial("id").primaryKey(),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+    online: boolean("online").notNull(),
+    printerStatus: text("printer_status"),
+    responseTimeMs: integer("response_time_ms"),
+    pageCount: bigint("page_count", { mode: "number" }),
+    uptimeSeconds: bigint("uptime_seconds", { mode: "number" }),
+    errorStatus: text("error_status"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("printer_monitoring_readings_printer_checked_idx").on(
+      t.printerId,
+      t.checkedAt,
+    ),
+    index("printer_monitoring_readings_agent_checked_idx").on(
+      t.agentId,
+      t.checkedAt,
+    ),
+  ],
+);
+
+export const printerConsumableReadings = pgTable(
+  "printer_consumable_readings",
+  {
+    id: serial("id").primaryKey(),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    monitoringReadingId: integer("monitoring_reading_id")
+      .notNull()
+      .references(() => printerMonitoringReadings.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    levelPercent: integer("level_percent"),
+    status: text("status"),
+    isUnknown: boolean("is_unknown").notNull().default(false),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("printer_consumable_readings_printer_checked_idx").on(
+      t.printerId,
+      t.checkedAt,
+    ),
+    index("printer_consumable_readings_monitoring_reading_idx").on(
+      t.monitoringReadingId,
+    ),
+  ],
+);
+
+export const printerAlerts = pgTable(
+  "printer_alerts",
+  {
+    id: serial("id").primaryKey(),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id),
+    type: text("type").notNull(),
+    severity: text("severity").notNull(),
+    message: text("message").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("printer_alerts_printer_started_idx").on(t.printerId, t.startedAt),
+    index("printer_alerts_agent_resolved_idx").on(t.agentId, t.resolvedAt),
+  ],
+);
+
+export type DiscoveredPrinter = {
+  ip: string;
+  description: string;
+  serialNumber: string | null;
+  brand: string | null;
+  model: string | null;
+};
+
+export const printerDiscoveryScans = pgTable(
+  "printer_discovery_scans",
+  {
+    id: serial("id").primaryKey(),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id, { onDelete: "cascade" }),
+    requestedBy: integer("requested_by")
+      .notNull()
+      .references(() => users.id),
+    subnet: text("subnet").notNull(),
+    status: text("status").notNull().default("queued"),
+    results: jsonb("results").$type<DiscoveredPrinter[]>().notNull().default([]),
+    errorMessage: text("error_message"),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("printer_discovery_scans_agent_status_idx").on(t.agentId, t.status),
+    index("printer_discovery_scans_requested_at_idx").on(t.requestedAt),
+  ],
+);
+
+export type PrintOpsCommandPayload = Record<string, unknown>;
+export type PrintOpsCommandResult = Record<string, unknown>;
+
+// PrintOps commands are claimed by authenticated office agents. Files are
+// base64 encoded so deployments do not need a shared filesystem between the
+// central dashboard and each office network.
+export const printOpsCommands = pgTable(
+  "print_ops_commands",
+  {
+    id: serial("id").primaryKey(),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id, { onDelete: "cascade" }),
+    requestedBy: integer("requested_by")
+      .notNull()
+      .references(() => users.id),
+    type: text("type").notNull(),
+    status: text("status").notNull().default("queued"),
+    payload: jsonb("payload")
+      .$type<PrintOpsCommandPayload>()
+      .notNull()
+      .default({}),
+    result: jsonb("result").$type<PrintOpsCommandResult>(),
+    inputFileName: text("input_file_name"),
+    inputMimeType: text("input_mime_type"),
+    inputFileData: text("input_file_data"),
+    outputFileName: text("output_file_name"),
+    outputMimeType: text("output_mime_type"),
+    outputFileData: text("output_file_data"),
+    errorMessage: text("error_message"),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("print_ops_commands_agent_status_idx").on(t.agentId, t.status),
+    index("print_ops_commands_type_requested_idx").on(t.type, t.requestedAt),
+    index("print_ops_commands_requested_by_idx").on(t.requestedBy),
+  ],
+);
+
+// ---------- REPAIR TICKETS ----------
+export const repairTickets = pgTable("repair_tickets", {
+  id: serial("id").primaryKey(),
+  ticketNumber: text("ticket_number").notNull().unique(),
+  serialNumber: text("serial_number").notNull(),
+  printerId: integer("printer_id").references(() => printers.id, {
+    onDelete: "set null",
+  }),
+  requestedDate: date("requested_date").notNull(),
+  departmentId: integer("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
+  locationId: integer("location_id").references(() => locations.id, {
+    onDelete: "set null",
+  }),
+  problem: text("problem").notNull(),
+  vendorId: integer("vendor_id").references(() => vendors.id, {
+    onDelete: "set null",
+  }),
+  notes: text("notes"),
+  resolution: text("resolution"),
+  resolutionAttachmentUrl: text("resolution_attachment_url"),
+  resolutionAttachmentName: text("resolution_attachment_name"),
+  status: text("status").notNull().default("Open"),
+  dateClosed: date("date_closed"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ---------- REPLACEMENT HISTORY ----------
+export const replacementHistory = pgTable("replacement_history", {
+  id: serial("id").primaryKey(),
+  printerId: integer("printer_id")
+    .notNull()
+    .references(() => printers.id, { onDelete: "cascade" }),
+  replacementDate: date("replacement_date").notNull(),
+  oldSerialNumber: text("old_serial_number").notNull(),
+  newSerialNumber: text("new_serial_number").notNull(),
+  brand: text("brand"),
+  model: text("model"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------- TONER TRANSACTIONS ----------
+export const tonerTransactions = pgTable("toner_transactions", {
+  id: serial("id").primaryKey(),
+  groupId: text("group_id").notNull(),
+  type: text("type").notNull(), // 'Delivery' | 'Request'
+  date: date("date").notNull(),
+  ticketReference: text("ticket_reference"),
+  tonerTypeId: integer("toner_type_id")
+    .notNull()
+    .references(() => tonerTypes.id, { onDelete: "cascade" }),
+  quantity: integer("quantity").notNull(),
+  locationId: integer("location_id").references(() => locations.id, {
+    onDelete: "set null",
+  }),
+  departmentId: integer("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
+  itsNameId: integer("its_name_id").references(() => itsNames.id, {
+    onDelete: "set null",
+  }),
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------- NOTIFICATIONS ----------
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("info"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------- SYSTEM SETTINGS ----------
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  logoUrl: text("logo_url"),
+  notificationEmail: text("notification_email")
+    .notNull()
+    .default("itservicedesk@seaoil.com.ph"),
+  defaultLowStockThreshold: integer("default_low_stock_threshold")
+    .notNull()
+    .default(5),
+  emailReminderEnabled: boolean("email_reminder_enabled")
+    .notNull()
+    .default(true),
+  systemNotificationEnabled: boolean("system_notification_enabled")
+    .notNull()
+    .default(true),
+});
