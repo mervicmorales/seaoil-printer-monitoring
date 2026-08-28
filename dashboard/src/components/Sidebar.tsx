@@ -20,6 +20,7 @@ import {
   Droplets,
   FileText,
   LayoutDashboard,
+  KeyRound,
   LogOut,
   Menu,
   Monitor,
@@ -33,6 +34,7 @@ import {
   X,
 } from "lucide";
 import LogoutConfirmationDialog from "@/components/LogoutConfirmationDialog";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import AuthBlob from "@/components/AuthBlob";
 import { useBlobSkin } from "@/components/BlobSkinProvider";
 import {
@@ -119,6 +121,7 @@ export default function Sidebar({
   const [spotOpen, setSpotOpen] = useState(pathname.startsWith("/printdash"));
   const [printOpsOpen, setPrintOpsOpen] = useState(pathname.startsWith("/printops"));
   const [accountOpen, setAccountOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [accountPosition, setAccountPosition] = useState({ top: 0, left: 0 });
   const accountButtonRef = useRef<HTMLButtonElement>(null);
@@ -161,12 +164,12 @@ export default function Sidebar({
   useEffect(() => {
     if (!accountOpen) return;
     updateAccountPosition();
-    const focusFrame = logoutOpen
+    const focusFrame = logoutOpen || changePasswordOpen
       ? null
       : window.requestAnimationFrame(() => signOutButtonRef.current?.focus());
 
     function closeOnPointer(event: PointerEvent) {
-      if (logoutOpen) return;
+      if (logoutOpen || changePasswordOpen) return;
       const target = event.target as Node;
       if (!accountButtonRef.current?.contains(target) && !accountMenuRef.current?.contains(target)) {
         setAccountOpen(false);
@@ -174,7 +177,7 @@ export default function Sidebar({
     }
 
     function closeOnEscape(event: KeyboardEvent) {
-      if (logoutOpen) return;
+      if (logoutOpen || changePasswordOpen) return;
       if (event.key !== "Escape") return;
       setAccountOpen(false);
       accountButtonRef.current?.focus();
@@ -191,7 +194,7 @@ export default function Sidebar({
       window.removeEventListener("resize", updateAccountPosition);
       window.removeEventListener("scroll", updateAccountPosition, true);
     };
-  }, [accountOpen, logoutOpen, updateAccountPosition]);
+  }, [accountOpen, changePasswordOpen, logoutOpen, updateAccountPosition]);
 
   function toggleCollapsed() {
     setCollapsed((current) => {
@@ -488,6 +491,19 @@ export default function Sidebar({
             <button
               type="button"
               role="menuitem"
+              aria-haspopup="dialog"
+              onClick={() => {
+                setAccountOpen(false);
+                setChangePasswordOpen(true);
+              }}
+              className="mt-1 flex h-10 w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
+            >
+              <StaticIcon icon={KeyRound} size={18} />
+              Change password
+            </button>
+            <button
+              type="button"
+              role="menuitem"
               disabled
               aria-label="Light Mode"
               className="mt-1 flex h-10 w-full cursor-not-allowed items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-slate-400"
@@ -514,6 +530,11 @@ export default function Sidebar({
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
         triggerRef={signOutButtonRef}
+      />
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        triggerRef={accountButtonRef}
       />
     </>
   );

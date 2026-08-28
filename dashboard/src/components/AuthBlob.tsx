@@ -134,6 +134,7 @@ export default function AuthBlob({
         mood={feralMood}
         gaze={sensitive ? { x: 18, y: -9, intensity: 0.8 } : gaze}
         nod={mood === "thinking"}
+        respectReducedMotion={false}
         happyEyes="smile"
         className="h-full w-full"
       />

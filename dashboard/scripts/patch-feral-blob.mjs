@@ -2,8 +2,22 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const target = resolve("node_modules/feral-blob/dist/feral-blob.js");
+const declarationTarget = resolve(
+  "node_modules/feral-blob/dist/JellyBlobMascot.d.ts",
+);
 
 const replacements = [
+  [
+    `function JellyBlobMascot({ mood = "neutral", className, onOverpoke, happyEyes = "star", gaze = { x: 0, y: 0 }, mouth, nod = false }) {
+  const reduce = useReducedMotion();`,
+    `function JellyBlobMascot({ mood = "neutral", className, onOverpoke, happyEyes = "star", gaze = { x: 0, y: 0 }, mouth, nod = false, respectReducedMotion = true }) {
+  const systemReducedMotion = useReducedMotion();
+  const reduce = respectReducedMotion && systemReducedMotion;`,
+  ],
+  [
+    'jsx(MotionConfig, { reducedMotion: "user", children:',
+    'jsx(MotionConfig, { reducedMotion: respectReducedMotion ? "user" : "never", children:',
+  ],
   [
     `  const armRest = useRef(null);
   if (!armRest.current) {
@@ -63,4 +77,25 @@ for (const [invalidTransition, validTransition] of replacements) {
 if (changed) {
   await writeFile(target, source, "utf8");
   console.log("Applied feral-blob Motion keyframe compatibility patch.");
+}
+
+const declarationReplacement = [
+  `    /** Subtle talking wobble for host-driven moments like typing into a watched field. */
+    nod?: boolean;`,
+  `    /** Subtle talking wobble for host-driven moments like typing into a watched field. */
+    nod?: boolean;
+    /** Honor the device's reduced-motion preference. Defaults to true. */
+    respectReducedMotion?: boolean;`,
+];
+
+let declarations = await readFile(declarationTarget, "utf8");
+if (!declarations.includes(declarationReplacement[1])) {
+  if (!declarations.includes(declarationReplacement[0])) {
+    throw new Error(
+      "feral-blob changed upstream; review the reduced-motion type patch before continuing.",
+    );
+  }
+  declarations = declarations.replace(...declarationReplacement);
+  await writeFile(declarationTarget, declarations, "utf8");
+  console.log("Applied feral-blob reduced-motion type patch.");
 }

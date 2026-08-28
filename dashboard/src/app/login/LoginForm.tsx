@@ -116,6 +116,10 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
         ) : null}
       </div>
 
+      <p className="-mt-2 text-right text-sm font-medium text-[#014171]">
+        Forgot password?
+      </p>
+
       <button
         type="submit"
         disabled={pending}
