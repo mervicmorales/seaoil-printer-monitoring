@@ -70,9 +70,11 @@ export default async function RepairHistoryPage({
         title="Repair History"
         subtitle={`${rows.length} ticket(s) in the repair summary`}
         actions={
-          <Link href="/repair-history/new">
-            <PrimaryButton>+ Report Printer</PrimaryButton>
-          </Link>
+          access.repair ? (
+            <Link href="/repair-history/new">
+              <PrimaryButton>+ Report Printer</PrimaryButton>
+            </Link>
+          ) : undefined
         }
       />
       <SuccessBanner message={sp.success} showInline={false} />

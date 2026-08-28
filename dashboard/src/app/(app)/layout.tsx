@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import { requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import { db } from "@/db";
 import { notifications, systemSettings, users } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -19,6 +19,7 @@ export default async function AppLayout({
   modal?: ReactNode;
 }) {
   const session = await requireSession();
+  const access = await getModuleAccessMap(session.id, session.role);
   const cookieStore = await cookies();
   const collapsedCookie = cookieStore.get("seaoil-sidebar-collapsed")?.value;
   const blobSkinCookie = cookieStore.get(getBlobSkinCookieName(String(session.id)))?.value;
@@ -51,6 +52,7 @@ export default async function AppLayout({
         <AgentStatusNotifications />
         <Sidebar
           isAdmin={session.role === "admin"}
+          canManageSpot={access.spot}
           logoUrl={settingsRows[0]?.logoUrl ?? null}
           accountName={accountName || "SEAOIL User"}
           initialCollapsed={

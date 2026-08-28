@@ -2,8 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useRouter } from "next/navigation";
-import { Check, Eye, EyeOff, LoaderCircle, LogIn } from "lucide";
+import { Eye, EyeOff, LoaderCircle, LogIn } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import AuthBlob, { type BlobMood } from "@/components/AuthBlob";
 import { loginAction, type LoginState } from "./actions";
@@ -12,7 +11,6 @@ const initialState: LoginState = {};
 
 function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string }) {
   const { pending } = useFormStatus();
-  const router = useRouter();
   const identifierRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [focusedField, setFocusedField] = useState<"identifier" | "password" | null>(null);
@@ -21,30 +19,20 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
   const hasError = Boolean(state.error || Object.keys(state.fieldErrors ?? {}).length);
   const mood: BlobMood = pending
     ? "thinking"
-    : state.success
-      ? "success"
-      : hasError
+    : hasError
         ? "concerned"
         : focusedField
           ? "focused"
           : "idle";
 
   useEffect(() => {
-    if (!state.success || !state.redirectTo) return;
-    const destination = state.redirectTo;
-    const timeout = window.setTimeout(() => router.replace(destination), 220);
-    return () => window.clearTimeout(timeout);
-  }, [router, state.redirectTo, state.success]);
-
-  useEffect(() => {
-    if (state.success) return;
     if (state.fieldErrors?.identifier) {
       identifierRef.current?.focus();
     } else if (state.fieldErrors?.password || state.error) {
       passwordRef.current?.focus();
       passwordRef.current?.select();
     }
-  }, [state.error, state.fieldErrors, state.success]);
+  }, [state.error, state.fieldErrors]);
 
   return (
     <>
@@ -75,7 +63,7 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
           autoComplete="username"
           inputMode="email"
           required
-          disabled={pending || state.success}
+          disabled={pending}
           aria-invalid={Boolean(state.fieldErrors?.identifier) || undefined}
           aria-describedby={state.fieldErrors?.identifier ? "login-identifier-error" : undefined}
           placeholder="you@seaoil.com.ph"
@@ -102,7 +90,7 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
-            disabled={pending || state.success}
+            disabled={pending}
             aria-invalid={Boolean(state.fieldErrors?.password) || undefined}
             aria-describedby={state.fieldErrors?.password ? "login-password-error" : undefined}
             placeholder="••••••••"
@@ -112,7 +100,7 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
           />
           <button
             type="button"
-            disabled={pending || state.success}
+            disabled={pending}
             onClick={() => setShowPassword((visible) => !visible)}
             aria-label={showPassword ? "Hide password" : "Show password"}
             aria-pressed={showPassword}
@@ -130,21 +118,21 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
 
       <button
         type="submit"
-        disabled={pending || state.success}
+        disabled={pending}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#012c50] focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
       >
         <MorphIcon
-          icon={pending ? LoaderCircle : state.success ? Check : LogIn}
+          icon={pending ? LoaderCircle : LogIn}
           size={17}
           strokeWidth={2}
           reducedMotion="user"
           className={pending ? "animate-spin" : ""}
         />
-        {pending ? "Signing in…" : state.success ? "Signed in" : "Sign In"}
+        {pending ? "Signing in…" : "Sign In"}
       </button>
 
       <span className="sr-only" aria-live="polite">
-        {pending ? "Signing in" : state.success ? "Sign in successful" : ""}
+        {pending ? "Signing in" : ""}
       </span>
     </>
   );

@@ -4,7 +4,8 @@
   "description": "Full Printer Management Dashboard with Telegram Alerts",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:print-options": "node --test print-options.test.js"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

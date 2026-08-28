@@ -5,7 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { sendEmail } from "@/lib/email";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import type { ModuleName } from "@/lib/permissions";
+import { emptyModuleAccess, MODULES, type ModuleName } from "@/lib/permissions";
 
 export async function requireSession() {
   const session = await getSession();
@@ -15,27 +15,16 @@ export async function requireSession() {
 
 export async function getModuleAccessMap(userId: number, role: "admin" | "user") {
   if (role === "admin") {
-    return {
-      dashboard: true,
-      printers: true,
-      toner: true,
-      contract: true,
-      repair: true,
-      system: true,
-    } as Record<ModuleName, boolean>;
+    return Object.fromEntries(MODULES.map((module) => [module, true])) as Record<
+      ModuleName,
+      boolean
+    >;
   }
   const rows = await db
     .select()
     .from(userModuleAccess)
     .where(eq(userModuleAccess.userId, userId));
-  const map = {
-    dashboard: false,
-    printers: false,
-    toner: false,
-    contract: false,
-    repair: false,
-    system: false,
-  } as Record<ModuleName, boolean>;
+  const map = emptyModuleAccess();
   for (const row of rows) {
     map[row.module as ModuleName] = row.fullAccess;
   }

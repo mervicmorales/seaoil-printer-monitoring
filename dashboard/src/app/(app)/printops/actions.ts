@@ -1,16 +1,11 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { monitoringAgents, printOpsCommands } from "@/db/schema";
-import {
-  discardPrintFile,
-  holdPrintFile,
-} from "@/lib/printops-file-transfer";
-import { requireSession } from "@/lib/server-utils";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 
 const PRINTOPS_ROUTES = new Set([
   "/printops/print",
@@ -29,7 +24,7 @@ const ALLOWED_PRINT_EXTENSIONS = new Set([
 const MAX_PRINT_FILE_BYTES = 10 * 1024 * 1024;
 
 export async function queuePrintOpsSyncAction(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("printops");
   const returnTo = normalizeReturnTo(formData.get("returnTo"));
   const agentId = await validateAgent(formData.get("agentId"), returnTo);
   const active = await db
@@ -54,8 +49,8 @@ export async function queuePrintOpsSyncAction(formData: FormData) {
   redirectWith(returnTo, "success", "PrintOps refresh queued.");
 }
 
-export async function queuePrintAction(formData: FormData) {
-  const session = await requireSession();
+export async function queueDurablePrintAction(formData: FormData) {
+  const session = await requireModuleFullAccess("printops");
   const target = parseTarget(formData.get("target"));
   const agentId = await validateAgent(target.agentId, "/printops/print");
   const printerId = Number(target.value);
@@ -137,48 +132,34 @@ export async function queuePrintAction(formData: FormData) {
     redirectWith("/printops/print", "error", "Use a PDF, TXT, JPG, PNG, DOC, or DOCX file.");
   }
 
-  const transferKey = randomUUID();
-  try {
-    holdPrintFile(transferKey, Buffer.from(await file.arrayBuffer()));
-  } catch (error) {
-    redirectWith(
-      "/printops/print",
-      "error",
-      error instanceof Error ? error.message : "The print file could not be transferred.",
-    );
-  }
-  try {
-    await db.insert(printOpsCommands).values({
-      agentId,
-      requestedBy: session.id,
-      type: "print",
-      payload: {
-        printerId,
-        printerName: availablePrinter.rows[0].name,
-        copies,
-        duplex,
-        pageRanges: pageMode === "custom" ? pageRanges : null,
-        colorMode,
-        paperSize,
-        orientation,
-        pagesPerSheet,
-        quality,
-        scale,
-        transferKey,
-      },
-      inputFileName: file.name.slice(0, 255),
-      inputMimeType: file.type.slice(0, 255) || "application/octet-stream",
-    });
-  } catch (error) {
-    discardPrintFile(transferKey);
-    throw error;
-  }
+  const fileData = Buffer.from(await file.arrayBuffer()).toString("base64");
+  await db.insert(printOpsCommands).values({
+    agentId,
+    requestedBy: session.id,
+    type: "print",
+    payload: {
+      printerId,
+      printerName: availablePrinter.rows[0].name,
+      copies,
+      duplex,
+      pageRanges: pageMode === "custom" ? pageRanges : null,
+      colorMode,
+      paperSize,
+      orientation,
+      pagesPerSheet,
+      quality,
+      scale,
+    },
+    inputFileName: file.name.slice(0, 255),
+    inputMimeType: file.type.slice(0, 255) || "application/octet-stream",
+    inputFileData: fileData,
+  });
   revalidatePrintOps();
   redirectWith("/printops/print", "success", "Print job queued for the office agent.");
 }
 
 export async function queueScanAction(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("printops");
   const target = parseTarget(formData.get("target"));
   const agentId = await validateAgent(target.agentId, "/printops/scan");
   const device = target.value.trim();
@@ -200,7 +181,7 @@ export async function queueScanAction(formData: FormData) {
 }
 
 export async function cancelPrintJobAction(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("printops");
   const agentId = await validateAgent(formData.get("agentId"), "/printops/jobs");
   const jobId = String(formData.get("jobId") ?? "");
   if (!/^[a-zA-Z0-9_.-]+$/.test(jobId)) {

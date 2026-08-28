@@ -8,7 +8,7 @@ import DeleteButton from "@/components/DeleteButton";
 import PermissionsPanel from "./PermissionsPanel";
 import { deleteUserAction, updatePermissionsAction } from "./actions";
 import { requireAdmin } from "@/lib/server-utils";
-import { MODULES } from "@/lib/permissions";
+import { emptyModuleAccess } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +50,7 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
             </thead>
             <tbody className="divide-y divide-slate-100">
               {allUsers.map((u) => {
-                const map = { dashboard: false, printers: false, toner: false, contract: false, repair: false, system: false, ...accessByUser.get(u.id) };
+                const map = { ...emptyModuleAccess(), ...accessByUser.get(u.id) };
                 return (
                   <tr key={u.id}>
                     <td className="px-4 py-3 align-top font-medium">{u.fullName}</td>

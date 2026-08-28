@@ -4,6 +4,8 @@ export const MODULES = [
   "toner",
   "contract",
   "repair",
+  "spot",
+  "printops",
   "system",
 ] as const;
 
@@ -14,9 +16,18 @@ export const MODULE_LABELS: Record<ModuleName, string> = {
   printers: "Printers",
   toner: "Toner Monitoring",
   contract: "Contract",
-  repair: "Repair History",
+  repair: "Printer Repair History",
+  spot: "SPOT",
+  printops: "PrintOps",
   system: "System",
 };
+
+export function emptyModuleAccess(): Record<ModuleName, boolean> {
+  return Object.fromEntries(MODULES.map((module) => [module, false])) as Record<
+    ModuleName,
+    boolean
+  >;
+}
 
 // Default module access granted to a newly created "user" role account.
 export const DEFAULT_USER_ACCESS: Record<ModuleName, boolean> = {
@@ -25,6 +36,8 @@ export const DEFAULT_USER_ACCESS: Record<ModuleName, boolean> = {
   toner: true,
   contract: false,
   repair: false,
+  spot: false,
+  printops: false,
   system: false,
 };
 

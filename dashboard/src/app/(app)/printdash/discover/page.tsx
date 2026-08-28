@@ -9,7 +9,7 @@ import {
 } from "@/db/schema";
 import { Badge, Card, PageHeader, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
-import { requireAdmin } from "@/lib/server-utils";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 import { printerDetailHref } from "@/lib/printer-navigation";
 import { queueDiscoveryScanAction } from "./actions";
 import DiscoveryScanToasts from "./DiscoveryScanToasts";
@@ -21,7 +21,7 @@ export default async function DiscoverPrintersPage({
 }: {
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
-  await requireAdmin();
+  await requireModuleFullAccess("spot");
   const params = await searchParams;
   const renderedAt = new Date();
   const [agents, scans, registeredPrinters] = await Promise.all([

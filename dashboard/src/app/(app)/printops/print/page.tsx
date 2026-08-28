@@ -1,10 +1,10 @@
 import { Badge, Card, PageHeader, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
-import { requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import AgentSyncPanel from "../AgentSyncPanel";
 import { getPrintOpsAgents, getRecentPrintOpsCommands } from "../data";
 import PrintOpsFeedback from "../PrintOpsFeedback";
-import { queuePrintAction } from "../actions";
+import { queueDurablePrintAction } from "../actions";
 import PrintFilePreview from "./PrintFilePreview";
 import PrintTargetSelect from "./PrintTargetSelect";
 
@@ -16,6 +16,7 @@ export default async function PrintOpsPrintPage({
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
   const session = await requireSession();
+  const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
   const [agents, commands] = await Promise.all([
     getPrintOpsAgents(),
@@ -34,19 +35,23 @@ export default async function PrintOpsPrintPage({
         actions={<RefreshControl refreshedAtLabel={formatTime(renderedAt)} intervalSeconds={5} />}
       />
       <PrintOpsFeedback success={params.success} error={params.error} />
-      <AgentSyncPanel agents={agents} returnTo="/printops/print" />
+      <AgentSyncPanel agents={agents} returnTo="/printops/print" canManage={access.printops} />
 
       <Card className="mb-6 p-5 sm:p-6">
         <h2 className="font-semibold text-[#014171]">Send a File to Print</h2>
         <p className="mt-1 text-sm text-slate-500">
           Files are transferred to the selected office agent and removed from the command after submission.
         </p>
-        {printerTargets.length === 0 ? (
+        {!access.printops ? (
+          <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            You have view-only access to PrintOps.
+          </p>
+        ) : printerTargets.length === 0 ? (
           <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700">
             No assigned printers are currently online. Refresh an online office agent above.
           </p>
         ) : (
-          <form action={queuePrintAction} className="mt-5 grid gap-4 lg:grid-cols-2">
+          <form action={queueDurablePrintAction} className="mt-5 grid gap-4 lg:grid-cols-2">
             <PrintTargetSelect
               agents={agents.map((agent) => ({
                 id: agent.id,

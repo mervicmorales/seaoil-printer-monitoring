@@ -1,6 +1,6 @@
 import { Badge, Card, PageHeader } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
-import { requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import { printOpsJobId } from "@/lib/printops";
 import AgentSyncPanel from "../AgentSyncPanel";
 import { getPrintOpsAgents, getRecentPrintOpsCommands } from "../data";
@@ -15,6 +15,7 @@ export default async function PrintOpsJobsPage({
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
   const session = await requireSession();
+  const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
   const [agents, cancellations] = await Promise.all([
     getPrintOpsAgents(),
@@ -30,7 +31,7 @@ export default async function PrintOpsJobsPage({
         actions={<RefreshControl refreshedAtLabel={formatTime(renderedAt)} intervalSeconds={5} />}
       />
       <PrintOpsFeedback success={params.success} error={params.error} />
-      <AgentSyncPanel agents={agents} returnTo="/printops/jobs" />
+      <AgentSyncPanel agents={agents} returnTo="/printops/jobs" canManage={access.printops} />
 
       <div className="space-y-6">
         {agents.map((agent) => (
@@ -77,11 +78,13 @@ export default async function PrintOpsJobsPage({
                     return (
                       <div key={job} className="flex flex-col gap-2 rounded-lg border border-slate-200 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                         <span className="break-all text-xs text-slate-700">{job}</span>
-                        <form action={cancelPrintJobAction}>
-                          <input type="hidden" name="agentId" value={agent.id} />
-                          <input type="hidden" name="jobId" value={jobId} />
-                          <button type="submit" className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100">Cancel</button>
-                        </form>
+                        {access.printops && (
+                          <form action={cancelPrintJobAction}>
+                            <input type="hidden" name="agentId" value={agent.id} />
+                            <input type="hidden" name="jobId" value={jobId} />
+                            <button type="submit" className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100">Cancel</button>
+                          </form>
+                        )}
                       </div>
                     );
                   })}

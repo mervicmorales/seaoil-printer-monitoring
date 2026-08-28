@@ -50,6 +50,7 @@ export async function GET(request: Request) {
     payload: Record<string, unknown>;
     input_file_name: string | null;
     input_mime_type: string | null;
+    input_file_data: string | null;
   }>(sql`
     update print_ops_commands
     set status = 'running', started_at = now(), error_message = null
@@ -61,24 +62,28 @@ export async function GET(request: Request) {
       for update skip locked
       limit 1
     )
-    returning id, type, payload, input_file_name, input_mime_type
+    returning id, type, payload, input_file_name, input_mime_type, input_file_data
   `);
 
   const command = claimed.rows[0];
   let inputFileData: string | null = null;
   if (command?.type === "print") {
-    const transferKey =
-      typeof command.payload.transferKey === "string"
-        ? command.payload.transferKey
-        : "";
-    const fileData = transferKey ? claimPrintFile(transferKey) : null;
-    if (!fileData) {
+    inputFileData = command.input_file_data;
+    if (!inputFileData) {
+      const transferKey =
+        typeof command.payload.transferKey === "string"
+          ? command.payload.transferKey
+          : "";
+      const legacyFileData = transferKey ? claimPrintFile(transferKey) : null;
+      inputFileData = legacyFileData?.toString("base64") ?? null;
+    }
+    if (!inputFileData) {
       await db
         .update(printOpsCommands)
         .set({
           status: "failed",
           completedAt: new Date(),
-          errorMessage: "The temporary print file expired before the agent retrieved it.",
+          errorMessage: "The print file is unavailable. Please submit the print request again.",
         })
         .where(eq(printOpsCommands.id, command.id));
       return NextResponse.json(
@@ -86,7 +91,6 @@ export async function GET(request: Request) {
         { headers: { "Cache-Control": "no-store" } },
       );
     }
-    inputFileData = fileData.toString("base64");
   }
   return NextResponse.json(
     {

@@ -5,10 +5,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { monitoringAgents, printerDiscoveryScans } from "@/db/schema";
-import { requireAdmin } from "@/lib/server-utils";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export async function queueDiscoveryScanAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireModuleFullAccess("spot");
   const agentId = Number(String(formData.get("agentId") ?? ""));
   const subnet = String(formData.get("subnet") ?? "").trim();
 

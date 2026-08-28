@@ -6,9 +6,11 @@ const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
 const https   = require('https');
+const net     = require('net');
 const os      = require('os');
 const { execFile, exec, spawn } = require('child_process');
 const crypto  = require('crypto');
+const { buildLpArgs } = require('./print-options');
 const app  = express();
 const configuredPort = Number(process.env.PORT || 3003);
 const PORT = Number.isInteger(configuredPort) && configuredPort > 0 && configuredPort <= 65535 ? configuredPort : 3003;
@@ -859,27 +861,14 @@ function printFile(filePath, printerName, copies, duplex) {
 
 function printBuffer(fileBuffer, fileName, mimeType, printerName, copies, duplex, printOptions) {
   return new Promise((resolve,reject) => {
-    const args=['-d', printerName, '-n', String(copies||1), '-t', path.basename(fileName)];
-    if (duplex==='long') args.push('-o','sides=two-sided-long-edge');
-    else if (duplex==='short') args.push('-o','sides=two-sided-short-edge');
-    const media = {
-      a4:'iso_a4_210x297mm',
-      letter:'na_letter_8.5x11in',
-      legal:'na_legal_8.5x14in',
-      a3:'iso_a3_297x420mm',
-    }[printOptions.paperSize];
-    args.push('-o', `media=${media}`);
-    args.push('-o', `print-color-mode=${printOptions.colorMode==='grayscale'?'monochrome':'color'}`);
-    args.push('-o', `orientation-requested=${printOptions.orientation==='landscape'?4:3}`);
-    args.push('-o', `number-up=${printOptions.pagesPerSheet}`);
-    args.push('-o', `print-quality=${{draft:3,normal:4,high:5}[printOptions.quality]}`);
-    if (printOptions.pageRanges) args.push('-o', `page-ranges=${printOptions.pageRanges}`);
-    if (printOptions.scale==='fit') args.push('-o','fit-to-page');
-    else args.push('-o', `scaling=${printOptions.scale}`);
-    if (/^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(String(mimeType||''))) {
-      args.push('-o', `document-format=${mimeType}`);
-    }
-    args.push('-');
+    const args = buildLpArgs({
+      printerName,
+      fileName,
+      mimeType,
+      copies: copies || 1,
+      duplex,
+      printOptions,
+    });
 
     const child=spawn('lp', args, {stdio:['pipe','pipe','pipe']});
     let stdout='';

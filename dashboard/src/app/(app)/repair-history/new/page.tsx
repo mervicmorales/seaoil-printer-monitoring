@@ -2,11 +2,11 @@ import { PageHeader, Card } from "@/components/ui";
 import { getDepartments, getLocations, getVendors } from "@/lib/lookups";
 import ReportIssueForm from "../ReportIssueForm";
 import { createReportAction } from "../actions";
-import { requireSession } from "@/lib/server-utils";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 import { todayISO } from "@/lib/format";
 
 export default async function ReportIssuePage() {
-  await requireSession();
+  await requireModuleFullAccess("repair");
   const [locations, departments, vendors] = await Promise.all([getLocations(), getDepartments(), getVendors()]);
 
   return (

@@ -1,6 +1,6 @@
 import { Badge, Card, PageHeader, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
-import { requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import AgentSyncPanel from "../AgentSyncPanel";
 import { getPrintOpsAgents, getRecentPrintOpsCommands } from "../data";
 import PrintOpsFeedback from "../PrintOpsFeedback";
@@ -15,6 +15,7 @@ export default async function PrintOpsScanPage({
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
   const session = await requireSession();
+  const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
   const [agents, scans] = await Promise.all([
     getPrintOpsAgents(),
@@ -33,14 +34,18 @@ export default async function PrintOpsScanPage({
         actions={<RefreshControl refreshedAtLabel={formatTime(renderedAt)} intervalSeconds={5} />}
       />
       <PrintOpsFeedback success={params.success} error={params.error} />
-      <AgentSyncPanel agents={agents} returnTo="/printops/scan" />
+      <AgentSyncPanel agents={agents} returnTo="/printops/scan" canManage={access.printops} />
 
       <Card className="mb-6 p-5 sm:p-6">
         <h2 className="font-semibold text-[#014171]">Start a Scan</h2>
         <p className="mt-1 text-sm text-slate-500">
           Place the document in the selected scanner before starting. Large scans may take up to two minutes.
         </p>
-        {scannerTargets.length === 0 ? (
+        {!access.printops ? (
+          <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            You have view-only access to PrintOps.
+          </p>
+        ) : scannerTargets.length === 0 ? (
           <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700">
             No SANE-compatible scanners are available yet. Refresh an online office agent above.
           </p>

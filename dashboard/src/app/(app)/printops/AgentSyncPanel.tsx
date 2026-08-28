@@ -6,9 +6,11 @@ import PrintOpsRefreshButton from "./PrintOpsRefreshButton";
 export default function AgentSyncPanel({
   agents,
   returnTo,
+  canManage,
 }: {
   agents: PrintOpsAgent[];
   returnTo: "/printops/print" | "/printops/scan" | "/printops/jobs";
+  canManage: boolean;
 }) {
   return (
     <Card className="mb-6 p-5">
@@ -44,11 +46,13 @@ export default function AgentSyncPanel({
                     : "No PrintOps data yet"}
                 </p>
               </div>
-              <form action={queuePrintOpsSyncAction}>
-                <input type="hidden" name="agentId" value={agent.id} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <PrintOpsRefreshButton />
-              </form>
+              {canManage && (
+                <form action={queuePrintOpsSyncAction}>
+                  <input type="hidden" name="agentId" value={agent.id} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  <PrintOpsRefreshButton />
+                </form>
+              )}
             </div>
           ))}
         </div>

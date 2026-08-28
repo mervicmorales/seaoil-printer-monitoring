@@ -39,8 +39,38 @@ export default function PrintFilePreview() {
     };
   }, [open]);
 
+  function selectFile(nextFile: File | null) {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    let nextUrl = "";
+    if (nextFile) {
+      try {
+        nextUrl = URL.createObjectURL(nextFile);
+      } catch {
+        // Printing can still proceed when a browser cannot create a local preview URL.
+      }
+    }
+    previewUrlRef.current = nextUrl;
+    selectedFileRef.current = nextFile;
+    setFile(nextFile);
+    setPreviewUrl(nextUrl);
+    setTextPreview("");
+    setOpen(false);
+    if (nextFile && getPreviewKind(nextFile) === "text") {
+      void nextFile.text().then((value) => {
+        if (selectedFileRef.current === nextFile) setTextPreview(value);
+      });
+    }
+  }
+
   function openPreview(event: MouseEvent<HTMLButtonElement>) {
     const form = event.currentTarget.closest("form");
+    const fileInput = form?.querySelector<HTMLInputElement>('input[name="file"]');
+    const selectedFile = fileInput?.files?.[0] ?? file;
+    if (!selectedFile) {
+      fileInput?.reportValidity();
+      return;
+    }
+    if (selectedFile !== file) selectFile(selectedFile);
     const target = form?.querySelector<HTMLSelectElement>('select[name="target"]');
     setDestination(target?.selectedOptions[0]?.textContent?.trim() || "Selected agent printer");
     setOpen(true);
@@ -57,19 +87,7 @@ export default function PrintFilePreview() {
           accept=".pdf,.txt,.jpg,.jpeg,.png,.doc,.docx"
           onChange={(event) => {
             const nextFile = event.target.files?.[0] ?? null;
-            if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-            const nextUrl = nextFile ? URL.createObjectURL(nextFile) : "";
-            previewUrlRef.current = nextUrl;
-            selectedFileRef.current = nextFile;
-            setFile(nextFile);
-            setPreviewUrl(nextUrl);
-            setTextPreview("");
-            setOpen(false);
-            if (nextFile && getPreviewKind(nextFile) === "text") {
-              void nextFile.text().then((value) => {
-                if (selectedFileRef.current === nextFile) setTextPreview(value);
-              });
-            }
+            selectFile(nextFile);
           }}
           className="block w-full rounded-lg border border-slate-300 bg-white text-sm text-slate-600 file:mr-4 file:border-0 file:bg-slate-100 file:px-4 file:py-2.5 file:font-semibold file:text-[#014171] hover:file:bg-slate-200"
         />
@@ -81,8 +99,7 @@ export default function PrintFilePreview() {
         <button
           type="button"
           onClick={openPreview}
-          disabled={!file}
-          className="rounded-lg bg-[#014171] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#012f52] disabled:cursor-not-allowed disabled:opacity-45"
+          className="rounded-lg bg-[#014171] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#012f52]"
         >
           Preview &amp; Print
         </button>

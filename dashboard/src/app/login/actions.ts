@@ -3,13 +3,12 @@
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { setSessionCookie, verifyPassword } from "@/lib/auth";
 
 export type LoginState = {
   error?: string;
   fieldErrors?: Record<string, string>;
-  success?: boolean;
-  redirectTo?: string;
 };
 
 function safeRedirectPath(value: string) {
@@ -58,5 +57,5 @@ export async function loginAction(
     role: user.role as "admin" | "user",
   });
 
-  return { success: true, redirectTo };
+  redirect(redirectTo);
 }

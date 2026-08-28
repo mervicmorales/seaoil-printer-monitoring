@@ -38,6 +38,7 @@ import { useBlobSkin } from "@/components/BlobSkinProvider";
 import {
   BLOB_SKINS,
 } from "@/lib/blob-skins";
+import { MODULE_LABELS } from "@/lib/permissions";
 
 type NavItem = {
   href: string;
@@ -48,14 +49,14 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/printers", label: "Printers", icon: Printer },
-  { href: "/toner-monitoring", label: "Toner Monitoring", icon: Droplets },
-  { href: "/contracts", label: "Contract", icon: FileText },
-  { href: "/repair-history", label: "Printer Repair History", icon: Wrench },
+  { href: "/dashboard", label: MODULE_LABELS.dashboard, icon: LayoutDashboard },
+  { href: "/printers", label: MODULE_LABELS.printers, icon: Printer },
+  { href: "/toner-monitoring", label: MODULE_LABELS.toner, icon: Droplets },
+  { href: "/contracts", label: MODULE_LABELS.contract, icon: FileText },
+  { href: "/repair-history", label: MODULE_LABELS.repair, icon: Wrench },
   {
     href: "/printdash",
-    label: "SPOT",
+    label: MODULE_LABELS.spot,
     icon: Monitor,
     separated: true,
     children: [
@@ -66,7 +67,7 @@ const NAV: NavItem[] = [
   },
   {
     href: "/printops",
-    label: "PrintOps",
+    label: MODULE_LABELS.printops,
     icon: Printer,
     separated: true,
     children: [
@@ -75,7 +76,7 @@ const NAV: NavItem[] = [
       { href: "/printops/jobs", label: "Print Jobs", icon: FileText },
     ],
   },
-  { href: "/system", label: "System", icon: Settings, separated: true },
+  { href: "/system", label: MODULE_LABELS.system, icon: Settings, separated: true },
 ];
 
 function StaticIcon({ icon, size = 19 }: { icon: IconNode; size?: number }) {
@@ -100,11 +101,13 @@ function StaticIcon({ icon, size = 19 }: { icon: IconNode; size?: number }) {
 
 export default function Sidebar({
   isAdmin,
+  canManageSpot,
   logoUrl,
   accountName,
   initialCollapsed,
 }: {
   isAdmin: boolean;
+  canManageSpot: boolean;
   logoUrl: string | null;
   accountName: string;
   initialCollapsed: boolean | null;
@@ -382,7 +385,7 @@ export default function Sidebar({
                   >
                     <div className="min-h-0 overflow-hidden">
                       <div className="space-y-1 pl-8 lg:pl-0">
-                        {item.children.filter((child) => !child.adminOnly || isAdmin).map((child) => {
+                        {item.children.filter((child) => !child.adminOnly || isAdmin || canManageSpot).map((child) => {
                           const childActive = pathname === child.href;
                           return (
                             <div key={child.href} className="group/child relative">

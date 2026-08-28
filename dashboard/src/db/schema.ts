@@ -31,7 +31,7 @@ export const userModuleAccess = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    module: text("module").notNull(), // dashboard | printers | toner | contract | repair | system
+    module: text("module").notNull(), // See MODULES in src/lib/permissions.ts.
     fullAccess: boolean("full_access").notNull().default(false),
   },
   (t) => [uniqueIndex("user_module_unique").on(t.userId, t.module)],

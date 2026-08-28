@@ -7,7 +7,16 @@ import "dotenv/config";
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-const MODULES = ["dashboard", "printers", "toner", "contract", "repair", "system"];
+const MODULES = [
+  "dashboard",
+  "printers",
+  "toner",
+  "contract",
+  "repair",
+  "spot",
+  "printops",
+  "system",
+];
 
 async function upsertUser(fullName, email, username, password, role) {
   const existing = await pool.query("select id from users where username = $1", [username]);
