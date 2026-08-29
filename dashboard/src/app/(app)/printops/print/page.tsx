@@ -5,7 +5,6 @@ import AgentSyncPanel from "../AgentSyncPanel";
 import { getPrintOpsAgents, getRecentPrintOpsCommands } from "../data";
 import PrintOpsFeedback from "../PrintOpsFeedback";
 import { queueDurablePrintAction } from "../actions";
-import PrintFilePreview from "./PrintFilePreview";
 import PrintTargetSelect from "./PrintTargetSelect";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +59,6 @@ export default async function PrintOpsPrintPage({
               }))}
               selectClassName={selectClassName}
             />
-            <PrintFilePreview />
           </form>
         )}
       </Card>

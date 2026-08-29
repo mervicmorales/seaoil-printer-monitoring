@@ -43,7 +43,7 @@ export default async function LoginPage({
         </div>
         <div className="relative z-10">
           <h1 className="text-4xl font-bold leading-tight">
-            Printer Monitoring System
+            Printer Management System
           </h1>
           <p className="mt-4 max-w-md text-sm text-[#cfe0f2]">
             Centralized tracking for printers, toner inventory, contracts and

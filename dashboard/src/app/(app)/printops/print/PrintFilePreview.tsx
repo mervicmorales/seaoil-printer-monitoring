@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import type { PrintOpsPrinterTarget } from "@/lib/printops";
 import PrintOpsSubmitButton from "../PrintOpsSubmitButton";
+import { printerLabel } from "./print-target-state";
 
 type PreviewKind = "pdf" | "image" | "text" | "unsupported";
 
-export default function PrintFilePreview() {
+export default function PrintFilePreview({
+  initialTarget,
+  selectedAgentId,
+  printers,
+}: {
+  initialTarget: string;
+  selectedAgentId: string;
+  printers: PrintOpsPrinterTarget[];
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [textPreview, setTextPreview] = useState("");
-  const [destination, setDestination] = useState("Selected agent printer");
+  const [target, setTarget] = useState(initialTarget);
   const [open, setOpen] = useState(false);
   const [pageMode, setPageMode] = useState("all");
   const [colorMode, setColorMode] = useState("color");
@@ -71,8 +81,6 @@ export default function PrintFilePreview() {
       return;
     }
     if (selectedFile !== file) selectFile(selectedFile);
-    const target = form?.querySelector<HTMLSelectElement>('select[name="target"]');
-    setDestination(target?.selectedOptions[0]?.textContent?.trim() || "Selected agent printer");
     setOpen(true);
   }
 
@@ -165,10 +173,22 @@ export default function PrintFilePreview() {
                 </header>
 
                 <div className="space-y-5 p-6">
-                  <Setting label="Destination">
-                    <div className="min-w-0 overflow-hidden rounded-lg border border-slate-500 bg-[#303134] px-3 py-2.5 text-sm text-white" title={destination}>
-                      <span className="block truncate">{destination}</span>
-                    </div>
+                  <Setting label="Printer">
+                    <select
+                      name="target"
+                      value={target}
+                      onChange={(event) => setTarget(event.target.value)}
+                      required
+                      disabled={printers.length === 0}
+                      className={darkSelectClassName}
+                    >
+                      {printers.length === 0 && <option value="">No available printers</option>}
+                      {printers.map((printer) => (
+                        <option key={printer.printerId} value={`${selectedAgentId}|${printer.printerId}`}>
+                          {printerLabel(printer)}
+                        </option>
+                      ))}
+                    </select>
                   </Setting>
 
                   <Setting label="Pages">
