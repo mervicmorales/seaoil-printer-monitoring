@@ -2,9 +2,8 @@ import { and, asc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { departments, locations, printers, users } from "@/db/schema";
-import { Badge, Card, EmptyState, PrimaryButton } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireSession } from "@/lib/server-utils";
-import { portalLogoutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -52,19 +51,10 @@ export default async function PortalPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#f4f6f9] px-4 py-10">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[#014171]">Employee Portal</h1>
-            <p className="text-sm text-slate-500">Available printers for your assigned workplace</p>
-          </div>
-          <form action={portalLogoutAction}>
-            <PrimaryButton type="submit">Sign out</PrimaryButton>
-          </form>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader title="Employee Portal" subtitle="Available printers for your assigned workplace" />
 
-        <Card className="p-6">
+      <Card className="p-6">
           <dl className="grid gap-5 sm:grid-cols-2">
             {profileRows.map(([label, value]) => (
               <div key={label}>
@@ -77,9 +67,9 @@ export default async function PortalPage() {
               <dd className="mt-1"><Badge color="green">{employee.accountStatus}</Badge></dd>
             </div>
           </dl>
-        </Card>
+      </Card>
 
-        <Card className="overflow-hidden">
+      <Card className="overflow-hidden">
           <div className="border-b border-slate-200 px-6 py-4">
             <h2 className="font-semibold text-[#014171]">Available Printers</h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -116,8 +106,7 @@ export default async function PortalPage() {
               </table>
             </div>
           )}
-        </Card>
-      </div>
-    </main>
+      </Card>
+    </div>
   );
 }

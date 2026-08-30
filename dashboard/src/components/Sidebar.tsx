@@ -48,7 +48,7 @@ type NavItem = {
   icon: IconNode;
   module?: ModuleName;
   separated?: boolean;
-  children?: Array<{ href: string; label: string; icon: IconNode; adminOnly?: boolean }>;
+  children?: Array<{ href: string; label: string; icon: IconNode; adminOnly?: boolean; disabled?: boolean }>;
 };
 
 const NAV: NavItem[] = [
@@ -86,6 +86,21 @@ const NAV: NavItem[] = [
   { href: "/manage/registrations", label: MODULE_LABELS.registrations, icon: KeyRound, module: "registrations" },
 ];
 
+const EMPLOYEE_NAV: NavItem[] = [
+  { href: "/portal", label: "Employee Portal", icon: LayoutDashboard },
+  {
+    href: "/portal#print-services",
+    label: "Print Services",
+    icon: Printer,
+    separated: true,
+    children: [
+      { href: "#employee-print", label: "Print", icon: Printer, disabled: true },
+      { href: "#employee-scan", label: "Scan", icon: Radar, disabled: true },
+      { href: "#employee-print-jobs", label: "PrintJobs", icon: FileText, disabled: true },
+    ],
+  },
+];
+
 function StaticIcon({ icon, size = 19 }: { icon: IconNode; size?: number }) {
   return (
     <svg
@@ -113,6 +128,7 @@ export default function Sidebar({
   accountName,
   initialCollapsed,
   moduleAccess,
+  employeeMode = false,
 }: {
   isAdmin: boolean;
   canManageSpot: boolean;
@@ -120,6 +136,7 @@ export default function Sidebar({
   accountName: string;
   initialCollapsed: boolean | null;
   moduleAccess: Record<ModuleName, boolean>;
+  employeeMode?: boolean;
 }) {
   const pathname = usePathname();
   const { blobSkin, setBlobSkin } = useBlobSkin();
@@ -127,6 +144,7 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState(initialCollapsed ?? false);
   const [spotOpen, setSpotOpen] = useState(pathname.startsWith("/printdash"));
   const [printOpsOpen, setPrintOpsOpen] = useState(pathname.startsWith("/printops"));
+  const [employeeServicesOpen, setEmployeeServicesOpen] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -135,7 +153,7 @@ export default function Sidebar({
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const signOutButtonRef = useRef<HTMLButtonElement>(null);
   const permittedItems = NAV.filter((item) => !item.module || moduleAccess[item.module]);
-  const items = permittedItems;
+  const items = employeeMode ? EMPLOYEE_NAV : permittedItems;
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -316,17 +334,22 @@ export default function Sidebar({
             const sectionActive = active || pathname.startsWith(`${item.href}/`);
             const isSpot = item.href === "/printdash";
             const isPrintOps = item.href === "/printops";
-            const isDropdown = isSpot || isPrintOps;
+            const isEmployeeServices = item.href === "/portal#print-services";
+            const isDropdown = isSpot || isPrintOps || isEmployeeServices;
             const submenuOpen = isSpot
               ? spotOpen
               : isPrintOps
                 ? printOpsOpen
-                : sectionActive;
+                : isEmployeeServices
+                  ? employeeServicesOpen
+                  : sectionActive;
             const submenuId = isSpot
               ? "spot-submenu"
               : isPrintOps
                 ? "printops-submenu"
-                : undefined;
+                : isEmployeeServices
+                  ? "employee-print-services-submenu"
+                  : undefined;
             return (
               <div key={item.href}>
                 {item.separated && <div className="mx-2 my-3 border-t border-white/15" />}
@@ -347,6 +370,11 @@ export default function Sidebar({
                       if (isPrintOps) {
                         event.preventDefault();
                         setPrintOpsOpen((open) => !open);
+                        return;
+                      }
+                      if (isEmployeeServices) {
+                        event.preventDefault();
+                        setEmployeeServicesOpen((open) => !open);
                         return;
                       }
                       setMobileOpen(false);
@@ -371,6 +399,7 @@ export default function Sidebar({
                       onClick={() => {
                         if (isSpot) setSpotOpen((open) => !open);
                         if (isPrintOps) setPrintOpsOpen((open) => !open);
+                        if (isEmployeeServices) setEmployeeServicesOpen((open) => !open);
                       }}
                       className={`absolute right-1 top-1 flex size-8 items-center justify-center rounded-md text-[#dfe9f4] transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${copyClass}`}
                     >
@@ -398,21 +427,33 @@ export default function Sidebar({
                           const childActive = pathname === child.href;
                           return (
                             <div key={child.href} className="group/child relative">
-                              <Link
-                                href={child.href}
-                                aria-current={childActive ? "page" : undefined}
-                                title={collapsed ? child.label : undefined}
-                                tabIndex={submenuOpen ? undefined : -1}
-                                onClick={() => setMobileOpen(false)}
-                                className={`flex h-9 items-center gap-2.5 rounded-lg px-3 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${
-                                  childActive
-                                    ? "bg-[#FEF200] text-[#014171]"
-                                    : "text-[#dfe9f4] hover:bg-white/10 hover:text-white"
-                                }`}
-                              >
-                                <span className="flex size-5 shrink-0 items-center justify-center"><StaticIcon icon={child.icon} size={17} /></span>
-                                <span className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${copyClass}`}>{child.label}</span>
-                              </Link>
+                              {child.disabled ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  title={collapsed ? child.label : `${child.label} — coming soon`}
+                                  className="flex h-9 w-full cursor-not-allowed items-center gap-2.5 rounded-lg px-3 text-left text-xs font-medium text-[#dfe9f4]/65"
+                                >
+                                  <span className="flex size-5 shrink-0 items-center justify-center"><StaticIcon icon={child.icon} size={17} /></span>
+                                  <span className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${copyClass}`}>{child.label}</span>
+                                </button>
+                              ) : (
+                                <Link
+                                  href={child.href}
+                                  aria-current={childActive ? "page" : undefined}
+                                  title={collapsed ? child.label : undefined}
+                                  tabIndex={submenuOpen ? undefined : -1}
+                                  onClick={() => setMobileOpen(false)}
+                                  className={`flex h-9 items-center gap-2.5 rounded-lg px-3 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${
+                                    childActive
+                                      ? "bg-[#FEF200] text-[#014171]"
+                                      : "text-[#dfe9f4] hover:bg-white/10 hover:text-white"
+                                  }`}
+                                >
+                                  <span className="flex size-5 shrink-0 items-center justify-center"><StaticIcon icon={child.icon} size={17} /></span>
+                                  <span className={`min-w-0 truncate whitespace-nowrap transition-all duration-200 ${copyClass}`}>{child.label}</span>
+                                </Link>
+                              )}
                             </div>
                           );
                         })}

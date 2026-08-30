@@ -23,6 +23,16 @@ do $$ begin
   end if;
 end $$;
 
+create table if not exists manual_user_verification_tokens (
+  id serial primary key,
+  user_id integer not null references users(id) on delete cascade,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists manual_user_verification_user_idx on manual_user_verification_tokens(user_id);
+
 alter table printer_discovery_scans drop constraint if exists printer_discovery_scans_requested_by_users_id_fk;
 alter table printer_discovery_scans alter column requested_by drop not null;
 alter table printer_discovery_scans add constraint printer_discovery_scans_requested_by_users_id_fk

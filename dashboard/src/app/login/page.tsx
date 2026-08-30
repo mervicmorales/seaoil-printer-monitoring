@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; verified?: string }>;
 }) {
   const params = await searchParams;
   const [settings] = await db
@@ -77,6 +77,22 @@ export default async function LoginPage({
           <p className="mt-1 text-sm text-slate-500">
             Sign in to manage printers, toner and repair tickets.
           </p>
+
+          {params.verified === "account-activated" && (
+            <p className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              Your email has been verified and your account is now active. You can sign in.
+            </p>
+          )}
+          {params.verified === "1" && (
+            <p className="mt-5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+              Your email has been verified. Your registration is now awaiting administrator approval.
+            </p>
+          )}
+          {(params.verified === "0" || params.verified === "invalid") && (
+            <p role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              This verification link is invalid, expired, or has already been used.
+            </p>
+          )}
 
           <LoginForm nextPath={params.next ?? "/dashboard"} />
           <p className="mt-5 text-center text-sm text-slate-500">SEAOIL employee? <Link href="/register" className="font-medium text-[#014171] hover:underline">Request access</Link></p>

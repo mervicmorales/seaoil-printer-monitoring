@@ -59,6 +59,21 @@ export const userModuleAccess = pgTable(
   (t) => [uniqueIndex("user_module_unique").on(t.userId, t.module)],
 );
 
+export const manualUserVerificationTokens = pgTable(
+  "manual_user_verification_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("manual_user_verification_user_idx").on(t.userId)],
+);
+
 // ---------- LOOKUP DATABASES ----------
 export const itsNames = pgTable("its_names", {
   id: serial("id").primaryKey(),

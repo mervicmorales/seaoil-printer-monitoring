@@ -76,13 +76,17 @@ export async function loginAction(
 
     return { error: "Invalid credentials. Please check your email/username and password." };
   }
-  if (user.accountStatus !== "active") {
-    return { error: "This account is not active. Please contact IT support." };
-  }
-
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
     return { error: "Invalid credentials. Please check your email/username and password." };
+  }
+  if (user.accountStatus === "pending_email") {
+    return {
+      error: `Please verify your email address using the verification link sent to ${user.email} before signing in.`,
+    };
+  }
+  if (user.accountStatus !== "active") {
+    return { error: "This account is not active. Please contact IT support." };
   }
 
   await setSessionCookie({

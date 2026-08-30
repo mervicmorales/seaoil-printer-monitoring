@@ -6,7 +6,7 @@ import { PageHeader, TableCard, Badge, PrimaryButton, EmptyState } from "@/compo
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
 import PermissionsPanel from "./PermissionsPanel";
-import { deleteUserAction, updatePermissionsAction } from "./actions";
+import { deleteUserAction, resendManualUserVerificationAction, updatePermissionsAction } from "./actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 import { emptyModuleAccess } from "@/lib/permissions";
 
@@ -86,6 +86,14 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
                     <td className="px-4 py-3 align-top">
                       <div className="flex flex-col items-end gap-2">
                         <div className="flex gap-2">
+                          {u.accountStatus === "pending_email" && (
+                            <form action={resendManualUserVerificationAction}>
+                              <input type="hidden" name="id" value={u.id} />
+                              <button type="submit" className="rounded-lg border border-sky-200 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50">
+                                Resend Verification
+                              </button>
+                            </form>
+                          )}
                           <Link href={`/manage/${u.id}/edit`} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">Edit</Link>
                           {u.id !== session.id && (
                             <DeleteButton action={deleteUserAction} id={u.id} confirmText={`Delete user "${u.username}"?`} />

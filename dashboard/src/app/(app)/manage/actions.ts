@@ -1,13 +1,16 @@
 "use server";
 
+import { createHash, randomBytes } from "crypto";
+import { headers } from "next/headers";
 import { db } from "@/db";
-import { auditLogs, userRegistrationRequests, users, userModuleAccess } from "@/db/schema";
-import { eq, and, or } from "drizzle-orm";
+import { auditLogs, manualUserVerificationTokens, userRegistrationRequests, users, userModuleAccess } from "@/db/schema";
+import { eq, and, isNull, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/auth";
 import { MODULES, defaultAccessForRole } from "@/lib/permissions";
+import { sendEmail } from "@/lib/email";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -22,6 +25,39 @@ function num(v: FormDataEntryValue | null) {
 function roleValue(value: FormDataEntryValue | null): "admin" | "support" | "employee" {
   const role = str(value);
   return role === "admin" || role === "employee" ? role : "support";
+}
+
+async function applicationOrigin() {
+  const requestHeaders = await headers();
+  return process.env.APP_BASE_URL?.replace(/\/$/, "")
+    || requestHeaders.get("origin")
+    || "http://localhost:3000";
+}
+
+function escapeHtml(input: string) {
+  return input.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]!);
+}
+
+async function sendManualUserVerificationEmail(user: { fullName: string; email: string }, rawToken: string) {
+  const verificationUrl = `${await applicationOrigin()}/verify-user-email?token=${encodeURIComponent(rawToken)}`;
+  await sendEmail({
+    to: user.email,
+    subject: "SEAOIL Printer - Verify Your User Account",
+    text: [
+      `Hello ${user.fullName},`,
+      "A user account was created for you in SEAOIL Printer Monitoring.",
+      "Verify your email using the link below to activate your account:",
+      verificationUrl,
+      "This single-use link expires in 24 hours. No additional administrator approval is required after verification.",
+    ].join("\n\n"),
+    html: `<p>Hello ${escapeHtml(user.fullName)},</p><p>A user account was created for you in SEAOIL Printer Monitoring.</p><p><a href="${escapeHtml(verificationUrl)}">Verify and activate your account</a></p><p>This single-use link expires in 24 hours. No additional administrator approval is required after verification.</p>`,
+  });
 }
 
 export type UserFormState = { error?: string; fieldErrors?: Record<string, string> };
@@ -51,32 +87,97 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
   else if (!isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
+  const rawToken = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60_000);
+  let createdUser: { id: number; fullName: string; email: string };
   try {
     const passwordHash = await hashPassword(password);
-    const inserted = await db
-      .insert(users)
-      .values({
-        fullName: fullName!,
-        email: email!,
-        username: username!,
-        passwordHash,
-        role,
-        employeeId,
-        primaryLocationId,
-        departmentId,
-      })
-      .returning();
+    createdUser = await db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(users)
+        .values({
+          fullName: fullName!,
+          email: email!,
+          username: username!,
+          passwordHash,
+          role,
+          employeeId,
+          primaryLocationId,
+          departmentId,
+          accountStatus: "pending_email",
+          emailVerifiedAt: null,
+        })
+        .returning({ id: users.id, fullName: users.fullName, email: users.email });
 
-    const userId = inserted[0].id;
-    const defaults = defaultAccessForRole(role);
-    await db.insert(userModuleAccess).values(MODULES.map((m) => ({ userId, module: m, fullAccess: defaults[m] })));
+      const defaults = defaultAccessForRole(role);
+      await tx.insert(userModuleAccess).values(MODULES.map((module) => ({
+        userId: inserted.id,
+        module,
+        fullAccess: defaults[module],
+      })));
+      await tx.insert(manualUserVerificationTokens).values({
+        userId: inserted.id,
+        tokenHash,
+        expiresAt,
+      });
+      return inserted;
+    });
   } catch (err) {
     console.error(err);
     return { error: "Could not create user. Email, username, or Employee ID may already be in use." };
   }
 
+  let emailError = false;
+  try {
+    await sendManualUserVerificationEmail(createdUser, rawToken);
+  } catch (error) {
+    emailError = true;
+    console.error("Manual user verification email failed:", error instanceof Error ? error.message : "UnknownError");
+  }
   revalidatePath("/manage");
-  redirect("/manage?success=User created successfully.");
+  redirect(`/manage?success=User created and awaiting email verification.${emailError ? "&error=The verification email could not be sent. Use Resend Verification from User Management after checking SMTP settings." : ""}`);
+}
+
+export async function resendManualUserVerificationAction(formData: FormData) {
+  await requireModuleFullAccess("manage_users");
+  const userId = num(formData.get("id"));
+  if (!userId) redirect("/manage?error=Invalid user account.");
+
+  const rawToken = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60_000);
+  const user = await db.transaction(async (tx) => {
+    const [pendingUser] = await tx.select({
+      id: users.id,
+      fullName: users.fullName,
+      email: users.email,
+    }).from(users).where(and(
+      eq(users.id, userId),
+      eq(users.accountStatus, "pending_email"),
+    )).limit(1);
+    if (!pendingUser) return null;
+
+    await tx.update(manualUserVerificationTokens).set({ consumedAt: new Date() }).where(and(
+      eq(manualUserVerificationTokens.userId, pendingUser.id),
+      isNull(manualUserVerificationTokens.consumedAt),
+    ));
+    await tx.insert(manualUserVerificationTokens).values({
+      userId: pendingUser.id,
+      tokenHash,
+      expiresAt,
+    });
+    return pendingUser;
+  });
+
+  if (!user) redirect("/manage?error=Only manually added accounts awaiting email verification can be resent.");
+  try {
+    await sendManualUserVerificationEmail(user, rawToken);
+  } catch (error) {
+    console.error("Manual user verification resend failed:", error instanceof Error ? error.message : "UnknownError");
+    redirect("/manage?error=The verification email could not be sent. Check the SMTP settings and try again.");
+  }
+  redirect("/manage?success=Verification email resent successfully.");
 }
 
 export async function updateUserAction(_prev: UserFormState, formData: FormData): Promise<UserFormState> {
