@@ -40,27 +40,29 @@ import { useBlobSkin } from "@/components/BlobSkinProvider";
 import {
   BLOB_SKINS,
 } from "@/lib/blob-skins";
-import { MODULE_LABELS } from "@/lib/permissions";
+import { MODULE_LABELS, type ModuleName } from "@/lib/permissions";
 
 type NavItem = {
   href: string;
   label: string;
   icon: IconNode;
+  module?: ModuleName;
   separated?: boolean;
   children?: Array<{ href: string; label: string; icon: IconNode; adminOnly?: boolean }>;
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: MODULE_LABELS.dashboard, icon: LayoutDashboard },
-  { href: "/printers", label: MODULE_LABELS.printers, icon: Printer },
-  { href: "/toner-monitoring", label: MODULE_LABELS.toner, icon: Droplets },
-  { href: "/contracts", label: MODULE_LABELS.contract, icon: FileText },
-  { href: "/repair-history", label: MODULE_LABELS.repair, icon: Wrench },
+  { href: "/dashboard", label: MODULE_LABELS.dashboard, icon: LayoutDashboard, module: "dashboard" },
+  { href: "/printers", label: MODULE_LABELS.printers, icon: Printer, module: "printers" },
+  { href: "/toner-monitoring", label: MODULE_LABELS.toner, icon: Droplets, module: "toner" },
+  { href: "/contracts", label: MODULE_LABELS.contract, icon: FileText, module: "contract" },
+  { href: "/repair-history", label: MODULE_LABELS.repair, icon: Wrench, module: "repair" },
   {
     href: "/printdash",
     label: MODULE_LABELS.spot,
     icon: Monitor,
     separated: true,
+    module: "spot",
     children: [
       { href: "/printdash", label: "Overview", icon: LayoutDashboard },
       { href: "/printdash/alerts", label: "Monitoring Alert", icon: Bell },
@@ -72,13 +74,16 @@ const NAV: NavItem[] = [
     label: MODULE_LABELS.printops,
     icon: Printer,
     separated: true,
+    module: "printops",
     children: [
       { href: "/printops/print", label: "Print", icon: Printer },
       { href: "/printops/scan", label: "Scan", icon: Radar },
       { href: "/printops/jobs", label: "Print Jobs", icon: FileText },
     ],
   },
-  { href: "/system", label: MODULE_LABELS.system, icon: Settings, separated: true },
+  { href: "/system", label: MODULE_LABELS.system, icon: Settings, separated: true, module: "system" },
+  { href: "/manage", label: MODULE_LABELS.manage_users, icon: Users, module: "manage_users" },
+  { href: "/manage/registrations", label: MODULE_LABELS.registrations, icon: KeyRound, module: "registrations" },
 ];
 
 function StaticIcon({ icon, size = 19 }: { icon: IconNode; size?: number }) {
@@ -107,12 +112,14 @@ export default function Sidebar({
   logoUrl,
   accountName,
   initialCollapsed,
+  moduleAccess,
 }: {
   isAdmin: boolean;
   canManageSpot: boolean;
   logoUrl: string | null;
   accountName: string;
   initialCollapsed: boolean | null;
+  moduleAccess: Record<ModuleName, boolean>;
 }) {
   const pathname = usePathname();
   const { blobSkin, setBlobSkin } = useBlobSkin();
@@ -127,9 +134,8 @@ export default function Sidebar({
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const signOutButtonRef = useRef<HTMLButtonElement>(null);
-  const items = isAdmin
-    ? [...NAV, { href: "/manage", label: "Manage Users", icon: Users }]
-    : NAV;
+  const permittedItems = NAV.filter((item) => !item.module || moduleAccess[item.module]);
+  const items = permittedItems;
 
   useLayoutEffect(() => {
     const root = document.documentElement;

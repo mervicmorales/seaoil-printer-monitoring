@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Input, Select, Textarea, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { Input, Textarea, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SearchableSelect from "@/components/SearchableSelect";
 import type { ContractFormState } from "./actions";
 import Link from "next/link";
 
@@ -56,12 +57,13 @@ export default function ContractForm({
           className={mode === "edit" ? "bg-slate-100 text-slate-500" : ""}
           error={state.fieldErrors?.contractNumber}
         />
-        <Select label="Vendor / Supplier" name="vendorId" defaultValue={contract?.vendorId ?? ""}>
-          <option value="">Select vendor</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>{v.name}</option>
-          ))}
-        </Select>
+        <SearchableSelect
+          label="Vendor / Supplier"
+          name="vendorId"
+          options={vendors}
+          placeholder="Search vendor or supplier..."
+          defaultValue={contract?.vendorId}
+        />
         <Input label="Contract Start" name="startDate" type="date" defaultValue={contract?.startDate ?? ""} />
         <Input label="Contract End / Renewal" name="endDate" type="date" defaultValue={contract?.endDate ?? ""} />
         <div className="sm:col-span-2">

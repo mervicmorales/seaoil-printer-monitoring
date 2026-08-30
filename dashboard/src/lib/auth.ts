@@ -14,7 +14,7 @@ export type SessionPayload = {
   fullName: string;
   email: string;
   username: string;
-  role: "admin" | "user";
+  role: "admin" | "support" | "employee";
 };
 
 export async function hashPassword(password: string) {
@@ -51,11 +51,12 @@ export async function getSession(): Promise<SessionPayload | null> {
       email: users.email,
       username: users.username,
       role: users.role,
+      accountStatus: users.accountStatus,
     })
     .from(users)
     .where(eq(users.id, session.id))
     .limit(1);
-  if (!account || (account.role !== "admin" && account.role !== "user")) return null;
+  if (!account || (account.role !== "admin" && account.role !== "support" && account.role !== "employee") || account.accountStatus !== "active") return null;
 
   return {
     ...account,

@@ -86,7 +86,7 @@ export default async function PrintDashPage({
   const locationId = Number.isSafeInteger(parsedLocation) && parsedLocation > 0 ? parsedLocation : null;
   const activeFilterCount = [query, status, locationId].filter(Boolean).length;
   const renderedAt = new Date();
-  const staleSeconds = getMonitoringStaleSeconds();
+  const staleSeconds = await getMonitoringStaleSeconds();
   const freshCondition = sql`
     latest_readings.checked_at >= now() - (${staleSeconds} * interval '1 second')
   `;

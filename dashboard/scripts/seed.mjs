@@ -16,6 +16,8 @@ const MODULES = [
   "spot",
   "printops",
   "system",
+  "manage_users",
+  "registrations",
 ];
 
 async function upsertUser(fullName, email, username, password, role) {
@@ -48,7 +50,7 @@ async function upsertLookup(table, name) {
 
 async function main() {
   await upsertUser("System Administrator", "admin@seaoil.com.ph", "admin", "Admin@12345", "admin");
-  await upsertUser("Sample Staff", "user@seaoil.com.ph", "user", "User@12345", "user");
+  await upsertUser("Sample Support", "user@seaoil.com.ph", "user", "User@12345", "support");
 
   for (const name of ["Head Office", "Pasig Depot", "Cebu Depot", "Davao Station"]) {
     await upsertLookup("locations", name);

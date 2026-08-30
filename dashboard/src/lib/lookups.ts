@@ -6,10 +6,11 @@ import {
   itsNames,
   locations,
   monitoringAgents,
+  tonerInventory,
   tonerTypes,
   vendors,
 } from "@/db/schema";
-import { and, asc, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 
 export async function getLocations() {
   return db.select().from(locations).orderBy(asc(locations.name));
@@ -25,6 +26,15 @@ export async function getVendors() {
 
 export async function getTonerTypes() {
   return db.select().from(tonerTypes).orderBy(asc(tonerTypes.name));
+}
+
+export async function getTonerTypesWithInventory() {
+  const rows = await db
+    .select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock })
+    .from(tonerTypes)
+    .leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id))
+    .orderBy(asc(tonerTypes.name));
+  return rows.map((row) => ({ ...row, stock: row.stock ?? 0 }));
 }
 
 export async function getContracts() {

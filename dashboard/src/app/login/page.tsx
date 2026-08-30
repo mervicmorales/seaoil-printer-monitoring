@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { systemSettings } from "@/db/schema";
 import LoginForm from "./LoginForm";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,7 @@ export default async function LoginPage({
           </p>
 
           <LoginForm nextPath={params.next ?? "/dashboard"} />
+          <p className="mt-5 text-center text-sm text-slate-500">SEAOIL employee? <Link href="/register" className="font-medium text-[#014171] hover:underline">Request access</Link></p>
         </div>
       </section>
     </main>

@@ -65,6 +65,11 @@ A self-hosted office printer management dashboard with SNMP-based toner/status m
 - **Samba** (`smbd`) installed on the host if you want scan-to-folder from printer web UIs
 - Appropriate printer drivers for your hardware (Canon, HP, etc.) installed via CUPS
 
+The production image pins Node.js 24 LTS. Prefer that LTS runtime for the agent;
+Node.js 26 is still in Current status and is outside the runtime used by this
+deployment. SNMP session errors are handled per printer so a
+malformed ASN.1 response is logged safely and does not terminate the poll loop.
+
 On Debian/Ubuntu:
 
 ```bash

@@ -7,6 +7,8 @@ export const MODULES = [
   "spot",
   "printops",
   "system",
+  "manage_users",
+  "registrations",
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -20,6 +22,21 @@ export const MODULE_LABELS: Record<ModuleName, string> = {
   spot: "SPOT",
   printops: "PrintOps",
   system: "System",
+  manage_users: "Manage Users",
+  registrations: "Registrations",
+};
+
+export const MODULE_PATHS: Record<ModuleName, string> = {
+  dashboard: "/dashboard",
+  printers: "/printers",
+  toner: "/toner-monitoring",
+  contract: "/contracts",
+  repair: "/repair-history",
+  spot: "/printdash",
+  printops: "/printops/print",
+  system: "/system",
+  manage_users: "/manage",
+  registrations: "/manage/registrations",
 };
 
 export function emptyModuleAccess(): Record<ModuleName, boolean> {
@@ -29,8 +46,8 @@ export function emptyModuleAccess(): Record<ModuleName, boolean> {
   >;
 }
 
-// Default module access granted to a newly created "user" role account.
-export const DEFAULT_USER_ACCESS: Record<ModuleName, boolean> = {
+// Default module access granted to a newly created support account.
+export const DEFAULT_SUPPORT_ACCESS: Record<ModuleName, boolean> = {
   dashboard: false,
   printers: false,
   toner: true,
@@ -39,14 +56,16 @@ export const DEFAULT_USER_ACCESS: Record<ModuleName, boolean> = {
   spot: false,
   printops: false,
   system: false,
+  manage_users: false,
+  registrations: false,
 };
 
-export function defaultAccessForRole(role: "admin" | "user") {
+export function defaultAccessForRole(role: "admin" | "support" | "employee") {
   if (role === "admin") {
     return MODULES.reduce(
       (acc, m) => ({ ...acc, [m]: true }),
       {} as Record<ModuleName, boolean>,
     );
   }
-  return { ...DEFAULT_USER_ACCESS };
+  return role === "employee" ? emptyModuleAccess() : { ...DEFAULT_SUPPORT_ACCESS };
 }

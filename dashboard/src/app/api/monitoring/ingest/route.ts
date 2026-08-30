@@ -18,6 +18,7 @@ import {
   normalizeConsumables,
   parseUptimeSeconds,
 } from "@/lib/monitoring";
+import { sendAgentTransitionEmail } from "@/lib/agent-alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -103,8 +104,9 @@ export async function POST(request: Request) {
   }
 
   try {
+    const principal = authentication.principal;
+    const [before] = await db.select({ lastSeen: monitoringAgents.lastSeen }).from(monitoringAgents).where(eq(monitoringAgents.id, principal.id)).limit(1);
     const result = await db.transaction(async (tx) => {
-      const principal = authentication.principal;
       const [recoveredAgent] = await tx
         .update(monitoringAgents)
         .set({
@@ -338,8 +340,12 @@ export async function POST(request: Request) {
         });
       }
 
-      return { agentId: agent.id, matched, unmatched };
+      return { agentId: agent.id, recovered: Boolean(recoveredAgent), matched, unmatched };
     });
+
+    if (result.recovered) {
+      await sendAgentTransitionEmail(result.agentId, "recovered", before?.lastSeen ?? null, receivedAt);
+    }
 
     if (result.unmatched.length > 0) {
       console.warn(

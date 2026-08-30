@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/validation";
 
-const PUBLIC_PATHS = ["/login", "/access-denied"];
+const PUBLIC_PATHS = ["/login", "/register", "/verify-email", "/access-denied"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -13,6 +13,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/api/monitoring/config") ||
     pathname.startsWith("/api/monitoring/discovery") ||
     pathname.startsWith("/api/monitoring/printops") ||
+    pathname.startsWith("/api/monitoring/agent-status") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/uploads") ||
     pathname.match(/\.(png|jpg|jpeg|svg|ico|webp)$/)

@@ -117,3 +117,30 @@ The current dashboard Compose file runs only PostgreSQL, while Next.js runs on
 the host via `npm run dev`, so `SMTP_HOST=localhost` is correct. If the Next.js
 dashboard is later containerized while Mailpit remains on the host, set
 `SMTP_HOST=host.docker.internal` in that container's environment.
+
+Administrators can optionally save SMTP settings under **System → Email / SMTP**.
+When saved settings are enabled they take priority; otherwise the existing
+environment/Mailpit configuration remains the fallback. Saved SMTP passwords
+use AES-256-GCM authenticated encryption and require an environment-held
+`SETTINGS_ENCRYPTION_KEY`. Set `APP_BASE_URL` to the public dashboard origin so
+employee verification emails contain the correct link.
+
+## Feature migration
+
+After backing up PostgreSQL, apply the additive registration, notification, and
+SMTP migration once:
+
+```bash
+npm run db:migrate:features
+```
+
+For this repository's local Docker PostgreSQL configuration, use
+`npm run db:migrate:features:docker` instead.
+
+The migration keeps existing users active and backfills each existing toner
+inventory row's durable alert state without sending historical warnings.
+
+For offline alerts even when no administrator has the dashboard open, schedule
+a POST to `/api/monitoring/agent-status` at least once per minute with the
+`x-seaoil-cron-token` header matching `AGENT_STATUS_CRON_SECRET`. The existing
+signed-in dashboard polling remains supported.

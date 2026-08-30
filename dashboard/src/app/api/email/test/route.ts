@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
 import { EmailConfigurationError, sendEmail } from "@/lib/email";
+import { verifyEmailConnection } from "@/lib/email";
 import { isValidEmail } from "@/lib/validation";
+import { db } from "@/db";
+import { systemSettings } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,23 +20,10 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#039;");
 }
 
-function getProviderLabel() {
-  const host = process.env.SMTP_HOST?.trim().toLowerCase();
-  const port = process.env.SMTP_PORT?.trim();
-  const mailpitHosts = new Set(["localhost", "127.0.0.1", "host.docker.internal"]);
-  return port === "1025" && host && mailpitHosts.has(host)
-    ? "Mailpit development SMTP"
-    : "Configured SMTP server";
-}
-
 function logEmailError(error: unknown) {
   const details = error as { name?: unknown; message?: unknown; code?: unknown };
-  const message =
-    typeof details?.message === "string" ? details.message : "Unknown email error";
-  const password = process.env.SMTP_PASS;
   console.error("SMTP test email failed:", {
     name: typeof details?.name === "string" ? details.name : "UnknownError",
-    message: password ? message.replaceAll(password, "[redacted]") : message,
     code: typeof details?.code === "string" ? details.code : undefined,
   });
 }
@@ -80,6 +71,7 @@ export async function POST(request: Request) {
   }
 
   const suppliedRecipient = (body as { to?: unknown }).to;
+  const connectionOnly = (body as { connectionOnly?: unknown }).connectionOnly === true;
   if (suppliedRecipient !== undefined && typeof suppliedRecipient !== "string") {
     return NextResponse.json(
       { ok: false, error: "Recipient must be a valid email address" },
@@ -87,7 +79,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const recipient = suppliedRecipient?.trim() || process.env.ALERT_EMAIL_TO?.trim();
+  const [settings] = await db.select().from(systemSettings).limit(1);
+  const recipient = suppliedRecipient?.trim() || settings?.smtpTestRecipient || process.env.ALERT_EMAIL_TO?.trim();
+  if (connectionOnly) {
+    try {
+      const verified = await verifyEmailConnection();
+      if (settings) await db.update(systemSettings).set({ smtpLastTestedAt: new Date() }).where(eq(systemSettings.id, settings.id));
+      return NextResponse.json({ ok: true, message: `SMTP connection successful (${verified.source} configuration)` });
+    } catch (error) {
+      logEmailError(error);
+      return NextResponse.json({ ok: false, error: "Unable to connect to SMTP server" }, { status: 502 });
+    }
+  }
   if (!recipient) {
     return NextResponse.json(
       { ok: false, error: "Recipient is required; provide to or configure ALERT_EMAIL_TO" },
@@ -103,8 +106,9 @@ export async function POST(request: Request) {
 
   const timestamp = new Date().toISOString();
   const environment = process.env.NODE_ENV || "development";
-  const provider = getProviderLabel();
-  const senderName = process.env.SMTP_FROM_NAME?.trim() || "SEAOIL Printer";
+  const verified = await verifyEmailConnection().catch(() => null);
+  const provider = verified?.source === "database" ? "Saved database SMTP" : "Environment SMTP fallback";
+  const senderName = verified?.fromName || "SEAOIL Printer";
   const subject = "SEAOIL Printer Monitoring - SMTP Test";
   const text = [
     "SEAOIL Printer Monitoring",
@@ -148,6 +152,7 @@ export async function POST(request: Request) {
 
   try {
     await sendEmail({ to: recipient, subject, text, html });
+    if (settings) await db.update(systemSettings).set({ smtpLastTestedAt: new Date() }).where(eq(systemSettings.id, settings.id));
     return NextResponse.json({ ok: true, message: "Test email sent successfully" });
   } catch (error) {
     logEmailError(error);

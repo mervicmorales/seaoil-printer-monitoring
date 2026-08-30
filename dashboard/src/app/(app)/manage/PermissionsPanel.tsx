@@ -26,11 +26,15 @@ export default function PermissionsPanel({
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
           {role === "admin" ? (
             <p className="text-xs text-slate-500">Admins always have full access to every module.</p>
+          ) : role === "employee" ? (
+            <p className="text-xs text-slate-500">
+              Employees use the Employee Portal and can only see active printers assigned to their location and department.
+            </p>
           ) : (
             <form action={action} className="space-y-3">
               <input type="hidden" name="userId" value={userId} />
               <p className="text-xs text-slate-500">
-                Checked modules grant <strong>full access</strong> (view/create/edit/update/delete). Unchecked modules remain <strong>view-only</strong>.
+                Checked modules grant access to the page and its actions. Unchecked modules are hidden and access is denied.
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {MODULES.map((m) => (

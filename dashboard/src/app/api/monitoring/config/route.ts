@@ -13,6 +13,7 @@ import {
   authenticateMonitoringAgent,
   monitoringAgentKeySchema,
 } from "@/lib/monitoring";
+import { sendAgentTransitionEmail } from "@/lib/agent-alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
   try {
     const now = new Date();
     const principal = authentication.principal;
+    const [before] = await db.select({ lastSeen: monitoringAgents.lastSeen }).from(monitoringAgents).where(eq(monitoringAgents.id, principal.id)).limit(1);
     const agent = await db.transaction(async (tx) => {
       const [recoveredAgent] = await tx
         .update(monitoringAgents)
@@ -72,7 +74,7 @@ export async function GET(request: Request) {
             type: "agent-online",
           });
         }
-        return { id: recoveredAgent.id };
+        return { id: recoveredAgent.id, recovered: true };
       }
 
       const [activeAgent] = await tx
@@ -84,11 +86,14 @@ export async function GET(request: Request) {
             isNull(monitoringAgents.tokenRevokedAt),
           ),
         )
-        .returning({ id: monitoringAgents.id });
-      return activeAgent;
+            .returning({ id: monitoringAgents.id });
+      return activeAgent ? { ...activeAgent, recovered: false } : undefined;
     });
 
     if (!agent) return unauthorized();
+    if (agent.recovered) {
+      await sendAgentTransitionEmail(agent.id, "recovered", before?.lastSeen ?? null, now);
+    }
 
     const targets = await db
       .select({

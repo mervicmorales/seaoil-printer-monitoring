@@ -19,7 +19,9 @@
     "monitoring:agent:rotate": "node scripts/monitoring-agent-credentials.mjs rotate",
     "monitoring:agent:revoke": "node scripts/monitoring-agent-credentials.mjs revoke",
     "monitoring:agent:migrate-global": "node scripts/monitoring-agent-credentials.mjs migrate-global",
-    "monitoring:assignments:migrate": "node scripts/migrate-monitoring-assignments.mjs"
+    "monitoring:assignments:migrate": "node scripts/migrate-monitoring-assignments.mjs",
+    "db:migrate:features": "node scripts/migrate-notifications-registration-smtp.mjs",
+    "db:migrate:features:docker": "node --env-file=.env.docker scripts/migrate-notifications-registration-smtp.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

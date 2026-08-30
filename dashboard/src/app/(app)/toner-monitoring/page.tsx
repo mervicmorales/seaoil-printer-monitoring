@@ -63,7 +63,7 @@ export default async function TonerMonitoringPage({
 
   const [inventoryRows, txnRows, allTonerTypes, allLocations, allDepartments, allItsNames] = await Promise.all([
     db
-      .select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock, threshold: tonerInventory.lowStockThreshold })
+      .select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock, threshold: tonerInventory.lowStockThreshold, criticalThreshold: tonerInventory.criticalStockThreshold })
       .from(tonerTypes)
       .leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id))
       .where(eq(tonerTypes.showAlertCard, true))
@@ -87,7 +87,7 @@ export default async function TonerMonitoringPage({
       .leftJoin(departments, eq(tonerTransactions.departmentId, departments.id))
       .leftJoin(itsNames, eq(tonerTransactions.itsNameId, itsNames.id))
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(tonerTransactions.date), desc(tonerTransactions.id)),
+      .orderBy(desc(tonerTransactions.createdAt), desc(tonerTransactions.id)),
     db.select().from(tonerTypes).orderBy(asc(tonerTypes.name)),
     db.select().from(locations).orderBy(asc(locations.name)),
     db.select().from(departments).orderBy(asc(departments.name)),
@@ -114,12 +114,13 @@ export default async function TonerMonitoringPage({
         {inventoryRows.map((t) => {
           const stock = t.stock ?? 0;
           const threshold = t.threshold ?? 5;
-          const low = stock <= threshold;
+          const criticalThreshold = t.criticalThreshold ?? 2;
+          const status = stock <= 0 ? "Empty" : stock <= criticalThreshold ? "Critical" : stock <= threshold ? "Low" : null;
           return (
-            <Card key={t.id} className={`p-4 ${low ? "border-red-300" : ""}`}>
+            <Card key={t.id} className={`p-4 ${status ? "border-red-300" : ""}`}>
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-[#014171]">{t.name}</p>
-                {low && <Badge color="red">Low</Badge>}
+                {status && <Badge color="red">{status}</Badge>}
               </div>
               <p className="mt-2 text-xl font-bold">{stock} <span className="text-xs font-normal text-slate-400">on hand</span></p>
             </Card>

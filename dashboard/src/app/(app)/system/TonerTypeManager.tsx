@@ -4,7 +4,7 @@ import { useState } from "react";
 import DeleteButton from "@/components/DeleteButton";
 import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
 
-type TonerType = { id: number; name: string; stock: number; threshold: number; showAlertCard: boolean };
+type TonerType = { id: number; name: string; stock: number; threshold: number; criticalThreshold: number; showAlertCard: boolean };
 
 export default function TonerTypeManager({
   items,
@@ -59,8 +59,10 @@ export default function TonerTypeManager({
                     </form>
                     <form action={thresholdAction} className="flex items-center gap-2">
                       <input type="hidden" name="tonerTypeId" value={t.id} />
-                      <label className="text-xs text-slate-500">Low-stock threshold</label>
+                      <label className="text-xs text-slate-500">Low</label>
                       <input type="number" name="threshold" min="0" defaultValue={t.threshold} className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-xs" />
+                      <label className="text-xs text-slate-500">Critical</label>
+                      <input type="number" name="criticalThreshold" min="0" max={t.threshold} defaultValue={t.criticalThreshold} className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-xs" />
                       <SecondaryButton type="submit" className="px-2.5 py-1 text-xs">Update</SecondaryButton>
                     </form>
                     <button onClick={() => setEditingId(t.id)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">Rename</button>

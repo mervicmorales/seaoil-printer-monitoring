@@ -1,0 +1,18 @@
+import { eq } from "drizzle-orm";
+import { notFound } from "next/navigation";
+import { db } from "@/db";
+import { departments, locations, userRegistrationRequests, users } from "@/db/schema";
+import { Badge, Card, PageHeader, PrimaryButton } from "@/components/ui";
+import { requireModuleFullAccess } from "@/lib/server-utils";
+import { approveRegistrationAction, rejectRegistrationAction } from "../actions";
+
+export default async function RegistrationDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ success?: string; error?: string }> }) {
+  await requireModuleFullAccess("registrations");
+  const { id } = await params;
+  const messages = await searchParams;
+  const [row] = await db.select({ request: userRegistrationRequests, location: locations.name, department: departments.name, reviewer: users.fullName }).from(userRegistrationRequests).leftJoin(locations, eq(locations.id, userRegistrationRequests.primaryLocationId)).leftJoin(departments, eq(departments.id, userRegistrationRequests.departmentId)).leftJoin(users, eq(users.id, userRegistrationRequests.reviewedBy)).where(eq(userRegistrationRequests.id, Number(id))).limit(1);
+  if (!row) notFound();
+  const request = row.request;
+  const details = [["Full Name", request.fullName], ["Employee ID", request.employeeId], ["Email", request.email], ["Username", request.username], ["Email Verified", request.emailVerifiedAt ? request.emailVerifiedAt.toLocaleString("en-PH", { timeZone: "Asia/Manila" }) : "No"], ["Location", row.location], ["Department", row.department], ["Created", request.createdAt.toLocaleString("en-PH", { timeZone: "Asia/Manila" })], ["Reviewed By", row.reviewer || "—"], ["Rejection Reason", request.rejectionReason || "—"]];
+  return <div><PageHeader title="Registration Detail" subtitle={request.employeeId} />{messages.success && <p className="mb-4 rounded-lg bg-green-50 p-3 text-green-700">{messages.success}</p>}{messages.error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-red-700">{messages.error}</p>}<Card className="p-6"><div className="mb-5"><Badge color={request.status === "approved" ? "green" : request.status === "rejected" || request.status === "account_deleted" ? "red" : "yellow"}>{request.status}</Badge></div><dl className="grid gap-5 sm:grid-cols-2">{details.map(([label, value]) => <div key={label}><dt className="text-xs font-semibold uppercase text-slate-500">{label}</dt><dd className="mt-1 text-sm text-slate-800">{value || "—"}</dd></div>)}</dl>{request.status === "pending_admin" && <div className="mt-8 flex flex-wrap gap-4 border-t pt-6"><form action={approveRegistrationAction}><input type="hidden" name="id" value={request.id} /><PrimaryButton type="submit">Approve</PrimaryButton></form><form action={rejectRegistrationAction} className="flex gap-2"><input type="hidden" name="id" value={request.id} /><input name="reason" required placeholder="Rejection reason" className="rounded-lg border px-3 py-2 text-sm" /><button className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">Reject</button></form></div>}</Card></div>;
+}

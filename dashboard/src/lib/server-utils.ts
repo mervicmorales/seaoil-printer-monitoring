@@ -1,8 +1,7 @@
 import "server-only";
 import { db } from "@/db";
-import { notifications, systemSettings, tonerInventory, tonerTypes, userModuleAccess } from "@/db/schema";
+import { notifications, systemSettings, userModuleAccess } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { sendEmail } from "@/lib/email";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { emptyModuleAccess, MODULES, type ModuleName } from "@/lib/permissions";
@@ -13,7 +12,7 @@ export async function requireSession() {
   return session;
 }
 
-export async function getModuleAccessMap(userId: number, role: "admin" | "user") {
+export async function getModuleAccessMap(userId: number, role: "admin" | "support" | "employee") {
   if (role === "admin") {
     return Object.fromEntries(MODULES.map((module) => [module, true])) as Record<
       ModuleName,
@@ -71,40 +70,4 @@ export async function getSystemSettings() {
     .values({})
     .returning();
   return inserted[0];
-}
-
-export async function checkLowStockAndNotify(tonerTypeId: number) {
-  const settings = await getSystemSettings();
-  const rows = await db
-    .select({
-      stock: tonerInventory.stock,
-      threshold: tonerInventory.lowStockThreshold,
-      name: tonerTypes.name,
-    })
-    .from(tonerInventory)
-    .innerJoin(tonerTypes, eq(tonerInventory.tonerTypeId, tonerTypes.id))
-    .where(eq(tonerInventory.tonerTypeId, tonerTypeId))
-    .limit(1);
-  const row = rows[0];
-  if (!row) return;
-  if (row.stock <= row.threshold) {
-    const message = `Low stock alert: ${row.name} is at ${row.stock} unit(s), at or below the threshold of ${row.threshold}.`;
-    if (settings.systemNotificationEnabled) {
-      await db.insert(notifications).values({ message, type: "low-stock" });
-    }
-    if (settings.emailReminderEnabled && settings.notificationEmail) {
-      try {
-        await sendEmail({
-          to: settings.notificationEmail,
-          subject: `[SEAOIL] Low Toner Stock: ${row.name}`,
-          text: message,
-        });
-      } catch (error) {
-        console.error(
-          "Low-stock email notification failed:",
-          error instanceof Error ? error.name : "UnknownError",
-        );
-      }
-    }
-  }
 }

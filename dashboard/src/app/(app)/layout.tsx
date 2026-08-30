@@ -10,6 +10,7 @@ import AgentStatusNotifications from "@/components/AgentStatusNotifications";
 import { PageHeaderPlacement } from "@/components/PageHeaderPortal";
 import { getBlobSkinCookieName, isBlobSkin } from "@/lib/blob-skins";
 import { BlobSkinProvider } from "@/components/BlobSkinProvider";
+import { redirect } from "next/navigation";
 
 export default async function AppLayout({
   children,
@@ -19,6 +20,7 @@ export default async function AppLayout({
   modal?: ReactNode;
 }) {
   const session = await requireSession();
+  if (session.role === "employee") redirect("/portal");
   const access = await getModuleAccessMap(session.id, session.role);
   const cookieStore = await cookies();
   const collapsedCookie = cookieStore.get("seaoil-sidebar-collapsed")?.value;
@@ -58,6 +60,7 @@ export default async function AppLayout({
           initialCollapsed={
             collapsedCookie === undefined ? null : collapsedCookie === "true"
           }
+          moduleAccess={access}
         />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
           <AppHeader

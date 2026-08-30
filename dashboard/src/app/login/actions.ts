@@ -1,10 +1,11 @@
 "use server";
 
 import { db } from "@/db";
-import { users } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
+import { userRegistrationRequests, users } from "@/db/schema";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { setSessionCookie, verifyPassword } from "@/lib/auth";
+import { expireRegistrationRequests } from "@/lib/registration-requests";
 
 export type LoginState = {
   error?: string;
@@ -23,8 +24,9 @@ export async function loginAction(
   formData: FormData,
 ): Promise<LoginState> {
   const identifier = String(formData.get("identifier") || "").trim();
+  const normalizedEmail = identifier.toLowerCase();
   const password = String(formData.get("password") || "");
-  const redirectTo = safeRedirectPath(String(formData.get("next") || "/dashboard"));
+  const requestedRedirect = safeRedirectPath(String(formData.get("next") || "/dashboard"));
 
   const fieldErrors: Record<string, string> = {};
   if (!identifier) fieldErrors.identifier = "Email or username is required.";
@@ -36,12 +38,46 @@ export async function loginAction(
   const rows = await db
     .select()
     .from(users)
-    .where(or(eq(users.username, identifier), eq(users.email, identifier)))
+    .where(or(eq(users.username, identifier), eq(users.email, normalizedEmail)))
     .limit(1);
 
   const user = rows[0];
   if (!user) {
+    await expireRegistrationRequests();
+    const [registration] = await db
+      .select({
+        email: userRegistrationRequests.email,
+        passwordHash: userRegistrationRequests.passwordHash,
+        status: userRegistrationRequests.status,
+      })
+      .from(userRegistrationRequests)
+      .where(and(
+        or(
+          eq(userRegistrationRequests.email, normalizedEmail),
+          eq(userRegistrationRequests.username, identifier),
+        ),
+        inArray(userRegistrationRequests.status, ["pending_email", "pending_admin"]),
+      ))
+      .orderBy(desc(userRegistrationRequests.createdAt))
+      .limit(1);
+
+    if (registration && await verifyPassword(password, registration.passwordHash)) {
+      if (registration.status === "pending_email") {
+        return {
+          error: `Please verify your email address using the verification link sent to ${registration.email} before signing in.`,
+        };
+      }
+      if (registration.status === "pending_admin") {
+        return {
+          error: "Your account is currently undergoing administrator validation. If validation takes longer than 1 hour, please email itservicedesk@seaoil.com.ph.",
+        };
+      }
+    }
+
     return { error: "Invalid credentials. Please check your email/username and password." };
+  }
+  if (user.accountStatus !== "active") {
+    return { error: "This account is not active. Please contact IT support." };
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
@@ -54,8 +90,15 @@ export async function loginAction(
     fullName: user.fullName,
     email: user.email,
     username: user.username,
-    role: user.role as "admin" | "user",
+    role: user.role as "admin" | "support" | "employee",
   });
 
+  const redirectTo = user.role === "employee"
+    ? "/portal"
+    : user.role === "support"
+      ? "/"
+    : requestedRedirect === "/portal"
+      ? "/dashboard"
+      : requestedRedirect;
   redirect(redirectTo);
 }

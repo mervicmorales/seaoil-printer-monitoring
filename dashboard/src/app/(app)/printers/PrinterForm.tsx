@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Input, Select, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SearchableSelect from "@/components/SearchableSelect";
 import { formatDate } from "@/lib/format";
 import type { PrinterFormState } from "./actions";
 import Link from "next/link";
@@ -182,35 +183,38 @@ export default function PrinterForm({
           min="0"
           defaultValue={printer?.monthlyRate ?? "0"}
         />
-        <Select label="Location" name="locationId" defaultValue={printer?.locationId ?? ""}>
-          <option value="">Select location</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>{l.name}</option>
-          ))}
-        </Select>
-        <Select label="Department" name="departmentId" defaultValue={printer?.departmentId ?? ""}>
-          <option value="">Select department</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </Select>
-        <Select label="Vendor / Supplier" name="vendorId" defaultValue={printer?.vendorId ?? ""}>
-          <option value="">Select vendor</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>{v.name}</option>
-          ))}
-        </Select>
-        <Select
+        <SearchableSelect
+          label="Location"
+          name="locationId"
+          options={locations}
+          placeholder="Search location..."
+          defaultValue={printer?.locationId}
+        />
+        <SearchableSelect
+          label="Department"
+          name="departmentId"
+          options={departments}
+          placeholder="Search department..."
+          defaultValue={printer?.departmentId}
+        />
+        <SearchableSelect
+          label="Vendor / Supplier"
+          name="vendorId"
+          options={vendors}
+          placeholder="Search vendor or supplier..."
+          defaultValue={printer?.vendorId}
+        />
+        <SearchableSelect
           label="Contract Number"
           name="contractId"
-          value={contractId}
-          onChange={(e) => setContractId(e.target.value)}
-        >
-          <option value="">No contract</option>
-          {contracts.map((c) => (
-            <option key={c.id} value={c.id}>{c.contractNumber}</option>
-          ))}
-        </Select>
+          options={contracts.map((contract) => ({
+            id: contract.id,
+            name: contract.contractNumber,
+          }))}
+          placeholder="Search contract number..."
+          defaultValue={printer?.contractId}
+          onValueChange={(value) => setContractId(value ? String(value) : "")}
+        />
         <Input
           label="Warranty / End-of-Contract"
           readOnly
@@ -252,20 +256,18 @@ export default function PrinterForm({
 
         {monitoringEnabled && (
           <div className="mt-4 max-w-xl">
-            <Select
+            <SearchableSelect
               label="Monitoring Agent"
               name="monitoringAgentId"
-              defaultValue={printer?.monitoringAgentId ?? ""}
+              options={monitoringAgents.map((agent) => ({
+                id: agent.id,
+                name: `${agent.name} (${agent.key})`,
+              }))}
+              placeholder="Search monitoring agent..."
+              defaultValue={printer?.monitoringAgentId}
               required
               error={state.fieldErrors?.monitoringAgentId}
-            >
-              <option value="">Select an agent</option>
-              {monitoringAgents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name} ({agent.key})
-                </option>
-              ))}
-            </Select>
+            />
             {monitoringAgents.length === 0 && (
               <p className="mt-2 text-xs text-amber-700">
                 No agent with an active credential is available. Create or rotate

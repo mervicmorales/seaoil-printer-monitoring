@@ -9,11 +9,15 @@ import {
   tonerInventory,
   vendors,
   systemSettings,
+  auditLogs,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireModuleFullAccess } from "@/lib/server-utils";
+import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
+import { encryptSecret } from "@/lib/secret-encryption";
+import { isValidEmail } from "@/lib/validation";
+import { inventoryState } from "@/lib/inventory-alerts";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -131,11 +135,20 @@ export async function updateThresholdAction(formData: FormData) {
   await requireModuleFullAccess("system");
   const id = num(formData.get("tonerTypeId"));
   const threshold = num(formData.get("threshold"));
-  if (id && threshold !== null) {
-    await db.update(tonerInventory).set({ lowStockThreshold: threshold }).where(eq(tonerInventory.tonerTypeId, id));
+  const criticalThreshold = num(formData.get("criticalThreshold"));
+  if (id && threshold !== null && criticalThreshold !== null && criticalThreshold > threshold) {
+    redirect("/system?tab=toner&error=Critical threshold must not exceed the low threshold.");
+  }
+  if (id && threshold !== null && criticalThreshold !== null) {
+    const [inventory] = await db.select({ stock: tonerInventory.stock }).from(tonerInventory).where(eq(tonerInventory.tonerTypeId, id)).limit(1);
+    await db.update(tonerInventory).set({
+      lowStockThreshold: threshold,
+      criticalStockThreshold: criticalThreshold,
+      alertState: inventoryState(inventory?.stock ?? 0, threshold, criticalThreshold),
+    }).where(eq(tonerInventory.tonerTypeId, id));
   }
   revalidateAll();
-  redirect("/system?tab=toner&success=Low-stock threshold updated.");
+  redirect("/system?tab=toner&success=Inventory thresholds updated.");
 }
 export async function updateAlertCardVisibilityAction(formData: FormData) {
   await requireModuleFullAccess("system");
@@ -192,19 +205,55 @@ export async function deleteVendorAction(formData: FormData) {
 
 // ---------- SETTINGS ----------
 export async function updateSettingsAction(formData: FormData) {
-  await requireModuleFullAccess("system");
+  const admin = await requireModuleFullAccess("system");
   const rows = await db.select().from(systemSettings).limit(1);
   const values = {
     notificationEmail: str(formData.get("notificationEmail")) || "itservicedesk@seaoil.com.ph",
     defaultLowStockThreshold: num(formData.get("defaultLowStockThreshold")) ?? 5,
     emailReminderEnabled: formData.get("emailReminderEnabled") === "on",
     systemNotificationEnabled: formData.get("systemNotificationEnabled") === "on",
+    agentOfflineThresholdMinutes: Math.max(1, Math.min(1440, num(formData.get("agentOfflineThresholdMinutes")) ?? 5)),
+    tonerLowEmailEnabled: formData.get("tonerLowEmailEnabled") === "on",
+    tonerCriticalEmailEnabled: formData.get("tonerCriticalEmailEnabled") === "on",
+    tonerEmptyEmailEnabled: formData.get("tonerEmptyEmailEnabled") === "on",
+    agentOfflineEmailEnabled: formData.get("agentOfflineEmailEnabled") === "on",
+    agentRecoveredEmailEnabled: formData.get("agentRecoveredEmailEnabled") === "on",
   };
   if (rows.length) {
     await db.update(systemSettings).set(values).where(eq(systemSettings.id, rows[0].id));
   } else {
     await db.insert(systemSettings).values(values);
   }
+  await db.insert(auditLogs).values({ actorUserId: admin.id, action: "notifications.settings_changed", targetType: "system_settings" });
   revalidateAll();
   redirect("/system?tab=reminders&success=Settings saved.");
+}
+
+export async function updateSmtpSettingsAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const [existing] = await db.select().from(systemSettings).limit(1);
+  const enabled = formData.get("smtpEnabled") === "on";
+  const host = str(formData.get("smtpHost"));
+  const port = num(formData.get("smtpPort"));
+  const security = str(formData.get("smtpSecurity")) || "none";
+  const username = str(formData.get("smtpUsername"));
+  const password = String(formData.get("smtpPassword") ?? "");
+  const from = str(formData.get("smtpFrom"));
+  const fromName = str(formData.get("smtpFromName"));
+  const testRecipient = str(formData.get("smtpTestRecipient"));
+  if (enabled && (!host || !port || port < 1 || port > 65535 || !from || !isValidEmail(from) || !fromName || !["none", "starttls", "tls"].includes(security))) {
+    redirect("/system?tab=email&error=Complete all required SMTP fields with valid values.");
+  }
+  if (testRecipient && !isValidEmail(testRecipient)) redirect("/system?tab=email&error=Test recipient must be a valid email.");
+  if (username && !password && !existing?.smtpPasswordEncrypted) redirect("/system?tab=email&error=Enter the SMTP password.");
+  if (!username && password) redirect("/system?tab=email&error=SMTP username is required when setting a password.");
+  let encryptedPassword = existing?.smtpPasswordEncrypted ?? null;
+  if (password) encryptedPassword = encryptSecret(password);
+  if (!username) encryptedPassword = null;
+  const values = { smtpEnabled: enabled, smtpHost: host, smtpPort: port, smtpSecurity: security, smtpUsername: username, smtpPasswordEncrypted: encryptedPassword, smtpFrom: from, smtpFromName: fromName, smtpTestRecipient: testRecipient, updatedAt: new Date(), updatedBy: admin.id };
+  if (existing) await db.update(systemSettings).set(values).where(eq(systemSettings.id, existing.id));
+  else await db.insert(systemSettings).values(values);
+  await db.insert(auditLogs).values({ actorUserId: admin.id, action: "smtp.settings_changed", targetType: "system_settings", metadata: { enabled, host, port, security, passwordChanged: Boolean(password) } });
+  revalidateAll();
+  redirect("/system?tab=email&success=SMTP settings saved.");
 }

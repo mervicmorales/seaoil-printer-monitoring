@@ -21,7 +21,7 @@ type MonitoringSummaryRow = {
 
 export default async function DashboardPage() {
   const renderedAt = new Date();
-  const staleSeconds = getMonitoringStaleSeconds();
+  const staleSeconds = await getMonitoringStaleSeconds();
   const [printerRows, ticketRows, tonerRows, monitoringResult] = await Promise.all([
     db.select({ status: printers.status, count: sql<number>`count(*)::int` }).from(printers).groupBy(printers.status),
     db

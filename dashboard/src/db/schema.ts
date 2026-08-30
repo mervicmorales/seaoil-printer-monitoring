@@ -13,6 +13,19 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+// ---------- CORE LOOKUPS USED BY USER PROFILES ----------
+export const locations = pgTable("locations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // ---------- USERS & ACCESS ----------
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -20,7 +33,16 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("user"), // 'admin' | 'user'
+  role: text("role").notNull().default("support"), // 'admin' | 'support' | 'employee'
+  employeeId: text("employee_id").unique(),
+  primaryLocationId: integer("primary_location_id").references(() => locations.id, {
+    onDelete: "set null",
+  }),
+  departmentId: integer("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
+  accountStatus: text("account_status").notNull().default("active"),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -38,18 +60,6 @@ export const userModuleAccess = pgTable(
 );
 
 // ---------- LOOKUP DATABASES ----------
-export const locations = pgTable("locations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-export const departments = pgTable("departments", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
 export const itsNames = pgTable("its_names", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -80,6 +90,8 @@ export const tonerInventory = pgTable("toner_inventory", {
     .references(() => tonerTypes.id, { onDelete: "cascade" }),
   stock: integer("stock").notNull().default(0),
   lowStockThreshold: integer("low_stock_threshold").notNull().default(5),
+  criticalStockThreshold: integer("critical_stock_threshold").notNull().default(2),
+  alertState: text("alert_state").notNull().default("normal"),
 });
 
 // ---------- CONTRACTS ----------
@@ -300,8 +312,7 @@ export const printerDiscoveryScans = pgTable(
       .notNull()
       .references(() => monitoringAgents.id, { onDelete: "cascade" }),
     requestedBy: integer("requested_by")
-      .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: "set null" }),
     subnet: text("subnet").notNull(),
     status: text("status").notNull().default("queued"),
     results: jsonb("results").$type<DiscoveredPrinter[]>().notNull().default([]),
@@ -332,8 +343,7 @@ export const printOpsCommands = pgTable(
       .notNull()
       .references(() => monitoringAgents.id, { onDelete: "cascade" }),
     requestedBy: integer("requested_by")
-      .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: "set null" }),
     type: text("type").notNull(),
     status: text("status").notNull().default("queued"),
     payload: jsonb("payload")
@@ -428,6 +438,70 @@ export const tonerTransactions = pgTable("toner_transactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ---------- EMPLOYEE REGISTRATION ----------
+export const userRegistrationRequests = pgTable(
+  "user_registration_requests",
+  {
+    id: serial("id").primaryKey(),
+    employeeId: text("employee_id").notNull(),
+    fullName: text("full_name").notNull(),
+    email: text("email").notNull(),
+    username: text("username").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    primaryLocationId: integer("primary_location_id")
+      .notNull()
+      .references(() => locations.id),
+    departmentId: integer("department_id")
+      .notNull()
+      .references(() => departments.id),
+    status: text("status").notNull().default("pending_email"),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    reviewedBy: integer("reviewed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+  },
+  (t) => [
+    index("registration_requests_status_idx").on(t.status),
+    index("registration_requests_email_idx").on(t.email),
+    index("registration_requests_employee_idx").on(t.employeeId),
+  ],
+);
+
+export const emailVerificationTokens = pgTable(
+  "email_verification_tokens",
+  {
+    id: serial("id").primaryKey(),
+    registrationRequestId: integer("registration_request_id")
+      .notNull()
+      .references(() => userRegistrationRequests.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("email_verification_registration_idx").on(t.registrationRequestId)],
+);
+
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: serial("id").primaryKey(),
+    actorUserId: integer("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("audit_logs_created_idx").on(t.createdAt)],
+);
+
 // ---------- NOTIFICATIONS ----------
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
@@ -453,4 +527,25 @@ export const systemSettings = pgTable("system_settings", {
   systemNotificationEnabled: boolean("system_notification_enabled")
     .notNull()
     .default(true),
+  agentOfflineThresholdMinutes: integer("agent_offline_threshold_minutes")
+    .notNull()
+    .default(5),
+  tonerLowEmailEnabled: boolean("toner_low_email_enabled").notNull().default(true),
+  tonerCriticalEmailEnabled: boolean("toner_critical_email_enabled").notNull().default(true),
+  tonerEmptyEmailEnabled: boolean("toner_empty_email_enabled").notNull().default(true),
+  agentOfflineEmailEnabled: boolean("agent_offline_email_enabled").notNull().default(true),
+  agentRecoveredEmailEnabled: boolean("agent_recovered_email_enabled").notNull().default(true),
+  registrationEnabled: boolean("registration_enabled").notNull().default(true),
+  smtpEnabled: boolean("smtp_enabled").notNull().default(false),
+  smtpHost: text("smtp_host"),
+  smtpPort: integer("smtp_port"),
+  smtpSecurity: text("smtp_security").notNull().default("none"),
+  smtpUsername: text("smtp_username"),
+  smtpPasswordEncrypted: text("smtp_password_encrypted"),
+  smtpFrom: text("smtp_from"),
+  smtpFromName: text("smtp_from_name"),
+  smtpTestRecipient: text("smtp_test_recipient"),
+  smtpLastTestedAt: timestamp("smtp_last_tested_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }),
 });

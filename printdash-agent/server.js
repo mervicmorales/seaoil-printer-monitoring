@@ -2,6 +2,7 @@
 require('dotenv').config({ quiet: true });
 const express = require('express');
 const snmp    = require('net-snmp');
+const { attachSnmpSessionErrorHandler, isolatePrinterPoll, safeError } = require('./snmp-safety');
 const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
@@ -335,14 +336,20 @@ function closeSnmpSession(session) {
   }
 }
 
-function logSnmpSessionError(ip, error) {
-  const message = error instanceof Error ? error.message : 'Unknown SNMP session error';
-  console.warn(`[SNMP] Session error from ${ip}: ${message}`);
+function logSnmpSessionError(ip, error, operation = 'unknown', printerIdentifier = ip) {
+  const safe = safeError(error);
+  console.warn(`[SNMP] Poll failed printer=${printerIdentifier} ip=${ip} operation=${operation} error=${safe.name} message=${safe.message}`);
 }
 
-function snmpGetOne(ip, community, oid) {
+function snmpGetOne(ip, community, oid, printerIdentifier = ip) {
   return new Promise(resolve => {
-    const s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+    let s;
+    try {
+      s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+    } catch (error) {
+      logSnmpSessionError(ip, error, `get ${oid}`, printerIdentifier);
+      return resolve({ok:false,value:null});
+    }
     let settled = false;
     const finish = result => {
       if (settled) return;
@@ -350,9 +357,8 @@ function snmpGetOne(ip, community, oid) {
       closeSnmpSession(s);
       resolve(result);
     };
-    s.on('error', error => {
+    attachSnmpSessionErrorHandler(s, { ip, printerIdentifier, operation: `get ${oid}` }, () => {
       if (settled) return;
-      logSnmpSessionError(ip, error);
       finish({ok:false,value:null});
     });
     s.get([oid], (err, vb) => {
@@ -365,11 +371,17 @@ function snmpGetOne(ip, community, oid) {
   });
 }
 
-function snmpGetOptional(ip, community, oids) {
+function snmpGetOptional(ip, community, oids, printerIdentifier = ip) {
   return new Promise(resolve => {
     if (!oids.length) return resolve({});
-    const s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
     const result = Object.fromEntries(oids.map(oid => [oid, null]));
+    let s;
+    try {
+      s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+    } catch (error) {
+      logSnmpSessionError(ip, error, 'get optional metrics', printerIdentifier);
+      return resolve(result);
+    }
     let remaining = oids.length;
     let settled = false;
     const finishAll = () => {
@@ -383,9 +395,8 @@ function snmpGetOptional(ip, community, oids) {
       remaining -= 1;
       if (remaining === 0) finishAll();
     };
-    s.on('error', error => {
+    attachSnmpSessionErrorHandler(s, { ip, printerIdentifier, operation: 'get optional metrics' }, () => {
       if (settled) return;
-      logSnmpSessionError(ip, error);
       finishAll();
     });
     for (const oid of oids) {
@@ -398,10 +409,16 @@ function snmpGetOptional(ip, community, oids) {
     }
   });
 }
-function snmpWalk(ip, community, oid) {
+function snmpWalk(ip, community, oid, printerIdentifier = ip) {
   return new Promise(resolve => {
-    const s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
     const res = [];
+    let s;
+    try {
+      s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+    } catch (error) {
+      logSnmpSessionError(ip, error, `subtree ${oid}`, printerIdentifier);
+      return resolve(res);
+    }
     let settled = false;
     const finish = () => {
       if (settled) return;
@@ -409,9 +426,8 @@ function snmpWalk(ip, community, oid) {
       closeSnmpSession(s);
       resolve(res);
     };
-    s.on('error', error => {
+    attachSnmpSessionErrorHandler(s, { ip, printerIdentifier, operation: `subtree ${oid}` }, () => {
       if (settled) return;
-      logSnmpSessionError(ip, error);
       finish();
     });
     s.subtree(
@@ -498,7 +514,8 @@ function brotherTonerLevelForName(name, levels) {
 async function getPrinterData(printer) {
   const {ip,community} = printer;
   const checkedAt = new Date().toISOString();
-  const baseline = await snmpGetOne(ip, community, OID.sysDescr);
+  const printerIdentifier = printer.name || printer.id || ip;
+  const baseline = await snmpGetOne(ip, community, OID.sysDescr, printerIdentifier);
   if (!baseline.ok) {
     return {...printer,online:false,status:'Offline',toners:[],trays:[],alerts:[],pages:null,
       lastChecked:checkedAt,pageHistory:pageHistory[printer.id]||[]};
@@ -517,7 +534,7 @@ async function getPrinterData(printer) {
     ];
     if (isBrother) optionalOids.push(OID.brotherMaintenanceInfo);
     if (isCanon) optionalOids.push(OID.canonSerialNumber);
-    const basic = await snmpGetOptional(ip, community, optionalOids);
+    const basic = await snmpGetOptional(ip, community, optionalOids, printerIdentifier);
     basic[OID.sysDescr] = baseline.value;
 
     const uptimeSec = basic[OID.sysUpTime]!=null ? Math.floor(Number(basic[OID.sysUpTime])/100) : null;
@@ -532,11 +549,11 @@ async function getPrinterData(printer) {
     const memKB  = basic[OID.memSize] ? Number(basic[OID.memSize]) : null;
 
     const [nameW,maxW,curW,colorW,trayNW,trayCW,trayLW,traySW,alertW] = await Promise.all([
-      snmpWalk(ip,community,OID.tonerName), snmpWalk(ip,community,OID.tonerMax),
-      snmpWalk(ip,community,OID.tonerCurrent), snmpWalk(ip,community,OID.colorant),
-      snmpWalk(ip,community,OID.trayName), snmpWalk(ip,community,OID.trayCapacity),
-      snmpWalk(ip,community,OID.trayLevel), snmpWalk(ip,community,OID.trayStatus),
-      snmpWalk(ip,community,OID.alertTable),
+      snmpWalk(ip,community,OID.tonerName,printerIdentifier), snmpWalk(ip,community,OID.tonerMax,printerIdentifier),
+      snmpWalk(ip,community,OID.tonerCurrent,printerIdentifier), snmpWalk(ip,community,OID.colorant,printerIdentifier),
+      snmpWalk(ip,community,OID.trayName,printerIdentifier), snmpWalk(ip,community,OID.trayCapacity,printerIdentifier),
+      snmpWalk(ip,community,OID.trayLevel,printerIdentifier), snmpWalk(ip,community,OID.trayStatus,printerIdentifier),
+      snmpWalk(ip,community,OID.alertTable,printerIdentifier),
     ]);
 
     const maxByIndex = walkValuesByIndex(maxW, OID.tonerMax);
@@ -600,7 +617,8 @@ async function getPrinterData(printer) {
     return {...printer,online:true,status,model:model.substring(0,60),serial,mac,memKB,
       uptime:uptimeSec==null?null:formatUptime(uptimeSec),uptimeSec,pages,pageHistory:pageHistory[printer.id]||[],
       console_msg,toners,trays,alerts,lastChecked:checkedAt};
-  } catch {
+  } catch (error) {
+    logSnmpSessionError(ip, error, 'parse printer response', printerIdentifier);
     return {...printer,online:true,status:'Unknown',model:bufToStr(baseline.value)||printer.name,
       toners:[],trays:[],alerts:[],pages:null,lastChecked:checkedAt,
       pageHistory:pageHistory[printer.id]||[]};
@@ -612,13 +630,24 @@ let cache = {data:[],updatedAt:null};
 let polling = false;
 let centralDiscoveryRunning = false;
 let centralPrintOpsRunning = false;
+async function pollPrinterSafely(printer) {
+  return isolatePrinterPoll(getPrinterData, printer, (failedPrinter, error) => {
+    const ip = failedPrinter.ip || 'unknown';
+    const printerIdentifier = failedPrinter.name || failedPrinter.id || ip;
+    const safe = safeError(error);
+    logSnmpSessionError(ip, error, 'printer poll', printerIdentifier);
+    return { ...failedPrinter, online: false, status: 'Poll Failed', toners: [], trays: [], alerts: [], pages: null,
+      errorStatus: safe.name, errorMessage: safe.message, lastChecked: new Date().toISOString(),
+      pageHistory: pageHistory[failedPrinter.id] || [] };
+  });
+}
 async function refreshAll() {
   if (polling) return;
   polling=true;
   try {
     const oldData = cache.data;
     const targets = [...PRINTERS];
-    const newData = await Promise.all(targets.map(getPrinterData));
+    const newData = await Promise.all(targets.map(pollPrinterSafely));
     if (newData.length > 0) {
       void sendToSeaoil(newData).catch(() => {
         console.error('[SEAOIL Agent] Unexpected upload error. Local monitoring continues; retrying next poll.');
@@ -1027,16 +1056,21 @@ function guessLocalSubnet() {
 }
 function snmpProbe(ip, community) {
   return new Promise(resolve => {
-    const s = snmp.createSession(ip, community||'public', {timeout:600,retries:0,version:snmp.Version1});
+    let s;
+    try {
+      s = snmp.createSession(ip, community||'public', {timeout:600,retries:0,version:snmp.Version1});
+    } catch (error) {
+      logSnmpSessionError(ip, error, 'discovery probe', ip);
+      return resolve(null);
+    }
     let settled = false;
     const fail = error => {
       if (settled) return;
       settled = true;
-      if (error) logSnmpSessionError(ip, error);
       closeSnmpSession(s);
       resolve(null);
     };
-    s.on('error', fail);
+    attachSnmpSessionErrorHandler(s, { ip, printerIdentifier: ip, operation: 'discovery probe' }, fail);
     s.get([OID.sysDescr], async (err, vb) => {
       if (settled) return;
       if (err || !vb || snmp.isVarbindError(vb[0])) return fail();
