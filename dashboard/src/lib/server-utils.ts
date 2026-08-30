@@ -93,7 +93,18 @@ export async function checkLowStockAndNotify(tonerTypeId: number) {
       await db.insert(notifications).values({ message, type: "low-stock" });
     }
     if (settings.emailReminderEnabled && settings.notificationEmail) {
-      await sendEmail(settings.notificationEmail, `[SEAOIL] Low Toner Stock: ${row.name}`, message);
+      try {
+        await sendEmail({
+          to: settings.notificationEmail,
+          subject: `[SEAOIL] Low Toner Stock: ${row.name}`,
+          text: message,
+        });
+      } catch (error) {
+        console.error(
+          "Low-stock email notification failed:",
+          error instanceof Error ? error.name : "UnknownError",
+        );
+      }
     }
   }
 }

@@ -68,3 +68,52 @@ npm run monitoring:agent:migrate-global -- --key default-agent
 After testing the migrated agent, remove `MONITORING_AGENT_TOKEN` and
 `MONITORING_AGENT_KEY` from the dashboard environment. Runtime ingest no longer
 reads either variable.
+
+## Mailpit Email Testing
+
+Start Mailpit on the development host:
+
+```bash
+mailpit
+```
+
+Mailpit accepts SMTP on `localhost:1025`, and its inbox is available at
+[http://localhost:8025](http://localhost:8025). The checked-in
+`.env.example` contains safe SMTP placeholders; keep real SMTP credentials only
+in a gitignored local environment file.
+
+Start the dashboard from this directory:
+
+```bash
+npm run dev
+```
+
+The SMTP test endpoint requires an authenticated admin session. After signing
+in as an administrator, copy the `seaoil_session` cookie from the browser's
+developer tools and run:
+
+```bash
+curl -X POST http://localhost:3000/api/email/test \
+  -H "Content-Type: application/json" \
+  -b "seaoil_session=<admin-session-cookie>" \
+  -d '{"to":"test@example.com"}'
+```
+
+Alternatively, while signed in as an administrator, run this from the browser
+console on the dashboard origin:
+
+```js
+fetch("/api/email/test", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ to: "test@example.com" }),
+}).then((response) => response.json()).then(console.log);
+```
+
+Open [http://localhost:8025](http://localhost:8025); the test message should
+appear with sender `SEAOIL Printer <printer@seaoil.com.ph>`.
+
+The current dashboard Compose file runs only PostgreSQL, while Next.js runs on
+the host via `npm run dev`, so `SMTP_HOST=localhost` is correct. If the Next.js
+dashboard is later containerized while Mailpit remains on the host, set
+`SMTP_HOST=host.docker.internal` in that container's environment.

@@ -327,16 +327,40 @@ function bufToStr(v) {
 // is unsupported. Use one standard baseline OID for connectivity, then fetch
 // optional values independently so a missing metric cannot make the device
 // appear offline.
+function closeSnmpSession(session) {
+  try {
+    session.close();
+  } catch {
+    // The session may already have been closed by net-snmp after a socket error.
+  }
+}
+
+function logSnmpSessionError(ip, error) {
+  const message = error instanceof Error ? error.message : 'Unknown SNMP session error';
+  console.warn(`[SNMP] Session error from ${ip}: ${message}`);
+}
+
 function snmpGetOne(ip, community, oid) {
   return new Promise(resolve => {
     const s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+    let settled = false;
+    const finish = result => {
+      if (settled) return;
+      settled = true;
+      closeSnmpSession(s);
+      resolve(result);
+    };
+    s.on('error', error => {
+      if (settled) return;
+      logSnmpSessionError(ip, error);
+      finish({ok:false,value:null});
+    });
     s.get([oid], (err, vb) => {
-      s.close();
       const value = vb && vb[0];
       if (err || !value || snmp.isVarbindError(value)) {
-        return resolve({ok:false,value:null});
+        return finish({ok:false,value:null});
       }
-      resolve({ok:true,value:value.value});
+      finish({ok:true,value:value.value});
     });
   });
 }
@@ -345,20 +369,31 @@ function snmpGetOptional(ip, community, oids) {
   return new Promise(resolve => {
     if (!oids.length) return resolve({});
     const s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
-    const result = {};
+    const result = Object.fromEntries(oids.map(oid => [oid, null]));
     let remaining = oids.length;
-    const finish = () => {
-      remaining -= 1;
-      if (remaining === 0) {
-        s.close();
-        resolve(result);
-      }
+    let settled = false;
+    const finishAll = () => {
+      if (settled) return;
+      settled = true;
+      closeSnmpSession(s);
+      resolve(result);
     };
+    const finishOne = () => {
+      if (settled) return;
+      remaining -= 1;
+      if (remaining === 0) finishAll();
+    };
+    s.on('error', error => {
+      if (settled) return;
+      logSnmpSessionError(ip, error);
+      finishAll();
+    });
     for (const oid of oids) {
       s.get([oid], (err, vb) => {
+        if (settled) return;
         const value = vb && vb[0];
         result[oid] = !err && value && !snmp.isVarbindError(value) ? value.value : null;
-        finish();
+        finishOne();
       });
     }
   });
@@ -367,8 +402,26 @@ function snmpWalk(ip, community, oid) {
   return new Promise(resolve => {
     const s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
     const res = [];
-    s.subtree(oid, 30, vb => vb.forEach(v => { if (!snmp.isVarbindError(v)) res.push({oid:v.oid,value:v.value}); }),
-      () => { s.close(); resolve(res); });
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      closeSnmpSession(s);
+      resolve(res);
+    };
+    s.on('error', error => {
+      if (settled) return;
+      logSnmpSessionError(ip, error);
+      finish();
+    });
+    s.subtree(
+      oid,
+      30,
+      vb => {
+        if (!settled) vb.forEach(v => { if (!snmp.isVarbindError(v)) res.push({oid:v.oid,value:v.value}); });
+      },
+      finish,
+    );
   });
 }
 
@@ -975,9 +1028,20 @@ function guessLocalSubnet() {
 function snmpProbe(ip, community) {
   return new Promise(resolve => {
     const s = snmp.createSession(ip, community||'public', {timeout:600,retries:0,version:snmp.Version1});
+    let settled = false;
+    const fail = error => {
+      if (settled) return;
+      settled = true;
+      if (error) logSnmpSessionError(ip, error);
+      closeSnmpSession(s);
+      resolve(null);
+    };
+    s.on('error', fail);
     s.get([OID.sysDescr], async (err, vb) => {
-      s.close();
-      if (err || !vb || snmp.isVarbindError(vb[0])) return resolve(null);
+      if (settled) return;
+      if (err || !vb || snmp.isVarbindError(vb[0])) return fail();
+      settled = true;
+      closeSnmpSession(s);
       const description = bufToStr(vb[0].value);
       const details = await snmpGetOptional(ip, community, [
         OID.deviceDesc,
