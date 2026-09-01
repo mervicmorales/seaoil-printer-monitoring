@@ -9,6 +9,9 @@ export default function DeleteButton({
   title = "Delete item?",
   label = "Delete",
   confirmLabel = "Delete",
+  requireReason = false,
+  reasonLabel = "Reason for deletion",
+  reasonPlaceholder = "Enter the reason for deleting this record",
   className = "rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100",
 }: {
   action: (formData: FormData) => void | Promise<void>;
@@ -17,6 +20,9 @@ export default function DeleteButton({
   title?: string;
   label?: string;
   confirmLabel?: string;
+  requireReason?: boolean;
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
   className?: string;
 }) {
   return (
@@ -27,6 +33,9 @@ export default function DeleteButton({
       confirmText={confirmText}
       label={label}
       confirmLabel={confirmLabel}
+      requireReason={requireReason}
+      reasonLabel={reasonLabel}
+      reasonPlaceholder={reasonPlaceholder}
       className={className}
     />
   );

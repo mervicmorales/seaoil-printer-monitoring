@@ -1,11 +1,12 @@
 "use server";
 
-import { and, eq, or } from "drizzle-orm";
+import { createHash, randomBytes } from "crypto";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { auditLogs, emailVerificationTokens, userRegistrationRequests, users } from "@/db/schema";
+import { auditLogs, emailVerificationTokens, manualUserVerificationTokens, userRegistrationRequests, users } from "@/db/schema";
 import { sendEmail } from "@/lib/email";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 
@@ -61,6 +62,98 @@ async function sendRejectionEmail(request: { fullName: string; email: string }, 
   });
 }
 
+async function sendRegistrationVerificationEmail(request: {
+  fullName: string;
+  email: string;
+  employeeId: string | null;
+  source: string;
+}, rawToken: string) {
+  const manual = request.source === "manual";
+  const verificationUrl = `${await applicationOrigin()}/${manual ? "verify-user-email" : "verify-email"}?token=${encodeURIComponent(rawToken)}`;
+  const nextStep = manual
+    ? "No additional administrator approval is required after verification."
+    : "After verification, your registration will be submitted for administrator approval.";
+  await sendEmail({
+    to: request.email,
+    subject: manual
+      ? "SEAOIL Printer - Verify Your User Account"
+      : "SEAOIL Printer - Verify Your Email",
+    text: [
+      `Hello ${request.fullName},`,
+      request.employeeId ? `Employee ID: ${request.employeeId}` : "",
+      "Verify your email using the new link below:",
+      verificationUrl,
+      `This single-use link expires in 24 hours. ${nextStep}`,
+    ].filter(Boolean).join("\n\n"),
+    html: `<p>Hello ${escapeHtml(request.fullName)},</p>${request.employeeId ? `<p>Employee ID: ${escapeHtml(request.employeeId)}</p>` : ""}<p><a href="${escapeHtml(verificationUrl)}">Verify your email</a></p><p>This single-use link expires in 24 hours. ${escapeHtml(nextStep)}</p>`,
+  });
+}
+
+export async function resendRegistrationVerificationAction(formData: FormData) {
+  await requireModuleFullAccess("registrations");
+  const id = registrationId(formData);
+  if (!id) redirect("/manage/registrations?error=Invalid registration request.");
+  const returnPath = `/manage/registrations/${id}`;
+  const rawToken = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60_000);
+
+  const request = await db.transaction(async (tx) => {
+    const [registration] = await tx.select().from(userRegistrationRequests).where(and(
+      eq(userRegistrationRequests.id, id),
+      inArray(userRegistrationRequests.status, ["pending_email", "expired"]),
+    )).limit(1);
+    if (!registration) return null;
+
+    if (registration.source === "manual") {
+      if (!registration.userId) return null;
+      const [pendingUser] = await tx.select({ id: users.id }).from(users).where(and(
+        eq(users.id, registration.userId),
+        eq(users.accountStatus, "pending_email"),
+      )).limit(1);
+      if (!pendingUser) return null;
+      await tx.update(manualUserVerificationTokens).set({ consumedAt: now }).where(and(
+        eq(manualUserVerificationTokens.userId, pendingUser.id),
+        isNull(manualUserVerificationTokens.consumedAt),
+      ));
+      await tx.insert(manualUserVerificationTokens).values({
+        userId: pendingUser.id,
+        tokenHash,
+        expiresAt,
+      });
+    } else {
+      await tx.update(emailVerificationTokens).set({ consumedAt: now }).where(and(
+        eq(emailVerificationTokens.registrationRequestId, registration.id),
+        isNull(emailVerificationTokens.consumedAt),
+      ));
+      await tx.insert(emailVerificationTokens).values({
+        registrationRequestId: registration.id,
+        tokenHash,
+        expiresAt,
+        createdAt: now,
+      });
+    }
+
+    await tx.update(userRegistrationRequests).set({
+      status: "pending_email",
+      expiresAt,
+    }).where(eq(userRegistrationRequests.id, registration.id));
+    return registration;
+  });
+
+  if (!request) redirect(`${returnPath}?error=Only registrations awaiting email verification can be resent.`);
+  try {
+    await sendRegistrationVerificationEmail(request, rawToken);
+  } catch (error) {
+    console.error("Registration verification resend failed:", error instanceof Error ? error.message : "UnknownError");
+    redirect(`${returnPath}?error=The verification email could not be sent. Check the SMTP settings and try again.`);
+  }
+  revalidatePath("/manage/registrations");
+  revalidatePath(returnPath);
+  redirect(`${returnPath}?success=Previous verification links were expired and a new email was sent.`);
+}
+
 export async function approveRegistrationAction(formData: FormData) {
   const admin = await requireModuleFullAccess("registrations");
   const id = registrationId(formData);
@@ -70,35 +163,73 @@ export async function approveRegistrationAction(formData: FormData) {
     approvedRequest = await db.transaction(async (tx) => {
       const [request] = await tx.select().from(userRegistrationRequests).where(and(
         eq(userRegistrationRequests.id, id),
-        eq(userRegistrationRequests.status, "pending_admin"),
+        inArray(userRegistrationRequests.status, ["pending_email", "pending_admin"]),
       )).limit(1);
-      if (!request || !request.emailVerifiedAt) throw new Error("RegistrationNotApprovable");
-      const [duplicate] = await tx.select({ id: users.id }).from(users).where(or(
-        eq(users.employeeId, request.employeeId),
-        eq(users.email, request.email),
-        eq(users.username, request.username),
-      )).limit(1);
-      if (duplicate) throw new Error("RegistrationIdentityConflict");
-      await tx.insert(users).values({
-        fullName: request.fullName,
-        employeeId: request.employeeId,
-        email: request.email,
-        username: request.username,
-        passwordHash: request.passwordHash,
-        primaryLocationId: request.primaryLocationId,
-        departmentId: request.departmentId,
-        role: "employee",
-        accountStatus: "active",
-        emailVerifiedAt: request.emailVerifiedAt,
-      });
+      if (!request) throw new Error("RegistrationNotApprovable");
       const now = new Date();
-      const updated = await tx.update(userRegistrationRequests).set({ status: "approved", reviewedBy: admin.id, reviewedAt: now, rejectionReason: null }).where(and(
+
+      if (request.source === "manual") {
+        if (!request.userId) throw new Error("ManualUserMissing");
+        const activated = await tx.update(users).set({
+          accountStatus: "active",
+        }).where(and(
+          eq(users.id, request.userId),
+          eq(users.accountStatus, "pending_email"),
+        )).returning({ id: users.id });
+        if (!activated.length) throw new Error("ManualUserNotActivatable");
+        await tx.update(manualUserVerificationTokens).set({ consumedAt: now }).where(and(
+          eq(manualUserVerificationTokens.userId, request.userId),
+          isNull(manualUserVerificationTokens.consumedAt),
+        ));
+      } else {
+        if (!request.employeeId || !request.primaryLocationId || !request.departmentId) {
+          throw new Error("EmployeeRegistrationIncomplete");
+        }
+        const [duplicate] = await tx.select({ id: users.id }).from(users).where(or(
+          eq(users.employeeId, request.employeeId),
+          eq(users.email, request.email),
+          eq(users.username, request.username),
+        )).limit(1);
+        if (duplicate) throw new Error("RegistrationIdentityConflict");
+        await tx.insert(users).values({
+          fullName: request.fullName,
+          employeeId: request.employeeId,
+          email: request.email,
+          username: request.username,
+          passwordHash: request.passwordHash,
+          primaryLocationId: request.primaryLocationId,
+          departmentId: request.departmentId,
+          role: "employee",
+          accountStatus: "active",
+          emailVerifiedAt: request.emailVerifiedAt,
+        });
+        await tx.update(emailVerificationTokens).set({ consumedAt: now }).where(and(
+          eq(emailVerificationTokens.registrationRequestId, id),
+          isNull(emailVerificationTokens.consumedAt),
+        ));
+      }
+
+      const updated = await tx.update(userRegistrationRequests).set({
+        status: "approved",
+        reviewedBy: admin.id,
+        reviewedAt: now,
+        rejectionReason: null,
+      }).where(and(
         eq(userRegistrationRequests.id, id),
-        eq(userRegistrationRequests.status, "pending_admin"),
+        inArray(userRegistrationRequests.status, ["pending_email", "pending_admin"]),
       )).returning({ id: userRegistrationRequests.id });
       if (!updated.length) throw new Error("RegistrationChanged");
-      await tx.update(emailVerificationTokens).set({ consumedAt: now }).where(eq(emailVerificationTokens.registrationRequestId, id));
-      await tx.insert(auditLogs).values({ actorUserId: admin.id, action: "registration.approved", targetType: "registration", targetId: String(id), metadata: { employeeId: request.employeeId } });
+      await tx.insert(auditLogs).values({
+        actorUserId: admin.id,
+        action: "registration.approved",
+        targetType: "registration",
+        targetId: String(id),
+        metadata: {
+          employeeId: request.employeeId,
+          source: request.source,
+          bypassedEmailVerification: request.status === "pending_email",
+        },
+      });
       return { fullName: request.fullName, email: request.email };
     });
   } catch (error) {
@@ -114,6 +245,7 @@ export async function approveRegistrationAction(formData: FormData) {
     console.error("Registration approval email failed:", error instanceof Error ? error.message : "UnknownError");
   }
   revalidatePath("/manage/registrations");
+  revalidatePath("/manage");
   redirect(`/manage/registrations/${id}?success=Registration approved.${emailError ? "&error=The approval email could not be sent. Check the SMTP settings and notify the user manually." : ""}`);
 }
 
@@ -127,19 +259,38 @@ export async function rejectRegistrationAction(formData: FormData) {
   const rejectedRequest = await db.transaction(async (tx) => {
     const rows = await tx.update(userRegistrationRequests).set({ status: "rejected", reviewedBy: admin.id, reviewedAt: now, rejectionReason: reason }).where(and(
       eq(userRegistrationRequests.id, id),
-      eq(userRegistrationRequests.status, "pending_admin"),
+      inArray(userRegistrationRequests.status, ["pending_email", "pending_admin"]),
     )).returning({
       id: userRegistrationRequests.id,
       fullName: userRegistrationRequests.fullName,
       email: userRegistrationRequests.email,
+      source: userRegistrationRequests.source,
+      userId: userRegistrationRequests.userId,
     });
-    if (rows.length) {
+    const rejected = rows[0];
+    if (rejected) {
       await tx.update(emailVerificationTokens).set({ consumedAt: now }).where(eq(emailVerificationTokens.registrationRequestId, id));
-      await tx.insert(auditLogs).values({ actorUserId: admin.id, action: "registration.rejected", targetType: "registration", targetId: String(id), metadata: { reason } });
+      if (rejected.source === "manual" && rejected.userId) {
+        await tx.update(manualUserVerificationTokens).set({ consumedAt: now }).where(and(
+          eq(manualUserVerificationTokens.userId, rejected.userId),
+          isNull(manualUserVerificationTokens.consumedAt),
+        ));
+        await tx.delete(users).where(and(
+          eq(users.id, rejected.userId),
+          eq(users.accountStatus, "pending_email"),
+        ));
+      }
+      await tx.insert(auditLogs).values({
+        actorUserId: admin.id,
+        action: "registration.rejected",
+        targetType: "registration",
+        targetId: String(id),
+        metadata: { reason, source: rejected.source },
+      });
     }
-    return rows[0] ?? null;
+    return rejected ?? null;
   });
-  if (!rejectedRequest) redirect(`/manage/registrations/${id}?error=Only verified requests awaiting admin approval can be rejected.`);
+  if (!rejectedRequest) redirect(`/manage/registrations/${id}?error=Only registrations awaiting verification or approval can be rejected.`);
 
   let emailError = false;
   try {
@@ -149,5 +300,6 @@ export async function rejectRegistrationAction(formData: FormData) {
     console.error("Registration rejection email failed:", error instanceof Error ? error.message : "UnknownError");
   }
   revalidatePath("/manage/registrations");
+  revalidatePath("/manage");
   redirect(`/manage/registrations/${id}?success=Registration rejected.${emailError ? "&error=The rejection email could not be sent. Check the SMTP settings and notify the user manually." : ""}`);
 }

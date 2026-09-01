@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; verified?: string }>;
+  searchParams: Promise<{ next?: string; verified?: string; reset?: string }>;
 }) {
   const params = await searchParams;
   const [settings] = await db
@@ -18,7 +18,7 @@ export default async function LoginPage({
   const logoUrl = settings?.logoUrl ?? null;
 
   return (
-    <main className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+    <main className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <section className="relative hidden flex-col justify-between overflow-hidden bg-[#014171] p-12 text-white lg:flex">
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#7DA8D0]/30 blur-3xl" />
         <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-[#FEF200]/20 blur-3xl" />
@@ -57,7 +57,7 @@ export default async function LoginPage({
       </section>
 
       <section className="flex items-center justify-center bg-[#f4f6f9] px-6 py-12">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl sm:p-10">
+        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 shadow-xl sm:p-10">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <div
               className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-lg font-black text-[#FEF200] ${
@@ -81,6 +81,11 @@ export default async function LoginPage({
           {params.verified === "account-activated" && (
             <p className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               Your email has been verified and your account is now active. You can sign in.
+            </p>
+          )}
+          {params.reset === "success" && (
+            <p className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              Your password has been updated. Sign in with your new password.
             </p>
           )}
           {params.verified === "1" && (

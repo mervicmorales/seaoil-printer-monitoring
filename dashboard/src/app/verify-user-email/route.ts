@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { manualUserVerificationTokens, users } from "@/db/schema";
+import { manualUserVerificationTokens, userRegistrationRequests, users } from "@/db/schema";
 
 export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get("token") || "";
@@ -35,6 +35,15 @@ export async function GET(request: Request) {
       eq(users.id, record.userId),
       eq(users.accountStatus, "pending_email"),
     )).returning({ id: users.id });
+    if (updated.length) {
+      await tx.update(userRegistrationRequests).set({
+        status: "approved",
+        emailVerifiedAt: now,
+      }).where(and(
+        eq(userRegistrationRequests.userId, record.userId),
+        eq(userRegistrationRequests.source, "manual"),
+      ));
+    }
     return updated.length > 0;
   });
 

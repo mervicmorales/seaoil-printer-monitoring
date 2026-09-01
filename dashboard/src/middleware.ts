@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/validation";
 
-const PUBLIC_PATHS = ["/login", "/register", "/verify-email", "/access-denied"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/verify-email",
+  "/verify-user-email",
+  "/forgot-password",
+  "/reset-password",
+  "/access-denied",
+];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -74,6 +74,21 @@ export const manualUserVerificationTokens = pgTable(
   (t) => [index("manual_user_verification_user_idx").on(t.userId)],
 );
 
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("password_reset_user_idx").on(t.userId)],
+);
+
 // ---------- LOOKUP DATABASES ----------
 export const itsNames = pgTable("its_names", {
   id: serial("id").primaryKey(),
@@ -458,17 +473,19 @@ export const userRegistrationRequests = pgTable(
   "user_registration_requests",
   {
     id: serial("id").primaryKey(),
-    employeeId: text("employee_id").notNull(),
+    employeeId: text("employee_id"),
     fullName: text("full_name").notNull(),
     email: text("email").notNull(),
     username: text("username").notNull(),
     passwordHash: text("password_hash").notNull(),
     primaryLocationId: integer("primary_location_id")
-      .notNull()
       .references(() => locations.id),
     departmentId: integer("department_id")
-      .notNull()
       .references(() => departments.id),
+    source: text("source").notNull().default("self_registration"),
+    userId: integer("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     status: text("status").notNull().default("pending_email"),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -478,11 +495,13 @@ export const userRegistrationRequests = pgTable(
     }),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     rejectionReason: text("rejection_reason"),
+    deletionReason: text("deletion_reason"),
   },
   (t) => [
     index("registration_requests_status_idx").on(t.status),
     index("registration_requests_email_idx").on(t.email),
     index("registration_requests_employee_idx").on(t.employeeId),
+    index("registration_requests_user_idx").on(t.userId),
   ],
 );
 

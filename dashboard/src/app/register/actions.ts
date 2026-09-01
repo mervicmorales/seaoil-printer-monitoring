@@ -101,6 +101,7 @@ export async function registerAction(_previous: RegistrationState, formData: For
       passwordHash,
       primaryLocationId,
       departmentId,
+      source: "self_registration",
       status: "pending_email",
       expiresAt,
     }).returning();
@@ -118,7 +119,11 @@ export async function registerAction(_previous: RegistrationState, formData: For
   });
 
   try {
-    await sendVerificationEmail(request, rawToken);
+    await sendVerificationEmail({
+      fullName: request.fullName,
+      employeeId,
+      email: request.email,
+    }, rawToken);
   } catch (error) {
     console.error("Registration verification email failed:", error instanceof Error ? error.name : "UnknownError");
     return {
@@ -133,8 +138,12 @@ export async function resendVerificationAction(_previous: RegistrationState, for
   await expireRegistrationRequests();
   const email = value(formData, "email").toLowerCase();
   if (!/^[^\s@]+@seaoil\.com\.ph$/i.test(email)) return genericCooldownSuccess();
-  const [request] = await db.select().from(userRegistrationRequests).where(and(eq(userRegistrationRequests.email, email), eq(userRegistrationRequests.status, "pending_email"))).limit(1);
-  if (!request) return genericCooldownSuccess();
+  const [request] = await db.select().from(userRegistrationRequests).where(and(
+    eq(userRegistrationRequests.email, email),
+    eq(userRegistrationRequests.status, "pending_email"),
+    eq(userRegistrationRequests.source, "self_registration"),
+  )).limit(1);
+  if (!request?.employeeId) return genericCooldownSuccess();
   const [latest] = await db.select({ createdAt: emailVerificationTokens.createdAt }).from(emailVerificationTokens).where(eq(emailVerificationTokens.registrationRequestId, request.id)).orderBy(desc(emailVerificationTokens.createdAt)).limit(1);
   if (latest && latest.createdAt > new Date(Date.now() - RESEND_COOLDOWN_MS)) {
     return genericCooldownSuccess(latest.createdAt.getTime() + RESEND_COOLDOWN_MS);
@@ -155,7 +164,11 @@ export async function resendVerificationAction(_previous: RegistrationState, for
     await tx.update(userRegistrationRequests).set({ expiresAt }).where(eq(userRegistrationRequests.id, request.id));
   });
   try {
-    await sendVerificationEmail(request, rawToken);
+    await sendVerificationEmail({
+      fullName: request.fullName,
+      employeeId: request.employeeId,
+      email: request.email,
+    }, rawToken);
   } catch (error) {
     console.error("Registration verification resend failed:", error instanceof Error ? error.name : "UnknownError");
   }

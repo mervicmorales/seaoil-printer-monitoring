@@ -63,7 +63,10 @@ async function sendManualUserVerificationEmail(user: { fullName: string; email: 
 export type UserFormState = { error?: string; fieldErrors?: Record<string, string> };
 
 export async function createUserAction(_prev: UserFormState, formData: FormData): Promise<UserFormState> {
-  await requireModuleFullAccess("manage_users");
+  const creator = await requireModuleFullAccess("manage_users");
+  const returnTo = formData.get("returnTo") === "/manage/registrations"
+    ? "/manage/registrations"
+    : "/manage";
 
   const fullName = str(formData.get("fullName"));
   const email = str(formData.get("email"));
@@ -121,6 +124,21 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
         tokenHash,
         expiresAt,
       });
+      await tx.insert(userRegistrationRequests).values({
+        employeeId,
+        fullName: fullName!,
+        email: email!,
+        username: username!,
+        passwordHash,
+        primaryLocationId,
+        departmentId,
+        source: "manual",
+        userId: inserted.id,
+        status: "pending_email",
+        expiresAt,
+        reviewedBy: creator.id,
+        reviewedAt: new Date(),
+      });
       return inserted;
     });
   } catch (err) {
@@ -136,48 +154,8 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
     console.error("Manual user verification email failed:", error instanceof Error ? error.message : "UnknownError");
   }
   revalidatePath("/manage");
-  redirect(`/manage?success=User created and awaiting email verification.${emailError ? "&error=The verification email could not be sent. Use Resend Verification from User Management after checking SMTP settings." : ""}`);
-}
-
-export async function resendManualUserVerificationAction(formData: FormData) {
-  await requireModuleFullAccess("manage_users");
-  const userId = num(formData.get("id"));
-  if (!userId) redirect("/manage?error=Invalid user account.");
-
-  const rawToken = randomBytes(32).toString("base64url");
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60_000);
-  const user = await db.transaction(async (tx) => {
-    const [pendingUser] = await tx.select({
-      id: users.id,
-      fullName: users.fullName,
-      email: users.email,
-    }).from(users).where(and(
-      eq(users.id, userId),
-      eq(users.accountStatus, "pending_email"),
-    )).limit(1);
-    if (!pendingUser) return null;
-
-    await tx.update(manualUserVerificationTokens).set({ consumedAt: new Date() }).where(and(
-      eq(manualUserVerificationTokens.userId, pendingUser.id),
-      isNull(manualUserVerificationTokens.consumedAt),
-    ));
-    await tx.insert(manualUserVerificationTokens).values({
-      userId: pendingUser.id,
-      tokenHash,
-      expiresAt,
-    });
-    return pendingUser;
-  });
-
-  if (!user) redirect("/manage?error=Only manually added accounts awaiting email verification can be resent.");
-  try {
-    await sendManualUserVerificationEmail(user, rawToken);
-  } catch (error) {
-    console.error("Manual user verification resend failed:", error instanceof Error ? error.message : "UnknownError");
-    redirect("/manage?error=The verification email could not be sent. Check the SMTP settings and try again.");
-  }
-  redirect("/manage?success=Verification email resent successfully.");
+  revalidatePath("/manage/registrations");
+  redirect(`${returnTo}?success=User created and awaiting email verification.${emailError ? "&error=The verification email could not be sent. Use Resend Verification from the user's Registration Detail after checking SMTP settings." : ""}`);
 }
 
 export async function updateUserAction(_prev: UserFormState, formData: FormData): Promise<UserFormState> {
@@ -234,6 +212,10 @@ export async function deleteUserAction(formData: FormData) {
   if (!id || id === admin.id) {
     redirect("/manage?success=Cannot delete this account.");
   }
+  const deletionReason = str(formData.get("deletionReason"));
+  if (!deletionReason || deletionReason.length < 3) {
+    redirect("/manage?error=A deletion reason of at least 3 characters is required.");
+  }
   try {
     await db.transaction(async (tx) => {
       const [target] = await tx.select({
@@ -244,11 +226,17 @@ export async function deleteUserAction(formData: FormData) {
       }).from(users).where(eq(users.id, id!)).limit(1);
       if (!target) throw new Error("UserNotFound");
 
-      await tx.update(userRegistrationRequests).set({ status: "account_deleted" }).where(and(
-        eq(userRegistrationRequests.status, "approved"),
-        or(
-          eq(userRegistrationRequests.email, target.email),
-          eq(userRegistrationRequests.username, target.username),
+      await tx.update(userRegistrationRequests).set({
+        status: "account_deleted",
+        deletionReason,
+      }).where(or(
+        eq(userRegistrationRequests.userId, target.id),
+        and(
+          eq(userRegistrationRequests.status, "approved"),
+          or(
+            eq(userRegistrationRequests.email, target.email),
+            eq(userRegistrationRequests.username, target.username),
+          ),
         ),
       ));
       await tx.insert(auditLogs).values({
@@ -256,7 +244,7 @@ export async function deleteUserAction(formData: FormData) {
         action: "user.deleted",
         targetType: "user",
         targetId: String(target.id),
-        metadata: { email: target.email, employeeId: target.employeeId },
+        metadata: { email: target.email, employeeId: target.employeeId, deletionReason },
       });
       await tx.delete(users).where(eq(users.id, target.id));
     });

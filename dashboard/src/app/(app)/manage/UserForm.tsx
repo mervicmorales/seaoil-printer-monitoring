@@ -37,12 +37,14 @@ export default function UserForm({
   user,
   locations,
   departments,
+  returnTo = "/manage",
 }: {
   mode: "create" | "edit";
   action: (prev: UserFormState, formData: FormData) => Promise<UserFormState>;
   user?: UserRecord;
   locations: Lookup[];
   departments: Lookup[];
+  returnTo?: "/manage" | "/manage/registrations";
 }) {
   const [state, formAction] = useActionState(action, {});
   const [role, setRole] = useState(user?.role === "user" ? "support" : (user?.role ?? "support"));
@@ -52,6 +54,7 @@ export default function UserForm({
   return (
     <form action={formAction} className="space-y-5">
       {mode === "edit" && user && <input type="hidden" name="id" value={user.id} />}
+      {mode === "create" && <input type="hidden" name="returnTo" value={returnTo} />}
       {state.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
       )}
@@ -142,8 +145,8 @@ export default function UserForm({
         </p>
       )}
       <div className="flex gap-3">
-        <SubmitButton label={mode === "create" ? "Create User" : "Save Changes"} />
-        <Link href="/manage"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
+        <SubmitButton label={mode === "create" ? "Create Account" : "Save Changes"} />
+        <Link href={returnTo}><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>
     </form>
   );

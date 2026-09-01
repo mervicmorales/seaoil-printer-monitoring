@@ -45,24 +45,34 @@ alter table print_ops_commands add constraint print_ops_commands_requested_by_us
 
 create table if not exists user_registration_requests (
   id serial primary key,
-  employee_id text not null,
+  employee_id text,
   full_name text not null,
   email text not null,
   username text not null,
   password_hash text not null,
-  primary_location_id integer not null references locations(id),
-  department_id integer not null references departments(id),
+  primary_location_id integer references locations(id),
+  department_id integer references departments(id),
+  source text not null default 'self_registration',
+  user_id integer references users(id) on delete set null,
   status text not null default 'pending_email',
   email_verified_at timestamptz,
   created_at timestamptz not null default now(),
   expires_at timestamptz not null,
   reviewed_by integer references users(id) on delete set null,
   reviewed_at timestamptz,
-  rejection_reason text
+  rejection_reason text,
+  deletion_reason text
 );
+alter table user_registration_requests alter column employee_id drop not null;
+alter table user_registration_requests alter column primary_location_id drop not null;
+alter table user_registration_requests alter column department_id drop not null;
+alter table user_registration_requests add column if not exists source text not null default 'self_registration';
+alter table user_registration_requests add column if not exists user_id integer references users(id) on delete set null;
+alter table user_registration_requests add column if not exists deletion_reason text;
 create index if not exists registration_requests_status_idx on user_registration_requests(status);
 create index if not exists registration_requests_email_idx on user_registration_requests(email);
 create index if not exists registration_requests_employee_idx on user_registration_requests(employee_id);
+create index if not exists registration_requests_user_idx on user_registration_requests(user_id);
 
 create table if not exists email_verification_tokens (
   id serial primary key,

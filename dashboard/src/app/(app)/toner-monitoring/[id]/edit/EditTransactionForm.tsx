@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Input, Select, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SearchableSelect from "@/components/SearchableSelect";
 import type { TonerFormState } from "../../actions";
 import Link from "next/link";
 
@@ -60,30 +61,36 @@ export default function EditTransactionForm({
         </Select>
         <Input label="Date" name="date" type="date" defaultValue={txn.date} required />
         <Input label="Ticket Reference" name="ticketReference" defaultValue={txn.ticketReference ?? ""} placeholder="Enter ticket or P.O number" />
-        <Select label="Toner Type" name="tonerTypeId" defaultValue={txn.tonerTypeId} required>
-          {tonerTypes.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </Select>
+        <SearchableSelect
+          label="Toner Type"
+          name="tonerTypeId"
+          options={tonerTypes}
+          placeholder="Search toner type..."
+          defaultValue={txn.tonerTypeId}
+          required
+        />
         <Input label="Quantity" name="quantity" type="number" min="1" defaultValue={txn.quantity} required />
-        <Select label="Location" name="locationId" defaultValue={txn.locationId ?? ""}>
-          <option value="">Select location</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>{l.name}</option>
-          ))}
-        </Select>
-        <Select label="Department" name="departmentId" defaultValue={txn.departmentId ?? ""}>
-          <option value="">Select department</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </Select>
-        <Select label="ITS Name" name="itsNameId" defaultValue={txn.itsNameId ?? ""}>
-          <option value="">Select ITS Name</option>
-          {itsNames.map((i) => (
-            <option key={i.id} value={i.id}>{i.name}</option>
-          ))}
-        </Select>
+        <SearchableSelect
+          label="Location"
+          name="locationId"
+          options={locations}
+          placeholder="Search location..."
+          defaultValue={txn.locationId}
+        />
+        <SearchableSelect
+          label="Department"
+          name="departmentId"
+          options={departments}
+          placeholder="Search department..."
+          defaultValue={txn.departmentId}
+        />
+        <SearchableSelect
+          label="ITS Name"
+          name="itsNameId"
+          options={itsNames}
+          placeholder="Search ITS Name..."
+          defaultValue={txn.itsNameId}
+        />
       </div>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-slate-700">Remarks</label>

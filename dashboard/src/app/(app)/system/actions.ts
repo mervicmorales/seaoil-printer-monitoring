@@ -207,8 +207,17 @@ export async function deleteVendorAction(formData: FormData) {
 export async function updateSettingsAction(formData: FormData) {
   const admin = await requireModuleFullAccess("system");
   const rows = await db.select().from(systemSettings).limit(1);
+  
+  // Validate comma-separated emails
+  const emailInput = str(formData.get("notificationEmail")) || "itservicedesk@seaoil.com.ph";
+  const emails = emailInput.split(",").map(e => e.trim()).filter(e => e);
+  const invalidEmails = emails.filter(e => !isValidEmail(e));
+  if (invalidEmails.length > 0) {
+    redirect(`/system?tab=reminders&error=Invalid email address: ${invalidEmails[0]}`);
+  }
+  
   const values = {
-    notificationEmail: str(formData.get("notificationEmail")) || "itservicedesk@seaoil.com.ph",
+    notificationEmail: emails.join(", "),
     defaultLowStockThreshold: num(formData.get("defaultLowStockThreshold")) ?? 5,
     emailReminderEnabled: formData.get("emailReminderEnabled") === "on",
     systemNotificationEnabled: formData.get("systemNotificationEnabled") === "on",

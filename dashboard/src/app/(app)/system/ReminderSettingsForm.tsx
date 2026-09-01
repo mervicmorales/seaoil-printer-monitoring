@@ -23,9 +23,10 @@ export default function ReminderSettingsForm({
   return (
     <form action={action} className="max-w-xl space-y-5">
       <Input
-        label="SEAOIL Printer Monitoring Email"
+        label="Toner Notofications Email"
         name="notificationEmail"
-        type="email"
+        type="text"
+        placeholder="email@example.com, another@example.com"
         defaultValue={settings.notificationEmail}
         required
       />

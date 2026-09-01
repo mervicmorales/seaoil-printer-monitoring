@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { printers, locations, departments, vendors, tonerTypes, printerTonerTypes, contracts } from "@/db/schema";
+import { printers, locations, departments, vendors, tonerTypes, printerTonerTypes } from "@/db/schema";
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { PageHeader, TableCard, Badge, statusBadgeColor, EmptyState } from "@/components/ui";
-import { formatDate, formatPHP } from "@/lib/format";
 import { requireSession, getModuleAccessMap } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import SuccessBanner from "@/components/SuccessBanner";
@@ -57,13 +56,11 @@ export default async function PrintersPage({
       locationName: locations.name,
       departmentName: departments.name,
       vendorName: vendors.name,
-      contractEnd: contracts.endDate,
     })
     .from(printers)
     .leftJoin(locations, eq(printers.locationId, locations.id))
     .leftJoin(departments, eq(printers.departmentId, departments.id))
     .leftJoin(vendors, eq(printers.vendorId, vendors.id))
-    .leftJoin(contracts, eq(printers.contractId, contracts.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(asc(printers.id));
 
@@ -143,14 +140,13 @@ export default async function PrintersPage({
         {rows.length === 0 ? (
           <EmptyState message="No printers found. Try adjusting your filters or add a new printer." />
         ) : (
-          <table className="w-full min-w-[1180px] table-fixed text-left text-sm">
+          <table className="w-full min-w-[1035px] table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[190px]" />
               <col className="w-[175px]" />
               <col className="w-[170px]" />
               <col className="w-[185px]" />
               <col className="w-[135px]" />
-              <col className="w-[145px]" />
               <col className="w-[105px]" />
               <col className="w-[75px]" />
             </colgroup>
@@ -161,7 +157,6 @@ export default async function PrintersPage({
                 <th className="whitespace-nowrap px-4 py-3">Brand / Model</th>
                 <th className="whitespace-nowrap px-4 py-3">Toner Type</th>
                 <th className="whitespace-nowrap px-4 py-3">Vendor</th>
-                <th className="whitespace-nowrap px-4 py-3">Warranty / EOC</th>
                 <th className="whitespace-nowrap px-4 py-3">Status</th>
                 <th className="whitespace-nowrap px-4 py-3 text-right">Actions</th>
               </tr>
@@ -201,7 +196,6 @@ export default async function PrintersPage({
                     </div>
                   </td>
                   <td className="px-4 py-3">{p.vendorName || "—"}</td>
-                  <td className="px-4 py-3">{formatDate(p.contractEnd)}</td>
                   <td className="px-4 py-3">
                     <Badge color={statusBadgeColor(p.status)}>{p.status}</Badge>
                   </td>

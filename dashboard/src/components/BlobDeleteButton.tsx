@@ -11,18 +11,20 @@ function ConfirmDeleteButton({
   onConfirm,
   onConcern,
   onNeutral,
+  disabled,
 }: {
   label: string;
   onConfirm: () => void;
   onConcern: () => void;
   onNeutral: () => void;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
 
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       onClick={onConfirm}
       onMouseEnter={onConcern}
       onMouseLeave={onNeutral}
@@ -40,6 +42,9 @@ export default function BlobDeleteButton({
   confirmText = "This item will be permanently deleted. This action cannot be undone.",
   label = "Delete",
   confirmLabel = "Delete",
+  requireReason = false,
+  reasonLabel = "Reason for deletion",
+  reasonPlaceholder = "Enter the reason for deleting this record",
   className = "rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100",
 }: {
   action: (formData: FormData) => void | Promise<void>;
@@ -48,13 +53,18 @@ export default function BlobDeleteButton({
   confirmText?: string;
   label?: string;
   confirmLabel?: string;
+  requireReason?: boolean;
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
   className?: string;
 }) {
   const { blobSkin } = useBlobSkin();
   const [open, setOpen] = useState(false);
   const [mood, setMood] = useState<BlobMood>("idle");
+  const [reason, setReason] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const generatedId = useId();
   const titleId = `${generatedId}-title`;
@@ -64,7 +74,10 @@ export default function BlobDeleteButton({
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const focusFrame = window.requestAnimationFrame(() => cancelRef.current?.focus());
+    const focusFrame = window.requestAnimationFrame(() => {
+      if (requireReason) reasonRef.current?.focus();
+      else cancelRef.current?.focus();
+    });
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -76,7 +89,7 @@ export default function BlobDeleteButton({
 
       const controls = Array.from(
         dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+          'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
         ) ?? [],
       );
       if (controls.length === 0) return;
@@ -97,10 +110,11 @@ export default function BlobDeleteButton({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [open, requireReason]);
 
   function openDialog() {
     setMood("idle");
+    setReason("");
     setOpen(true);
   }
 
@@ -144,8 +158,24 @@ export default function BlobDeleteButton({
               {confirmText}
             </p>
 
-            <form action={action} className="mt-6 grid grid-cols-2 gap-3">
+            <form action={action} className="mt-6 grid grid-cols-2 gap-3 text-left">
               <input type="hidden" name="id" value={id} />
+              {requireReason && (
+                <label className="col-span-2 text-sm font-medium text-slate-700">
+                  {reasonLabel} <span className="text-red-500">*</span>
+                  <textarea
+                    ref={reasonRef}
+                    name="deletionReason"
+                    required
+                    minLength={3}
+                    rows={3}
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder={reasonPlaceholder}
+                    className="mt-1.5 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40"
+                  />
+                </label>
+              )}
               <button
                 ref={cancelRef}
                 type="button"
@@ -161,6 +191,7 @@ export default function BlobDeleteButton({
                 onConfirm={() => setMood("goodbye")}
                 onConcern={() => setMood("concerned")}
                 onNeutral={() => setMood("idle")}
+                disabled={requireReason && reason.trim().length < 3}
               />
             </form>
           </div>

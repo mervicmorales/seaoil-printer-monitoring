@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Input, PrimaryButton, Select } from "@/components/ui";
+import SearchableSelect from "@/components/SearchableSelect";
+import { Input, PrimaryButton } from "@/components/ui";
 import { registerAction, resendVerificationAction, type RegistrationState } from "./actions";
 
 function Submit() {
@@ -54,8 +55,22 @@ export default function RegisterForm({ locations, departments }: { locations: { 
     <Input label="Employee ID" name="employeeId" placeholder="SPI00001" required error={state.fieldErrors?.employeeId} />
     <Input label="SEAOIL Email" name="email" type="email" placeholder="name@seaoil.com.ph" required error={state.fieldErrors?.email} />
     <div className="grid gap-4 sm:grid-cols-2">
-      <Select label="Location" name="primaryLocationId" required error={state.fieldErrors?.primaryLocationId}><option value="">Select location</option>{locations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
-      <Select label="Department" name="departmentId" required error={state.fieldErrors?.departmentId}><option value="">Select department</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
+      <SearchableSelect
+        label="Location"
+        name="primaryLocationId"
+        options={locations}
+        placeholder="Search location..."
+        required
+        error={state.fieldErrors?.primaryLocationId}
+      />
+      <SearchableSelect
+        label="Department"
+        name="departmentId"
+        options={departments}
+        placeholder="Search department..."
+        required
+        error={state.fieldErrors?.departmentId}
+      />
     </div>
     <Input label="Password" name="password" type="password" required error={state.fieldErrors?.password} />
     <Input label="Confirm Password" name="confirmPassword" type="password" required error={state.fieldErrors?.confirmPassword} />

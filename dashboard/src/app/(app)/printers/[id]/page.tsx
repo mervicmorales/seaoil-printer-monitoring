@@ -30,9 +30,11 @@ export const dynamic = "force-dynamic";
 export default async function PrinterViewPage({
   params,
   searchParams,
+  embedded = false,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ success?: string; returnTo?: string }>;
+  embedded?: boolean;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -155,28 +157,30 @@ export default async function PrinterViewPage({
 
   return (
     <div>
-      <PageHeader
-        title={`${record.locationName || "—"} / ${record.departmentName || "—"}`}
-        subtitle={`${p.serialNumber} / ${p.ipAddress || "—"}`}
-        actions={
-          <>
-            {access.printers && (
-              <>
-                <Link href={`/printers/${p.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
-                  <SecondaryButton>Edit Printer</SecondaryButton>
-                </Link>
-                <DeleteButton
-                  action={deletePrinterAction}
-                  id={p.id}
-                  confirmText="Delete this printer? This cannot be undone."
-                  label="Delete Printer"
-                  className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                />
-              </>
-            )}
-          </>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title={`${record.locationName || "—"} / ${record.departmentName || "—"}`}
+          subtitle={`${p.serialNumber} / ${p.ipAddress || "—"}`}
+          actions={
+            <>
+              {access.printers && (
+                <>
+                  <Link href={`/printers/${p.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
+                    <SecondaryButton>Edit Printer</SecondaryButton>
+                  </Link>
+                  <DeleteButton
+                    action={deletePrinterAction}
+                    id={p.id}
+                    confirmText="Delete this printer? This cannot be undone."
+                    label="Delete Printer"
+                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                  />
+                </>
+              )}
+            </>
+          }
+        />
+      )}
       <SuccessBanner message={sp.success} />
 
       <Tabs
