@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { printers, locations, departments } from "@/db/schema";
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
-import { PageHeader, TableCard, EmptyState } from "@/components/ui";
+import { Badge, PageHeader, TableCard, EmptyState, statusBadgeColor } from "@/components/ui";
 import { requireSession, getModuleAccessMap } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import SuccessBanner from "@/components/SuccessBanner";
@@ -10,8 +10,34 @@ import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
 import { printerDetailHref } from "@/lib/printer-navigation";
 import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
 import SearchInput from "@/components/SearchInput";
+import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
+import RefreshControl from "@/components/RefreshControl";
 
 export const dynamic = "force-dynamic";
+const LOW_CONSUMABLE_THRESHOLD_PERCENT = 20;
+const AUTO_REFRESH_SECONDS = 60;
+
+type TonerConsumable = {
+  name: string;
+  level: number | null;
+  unknown: boolean;
+  status: string | null;
+};
+
+type PrinterMonitoringSnapshot = {
+  id: number;
+  model: string | null;
+  reading_id: number | null;
+  online: boolean | null;
+  printer_status: string | null;
+  has_warning: boolean;
+  is_stale: boolean;
+  consumable_name: string | null;
+  consumable_level: number | null;
+  consumable_is_unknown: boolean | null;
+  consumable_status: string | null;
+  toner_consumables: TonerConsumable[];
+};
 
 function printerWebUrl(ipAddress: string) {
   return /^https?:\/\//i.test(ipAddress) ? ipAddress : `http://${ipAddress}`;
@@ -26,6 +52,7 @@ export default async function PrintersPage({
   const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
+  const renderedAt = new Date();
 
   const conditions = [];
   if (query) {
@@ -34,7 +61,6 @@ export default async function PrintersPage({
         ilike(printers.serialNumber, `%${query}%`),
         ilike(printers.assetTag, `%${query}%`),
         ilike(printers.ipAddress, `%${query}%`),
-        ilike(printers.brand, `%${query}%`),
         ilike(printers.model, `%${query}%`),
         ilike(locations.name, `%${query}%`),
         ilike(departments.name, `%${query}%`),
@@ -49,8 +75,8 @@ export default async function PrintersPage({
       id: printers.id,
       ipAddress: printers.ipAddress,
       serialNumber: printers.serialNumber,
-      brand: printers.brand,
       model: printers.model,
+      status: printers.status,
       locationName: locations.name,
       departmentName: departments.name,
     })
@@ -59,6 +85,87 @@ export default async function PrintersPage({
     .leftJoin(departments, eq(printers.departmentId, departments.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(asc(printers.id));
+
+  const staleSeconds = await getMonitoringStaleSeconds();
+  const monitoringResult = await db.execute<PrinterMonitoringSnapshot>(sql`
+    with latest_readings as (
+      select distinct on (printer_id)
+        id, printer_id, checked_at, online, printer_status, error_status, error_message
+      from printer_monitoring_readings
+      order by printer_id, checked_at desc, id desc
+    ),
+    active_alerts as (
+      select
+        printer_id,
+        bool_or(lower(severity) in ('warning', 'error', 'critical')) as has_warning
+      from printer_alerts
+      where resolved_at is null
+      group by printer_id
+    )
+    select
+      printers.id,
+      printers.model,
+      latest_readings.id as reading_id,
+      latest_readings.online,
+      latest_readings.printer_status,
+      (
+        latest_readings.online is true
+        and (
+          nullif(btrim(latest_readings.error_status), '') is not null
+          or nullif(btrim(latest_readings.error_message), '') is not null
+          or coalesce(active_alerts.has_warning, false)
+        )
+      ) as has_warning,
+      (
+        latest_readings.id is not null
+        and latest_readings.checked_at < now() - (${staleSeconds} * interval '1 second')
+      ) as is_stale,
+      latest_consumable.name as consumable_name,
+      latest_consumable.level_percent as consumable_level,
+      latest_consumable.is_unknown as consumable_is_unknown,
+      latest_consumable.status as consumable_status,
+      coalesce(latest_toners.items, '[]'::jsonb) as toner_consumables
+    from printers
+    left join latest_readings on latest_readings.printer_id = printers.id
+    left join active_alerts on active_alerts.printer_id = printers.id
+    left join lateral (
+      select name, level_percent, is_unknown, status
+      from printer_consumable_readings
+      where monitoring_reading_id = latest_readings.id
+      order by
+        case when is_unknown is false and level_percent is not null then 0 else 1 end,
+        level_percent asc nulls last,
+        id desc
+      limit 1
+    ) as latest_consumable on true
+    left join lateral (
+      select jsonb_agg(
+        jsonb_build_object(
+          'name', name,
+          'level', level_percent,
+          'unknown', is_unknown,
+          'status', status
+        )
+        order by
+          case
+            when lower(name) like '%black%' then 1
+            when lower(name) like '%cyan%' then 2
+            when lower(name) like '%magenta%' then 3
+            when lower(name) like '%yellow%' then 4
+            else 5
+          end,
+          name
+      ) as items
+      from printer_consumable_readings
+      where monitoring_reading_id = latest_readings.id
+        and type = 'toner'
+        and lower(name) not like '%waste%'
+        and lower(name) not like '%belt%'
+    ) as latest_toners on true
+  `);
+  const monitoringByPrinter = new Map(
+    monitoringResult.rows.map((snapshot) => [snapshot.id, snapshot]),
+  );
 
   const allLocations = await db.select().from(locations).orderBy(asc(locations.name));
   const totalCount = await db.select({ count: sql<number>`count(*)::int` }).from(printers);
@@ -76,19 +183,25 @@ export default async function PrintersPage({
       <PageHeader
         title="Printers"
         subtitle={`${totalCount[0]?.count ?? 0} printer(s) tracked across all locations`}
-        actions={
-          access.printers ? (
+        actions={(
+          <>
+            <RefreshControl
+              refreshedAtLabel={formatDateTime(renderedAt)}
+              intervalSeconds={AUTO_REFRESH_SECONDS}
+            />
+            {access.printers && (
             <Link
               href="/printers/new"
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#012c50]"
             >
               + Add Printer
             </Link>
-          ) : undefined
-        }
+            )}
+          </>
+        )}
       />
 
-      <SuccessBanner message={params.success} />
+      <SuccessBanner message={params.success} showInline={false} />
 
       <CollapsibleFilterPanel activeFilterCount={activeFilterCount}>
         <AutoSubmitFilterForm
@@ -100,7 +213,7 @@ export default async function PrintersPage({
             key={query}
             name="q"
             defaultValue={query}
-            placeholder="Serial, asset tag, IP, brand, model, location or department"
+            placeholder="Serial, asset tag, IP, model, location or department"
             aria-label="Search printers"
           />
           <select name="status" defaultValue={params.status || ""} className="rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm">
@@ -125,46 +238,76 @@ export default async function PrintersPage({
         {rows.length === 0 ? (
           <EmptyState message="No printers found. Try adjusting your filters or add a new printer." />
         ) : (
-          <table className="w-full min-w-[610px] table-fixed text-left text-sm">
+          <table className="w-full min-w-[1085px] table-fixed text-left text-sm">
             <colgroup>
-              <col className="w-[190px]" />
-              <col className="w-[175px]" />
-              <col className="w-[170px]" />
+              <col className="w-[200px]" />
+              <col className="w-[150px]" />
+              <col className="w-[210px]" />
+              <col className="w-[150px]" />
+              <col className="w-[180px]" />
+              <col className="w-[120px]" />
               <col className="w-[75px]" />
             </colgroup>
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="bg-slate-50 text-[11px] uppercase text-slate-500">
               <tr>
                 <th className="whitespace-nowrap px-4 py-3">Location / Department</th>
-                <th className="whitespace-nowrap px-4 py-3">IP / Serial Number</th>
-                <th className="whitespace-nowrap px-4 py-3">Brand / Model</th>
+                <th className="whitespace-nowrap px-4 py-3">IP Address</th>
+                <th className="whitespace-nowrap px-4 py-3">Model / Serial Number</th>
+                <th className="whitespace-nowrap px-4 py-3">Monitoring Status</th>
+                <th className="whitespace-nowrap px-4 py-3">Toner Type / Level</th>
+                <th className="whitespace-nowrap px-4 py-3">Asset Status</th>
                 <th className="whitespace-nowrap px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50/60">
+              {rows.map((p) => {
+                const monitoring = monitoringByPrinter.get(p.id) ?? null;
+                return (
+                <tr key={p.id} className="align-top transition hover:bg-slate-50/80">
                   <td className="px-4 py-3">
-                    <p>{p.locationName || "—"}</p>
-                    <p className="text-xs text-slate-400">{p.departmentName || "—"}</p>
+                    <p className="line-clamp-2 text-xs font-medium text-slate-700">
+                      {p.locationName ?? "Unassigned"}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+                      {p.departmentName ?? "No department"}
+                    </p>
                   </td>
                   <td className="px-4 py-3">
                     {p.ipAddress ? (
                       <a
                         href={printerWebUrl(p.ipAddress)}
                         target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-[#014171] hover:underline"
+                        rel="noreferrer"
+                        className="block truncate text-xs font-semibold text-[#014171] hover:underline"
+                        title={`Open ${p.ipAddress} in a new browser tab`}
                       >
                         {p.ipAddress}
                       </a>
                     ) : (
-                      <p className="font-medium text-slate-800">—</p>
+                      <span className="text-xs text-slate-400">No IP address</span>
                     )}
-                    <p className="text-xs text-slate-400">{p.serialNumber}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <p>{p.brand}</p>
-                    <p className="text-xs text-slate-400">{p.model}</p>
+                    <p className="line-clamp-2 text-xs font-medium text-slate-700">
+                      {p.model || "Model not available"}
+                    </p>
+                    <Link
+                      href={printerDetailHref(p.id, printerListReturnTo)}
+                      className="mt-1 block truncate text-xs font-semibold text-[#014171] hover:underline"
+                      title={`View printer ${p.serialNumber}`}
+                    >
+                      {p.serialNumber}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <MonitoringBadge printer={monitoring} />
+                    <p className="mt-1.5 truncate text-xs text-slate-500">
+                      {monitoring?.reading_id == null ? "—" : monitoring.printer_status ?? "Unknown"}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3"><ConsumableLevel printer={monitoring} /></td>
+                  <td className="px-4 py-3">
+                    <Badge color={statusBadgeColor(p.status)}>{p.status}</Badge>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex justify-end gap-2">
@@ -172,11 +315,127 @@ export default async function PrintersPage({
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
       </TableCard>
     </div>
   );
+}
+
+function MonitoringBadge({ printer }: { printer: PrinterMonitoringSnapshot | null }) {
+  if (!printer || printer.reading_id === null) return <Badge color="gray">Not Monitored</Badge>;
+  if (printer.is_stale) return <Badge color="orange">Stale</Badge>;
+  if (printer.online === false) return <Badge color="red">Offline</Badge>;
+  if (printer.has_warning) return <Badge color="yellow">Warning</Badge>;
+  return <Badge color="green">Online</Badge>;
+}
+
+function ConsumableLevel({ printer }: { printer: PrinterMonitoringSnapshot | null }) {
+  if (!printer || printer.reading_id === null || printer.consumable_name === null) {
+    return <span className="text-slate-400">—</span>;
+  }
+  const toners = Array.isArray(printer.toner_consumables)
+    ? printer.toner_consumables
+    : [];
+
+  if (toners.length > 0) {
+    return (
+      <div
+        className={toners.length > 1 ? "grid max-w-48 grid-cols-2 gap-1" : "flex max-w-48"}
+        aria-label={`${toners.length} toner ${toners.length === 1 ? "level" : "levels"}`}
+      >
+        {toners.map((toner) => {
+          const unknown = toner.unknown || toner.level === null;
+          const low = !unknown && toner.level! <= LOW_CONSUMABLE_THRESHOLD_PERCENT;
+          const value = unknown ? "?" : `${toner.level}%`;
+          const displayLabel = tonerDisplayLabel(toner.name, printer);
+
+          return (
+            <span
+              key={toner.name}
+              className={`inline-flex min-w-0 items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-semibold leading-none ${
+                low
+                  ? "border-orange-200 bg-orange-50 text-orange-700"
+                  : unknown
+                    ? "border-slate-200 bg-slate-50 text-slate-500"
+                    : "border-slate-200 bg-white text-slate-700"
+              }`}
+              title={`${displayLabel}: ${unknown ? toner.status || "Unknown" : `${toner.level}%`} (reported as ${toner.name})`}
+            >
+              <span className="shrink-0 text-slate-500">{displayLabel}</span>
+              <span className="truncate">{value}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const unknown = printer.consumable_is_unknown || printer.consumable_level === null;
+  if (unknown) {
+    return (
+      <div>
+        <p className="max-w-48 truncate text-xs font-medium text-slate-700" title={printer.consumable_name}>
+          {printer.consumable_name}
+        </p>
+        <Badge color="gray">{printer.consumable_status || "Unknown"}</Badge>
+      </div>
+    );
+  }
+
+  const low = printer.consumable_level! <= LOW_CONSUMABLE_THRESHOLD_PERCENT;
+  return (
+    <div>
+      <p className="max-w-48 truncate text-xs font-medium text-slate-700" title={printer.consumable_name}>
+        {printer.consumable_name}
+      </p>
+      <span className={`text-sm font-semibold ${low ? "text-orange-600" : "text-slate-700"}`}>
+        {printer.consumable_level}%
+      </span>
+      {low && <span className="ml-1.5 text-xs text-orange-600">Low</span>}
+    </div>
+  );
+}
+
+function tonerDisplayLabel(
+  name: string,
+  printer: Pick<PrinterMonitoringSnapshot, "model">,
+) {
+  const normalized = name.toLowerCase();
+  const printerIdentity = (printer.model ?? "").toLowerCase();
+
+  if (
+    printerIdentity.includes("canon") &&
+    printerIdentity.includes("mf244w") &&
+    /\b337\b/.test(normalized)
+  ) {
+    return "B 283X";
+  }
+
+  const color = normalized.includes("black")
+    ? "B"
+    : normalized.includes("cyan")
+      ? "C"
+      : normalized.includes("magenta")
+        ? "M"
+        : normalized.includes("yellow")
+          ? "Y"
+          : "";
+  const cartridgeCode = name.match(
+    /\b(?:[A-Z]{1,5}[- ]?\d{2,}[A-Z0-9-]*|\d{3,}[A-Z0-9-]*)\b/i,
+  )?.[0];
+  const tonerType = cartridgeCode?.replace(/\s+/g, "").toUpperCase();
+
+  return [color, tonerType].filter(Boolean).join(" ") || "Toner";
+}
+
+function formatDateTime(value: Date) {
+  return value.toLocaleString("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
+  });
 }

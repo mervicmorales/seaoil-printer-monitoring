@@ -63,8 +63,11 @@ export default async function ViewUserPage({
           actions={<Link href="/manage"><SecondaryButton>Back to User Management</SecondaryButton></Link>}
         />
       )}
-      <SuccessBanner message={messages.success} />
-      {messages.error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{messages.error}</p>}
+      <SuccessBanner
+        message={messages.success}
+        errorMessage={messages.error}
+        showInline={false}
+      />
       <Card className="p-6">
         <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Detail label="Full Name" value={user.fullName} />

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "re
 import type { PrintOpsPrinterTarget } from "@/lib/printops";
 import PrintOpsSubmitButton from "../PrintOpsSubmitButton";
 import { printerLabel } from "./print-target-state";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type PreviewKind = "pdf" | "image" | "text" | "unsupported";
 
@@ -28,6 +29,7 @@ export default function PrintFilePreview({
   const previewUrlRef = useRef("");
   const selectedFileRef = useRef<File | null>(null);
   const previewKind = file ? getPreviewKind(file) : "unsupported";
+  useBodyScrollLock(open);
 
   useEffect(() => {
     return () => {
@@ -37,14 +39,11 @@ export default function PrintFilePreview({
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [open]);

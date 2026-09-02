@@ -20,7 +20,6 @@ export type PrintOpsPhysicalPrinter = {
   id: number;
   name: string;
   department: string | null;
-  brand: string | null;
   model: string | null;
   serialNumber: string;
   online: boolean;
@@ -34,7 +33,6 @@ type MonitoredPrinterRow = {
   name: string;
   ip: string | null;
   department: string | null;
-  brand: string | null;
   model: string | null;
   serial_number: string;
   online: boolean;
@@ -88,7 +86,6 @@ export async function getPrintOpsAgents(): Promise<PrintOpsAgent[]> {
         coalesce(printers.asset_tag, printers.serial_number) as name,
         printers.ip_address as ip,
         departments.name as department,
-        printers.brand,
         printers.model,
         printers.serial_number,
         latest_readings.online,
@@ -125,7 +122,6 @@ export async function getPrintOpsAgents(): Promise<PrintOpsAgent[]> {
         id: printer.printer_id,
         name: printer.name,
         department: printer.department,
-        brand: printer.brand,
         model: printer.model,
         serialNumber: printer.serial_number,
         online: printer.online,
@@ -142,7 +138,6 @@ export async function getPrintOpsAgents(): Promise<PrintOpsAgent[]> {
             snapshot.printerTargets.find((target) => target.printerId === printer.printer_id)
               ?.queue ?? "",
           department: printer.department,
-          brand: printer.brand,
           model: printer.model,
           serialNumber: printer.serial_number,
         })),

@@ -121,7 +121,6 @@ export default async function EditPrinterPage({
                   action={addReplacementAction}
                   printerId={printer.id}
                   oldSerialNumber={printer.serialNumber}
-                  brand={printer.brand || ""}
                   model={printer.model || ""}
                   today={todayISO()}
                   returnTo={returnTo}

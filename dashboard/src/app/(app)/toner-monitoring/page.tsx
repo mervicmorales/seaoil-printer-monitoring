@@ -108,7 +108,10 @@ export default async function TonerMonitoringPage({
           ) : undefined
         }
       />
-      <SuccessBanner message={typeof sp.success === "string" ? sp.success : undefined} />
+      <SuccessBanner
+        message={typeof sp.success === "string" ? sp.success : undefined}
+        showInline={false}
+      />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {inventoryRows.map((t) => {

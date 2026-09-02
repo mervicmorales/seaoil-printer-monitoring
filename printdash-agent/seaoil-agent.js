@@ -228,10 +228,6 @@ function normalizeConfigTargets(value) {
       id,
       name,
       ip,
-      brand:
-        typeof candidate.brand === "string" && candidate.brand.trim()
-          ? candidate.brand.trim().toLowerCase()
-          : "generic",
       location:
         typeof candidate.location === "string" ? candidate.location.trim() : "",
       serial:
@@ -275,7 +271,6 @@ function saveCachedMonitoringConfig(targets) {
       name: target.name,
       ip: target.ip,
       serial: target.serial,
-      brand: target.brand,
       model: target.model,
       location: target.location,
     })),

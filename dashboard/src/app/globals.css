@@ -24,6 +24,14 @@ body {
   color: #0f1e30;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -42,4 +50,12 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #cdd8e3;
   border-radius: 8px;
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
 }

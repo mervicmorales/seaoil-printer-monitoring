@@ -15,7 +15,6 @@ const discoveredPrinterSchema = z.object({
   ip: z.string().trim().refine((value) => isIP(value) === 4, "Invalid IPv4 address"),
   description: z.string().trim().max(1_000).default(""),
   serialNumber: z.string().trim().max(255).nullable().default(null),
-  brand: z.string().trim().max(255).nullable().default(null),
   model: z.string().trim().max(255).nullable().default(null),
 });
 

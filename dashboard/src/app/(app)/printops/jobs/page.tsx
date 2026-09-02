@@ -108,10 +108,10 @@ export default async function PrintOpsJobsPage({
 
 function formatTime(value: Date) { return value.toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit", second: "2-digit" }); }
 function formatDateTime(value: Date) { return value.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }); }
-function physicalPrinterLabel(printer: { department: string | null; brand: string | null; model: string | null; serialNumber: string }) {
+function physicalPrinterLabel(printer: { department: string | null; model: string | null; serialNumber: string }) {
   const department = printer.department || "No department";
-  const brandModel = [printer.brand, printer.model].filter(Boolean).join(" ") || "Unknown brand/model";
-  return `${department} | ${brandModel} | SN: ${printer.serialNumber}`;
+  const model = printer.model || "Unknown model";
+  return `${department} | ${model} | SN: ${printer.serialNumber}`;
 }
 function physicalStatusColor(status: string, online: boolean): "green" | "yellow" | "red" | "blue" | "gray" {
   if (!online || ["offline", "stopped"].includes(status.toLowerCase())) return "red";

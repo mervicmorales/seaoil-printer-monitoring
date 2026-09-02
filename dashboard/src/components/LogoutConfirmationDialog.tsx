@@ -6,6 +6,7 @@ import AuthBlob, { type BlobMood } from "@/components/AuthBlob";
 import { useBlobSkin } from "@/components/BlobSkinProvider";
 import { logoutAction } from "@/app/(app)/shell-actions";
 import { gooeyToast } from "goey-toast";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 export default function LogoutConfirmationDialog({
   open,
@@ -22,6 +23,7 @@ export default function LogoutConfirmationDialog({
   const signingOutRef = useRef(signingOut);
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  useBodyScrollLock(open);
 
   useEffect(() => {
     signingOutRef.current = signingOut;
@@ -29,8 +31,6 @@ export default function LogoutConfirmationDialog({
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const focusFrame = window.requestAnimationFrame(() => cancelRef.current?.focus());
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -62,7 +62,6 @@ export default function LogoutConfirmationDialog({
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       window.cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose, open, triggerRef]);

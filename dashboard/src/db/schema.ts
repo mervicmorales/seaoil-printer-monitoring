@@ -145,7 +145,6 @@ export const printers = pgTable("printers", {
   assetTag: text("asset_tag"),
   ipAddress: text("ip_address"),
   serialNumber: text("serial_number").notNull().unique(),
-  brand: text("brand"),
   model: text("model"),
   monthlyRate: numeric("monthly_rate", { precision: 12, scale: 2 }).default(
     "0",
@@ -330,7 +329,6 @@ export type DiscoveredPrinter = {
   ip: string;
   description: string;
   serialNumber: string | null;
-  brand: string | null;
   model: string | null;
 };
 
@@ -439,7 +437,6 @@ export const replacementHistory = pgTable("replacement_history", {
   replacementDate: date("replacement_date").notNull(),
   oldSerialNumber: text("old_serial_number").notNull(),
   newSerialNumber: text("new_serial_number").notNull(),
-  brand: text("brand"),
   model: text("model"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

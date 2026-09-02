@@ -13,8 +13,16 @@ export default async function NewPrinterModal({
   );
 
   return (
-    <ModalShell title="Add printer" closeHref={returnTo} showTitle={false}>
-      <NewPrinterPage searchParams={Promise.resolve(resolvedSearchParams)} />
+    <ModalShell
+      title="Add printer"
+      closeHref={returnTo}
+      showTitle={false}
+      pageHeaderInModal
+    >
+      <NewPrinterPage
+        searchParams={Promise.resolve(resolvedSearchParams)}
+        embedded
+      />
     </ModalShell>
   );
 }

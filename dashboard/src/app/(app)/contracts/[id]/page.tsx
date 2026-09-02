@@ -33,7 +33,6 @@ export default async function ViewContractPage({
     .select({
       id: printers.id,
       serialNumber: printers.serialNumber,
-      brand: printers.brand,
       model: printers.model,
       locationName: locations.name,
       departmentName: departments.name,
@@ -101,7 +100,7 @@ export default async function ViewContractPage({
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3">Serial Number</th>
-                <th className="px-4 py-3">Brand / Model</th>
+                <th className="px-4 py-3">Model</th>
                 <th className="px-4 py-3">Location / Department</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
@@ -110,7 +109,7 @@ export default async function ViewContractPage({
               {linkedPrinters.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-3"><Link href={`/printers/${p.id}`} className="text-[#014171] hover:underline">{p.serialNumber}</Link></td>
-                  <td className="px-4 py-3">{p.brand} / {p.model}</td>
+                  <td className="px-4 py-3">{p.model || "—"}</td>
                   <td className="px-4 py-3">{p.locationName || "—"} / {p.departmentName || "—"}</td>
                   <td className="px-4 py-3"><Badge color={statusBadgeColor(p.status)}>{p.status}</Badge></td>
                 </tr>

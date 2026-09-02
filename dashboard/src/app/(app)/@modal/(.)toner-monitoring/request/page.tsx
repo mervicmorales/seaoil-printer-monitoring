@@ -7,8 +7,9 @@ export default function RequestTonerModal() {
       title="Request Toner"
       closeHref="/toner-monitoring"
       showTitle={false}
+      pageHeaderInModal
     >
-      <RequestTonerPage />
+      <RequestTonerPage embedded />
     </ModalShell>
   );
 }

@@ -16,9 +16,11 @@ const STATUS_COLORS = {
 export default function TicketStatusSelect({
   currentStatus,
   formId,
+  compact = false,
 }: {
   currentStatus: string;
   formId: string;
+  compact?: boolean;
 }) {
   const [status, setStatus] = useState(currentStatus);
   const statusColor = STATUS_COLORS[statusBadgeColor(status)];
@@ -33,7 +35,7 @@ export default function TicketStatusSelect({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={compact ? "flex items-center gap-2" : "flex flex-col gap-1.5"}>
       <label htmlFor={`${formId}-status`} className="text-xs font-medium text-slate-600">
         Ticket Status
       </label>
@@ -44,7 +46,7 @@ export default function TicketStatusSelect({
         value={status}
         onChange={(event) => handleStatusChange(event.target.value)}
         required
-        className={`min-w-48 rounded-lg border px-3.5 py-2.5 text-sm font-semibold outline-none transition focus:ring-2 ${statusColor}`}
+        className={`${compact ? "min-w-36 px-3 py-1.5 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-lg border font-semibold outline-none transition focus:ring-2 ${statusColor}`}
       >
         {REPAIR_STATUSES.map((item) => (
           <option key={item} value={item}>{item}</option>

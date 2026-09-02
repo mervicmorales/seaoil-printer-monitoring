@@ -26,6 +26,7 @@ export default function TonerDeliveryRequestForm({
   departments,
   itsNames,
   today,
+  showActions = true,
 }: {
   mode: "delivery" | "request";
   action: (prev: TonerFormState, formData: FormData) => Promise<TonerFormState>;
@@ -34,6 +35,7 @@ export default function TonerDeliveryRequestForm({
   departments: Lookup[];
   itsNames: Lookup[];
   today: string;
+  showActions?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
   const [checked, setChecked] = useState<number[]>([]);
@@ -62,7 +64,11 @@ export default function TonerDeliveryRequestForm({
   }
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form
+      id={mode === "delivery" ? "toner-delivery-form" : "toner-request-form"}
+      action={formAction}
+      className="space-y-6"
+    >
       {state.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
       )}
@@ -153,7 +159,7 @@ export default function TonerDeliveryRequestForm({
         <textarea name="remarks" rows={3} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40" />
       </div>
 
-      <div className="flex gap-3">
+      <div className={showActions ? "flex gap-3" : "hidden"}>
         <SubmitButton label={mode === "delivery" ? "Save Delivery" : "Save Request"} disabled={requestBlocked} />
         <Link href="/toner-monitoring"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>

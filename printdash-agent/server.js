@@ -184,8 +184,18 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/printdash-uploads';
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 function loadPrinters() {
-  try { if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE,'utf8')); } catch {}
-  return [{ id:1, name:'Canon-IT', ip:'192.168.18.211', brand:'canon', location:'IT Dept', community:'public' }];
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      return JSON.parse(fs.readFileSync(DATA_FILE,'utf8')).map(printer => ({
+        id: printer.id,
+        name: printer.name,
+        ip: printer.ip,
+        location: printer.location,
+        community: printer.community,
+      }));
+    }
+  } catch {}
+  return [{ id:1, name:'Canon-IT', ip:'192.168.18.211', location:'IT Dept', community:'public' }];
 }
 function savePrinters() {
   try { fs.writeFileSync(DATA_FILE, JSON.stringify(LOCAL_PRINTERS,null,2)); } catch {}
@@ -195,7 +205,7 @@ const cachedCentralConfig = loadCachedMonitoringConfig();
 let PRINTERS = cachedCentralConfig.ok ? cachedCentralConfig.targets : [...LOCAL_PRINTERS];
 let centralConfigActive = cachedCentralConfig.ok;
 let centralConfigSignature = cachedCentralConfig.ok
-  ? JSON.stringify(cachedCentralConfig.targets.map(p => [p.id, p.ip, p.name, p.brand, p.location]))
+  ? JSON.stringify(cachedCentralConfig.targets.map(p => [p.id, p.ip, p.name, p.location]))
   : null;
 if (cachedCentralConfig.ok) {
   console.log(`[SEAOIL Agent] Loaded ${PRINTERS.length} printer(s) from the cached central configuration.`);
@@ -523,10 +533,8 @@ async function getPrinterData(printer) {
 
   try {
     const baselineDescription = bufToStr(baseline.value)||'';
-    const isBrother = String(printer.brand||'').toLowerCase()==='brother'
-      || baselineDescription.toLowerCase().includes('brother');
-    const isCanon = String(printer.brand||'').toLowerCase()==='canon'
-      || baselineDescription.toLowerCase().includes('canon');
+    const isBrother = baselineDescription.toLowerCase().includes('brother');
+    const isCanon = baselineDescription.toLowerCase().includes('canon');
     const optionalOids = [
       OID.sysUpTime,OID.sysContact,OID.sysName,OID.sysLocation,
       OID.macAddress,OID.memSize,OID.deviceDesc,OID.deviceState,OID.deviceErrors,
@@ -666,7 +674,7 @@ async function syncCentralPrinterConfig() {
   const result = await fetchMonitoringConfig();
   if (!result.ok) return false;
 
-  const signature = JSON.stringify(result.targets.map(p => [p.id, p.ip, p.name, p.brand, p.location]));
+  const signature = JSON.stringify(result.targets.map(p => [p.id, p.ip, p.name, p.location]));
   const changed = signature !== centralConfigSignature;
   PRINTERS = result.targets;
   centralConfigActive = true;
@@ -690,7 +698,6 @@ async function processCentralDiscoveryJob() {
       ip: device.ip,
       description: device.description || device.descr || '',
       serialNumber: device.serialNumber || null,
-      brand: device.brand || null,
       model: device.model || null,
     }));
     const uploaded = await completeDiscoveryJob(job.id, results);
@@ -1089,20 +1096,10 @@ function snmpProbe(ip, community) {
         serialNumber: bufToStr(details[OID.serialNumber])
           || bufToStr(details[OID.canonSerialNumber])
           || null,
-        brand: inferDiscoveredBrand(`${description} ${model}`),
         model: model || null,
       });
     });
   });
-}
-function inferDiscoveredBrand(value) {
-  const normalized = String(value||'').toLowerCase();
-  const brands = [
-    ['hewlett-packard','HP'], ['hp ','HP'], ['brother','Brother'], ['canon','Canon'],
-    ['epson','Epson'], ['xerox','Xerox'], ['kyocera','Kyocera'], ['ricoh','Ricoh'],
-    ['lexmark','Lexmark'], ['konica','Konica Minolta'], ['sharp','Sharp'], ['samsung','Samsung'],
-  ];
-  return brands.find(([needle]) => normalized.includes(needle))?.[1] || null;
 }
 async function discoverSnmpDevices(cidr, community) {
   const base = (cidr||'').split('/')[0].split('.').slice(0,3).join('.');
@@ -1168,10 +1165,10 @@ app.get('/api/printers',         (_req,res) => res.json(cache));
 app.get('/api/printers/refresh', async (_req,res) => { await refreshAll(); res.json(cache); });
 app.post('/api/printers', (req,res) => {
   if (centralConfigActive) return res.status(409).json({error:'Printer targets are managed by the SEAOIL dashboard'});
-  const {name,ip,brand,location,community}=req.body;
+  const {name,ip,location,community}=req.body;
   if (!name||!ip) return res.status(400).json({error:'name and ip required'});
   const id=Date.now();
-  LOCAL_PRINTERS.push({id,name,ip,brand:brand||'generic',location:location||'',community:community||'public'});
+  LOCAL_PRINTERS.push({id,name,ip,location:location||'',community:community||'public'});
   PRINTERS = [...LOCAL_PRINTERS];
   savePrinters(); refreshAll(); res.json({ok:true,id});
 });
@@ -1179,7 +1176,9 @@ app.put('/api/printers/:id', (req,res) => {
   if (centralConfigActive) return res.status(409).json({error:'Printer targets are managed by the SEAOIL dashboard'});
   const idx=LOCAL_PRINTERS.findIndex(p=>p.id===Number(req.params.id));
   if (idx===-1) return res.status(404).json({error:'not found'});
-  LOCAL_PRINTERS[idx]={...LOCAL_PRINTERS[idx],...req.body,id:LOCAL_PRINTERS[idx].id};
+  const {name,ip,location,community}=req.body;
+  if (!name||!ip) return res.status(400).json({error:'name and ip required'});
+  LOCAL_PRINTERS[idx]={id:LOCAL_PRINTERS[idx].id,name,ip,location:location||'',community:community||'public'};
   PRINTERS = [...LOCAL_PRINTERS];
   savePrinters(); refreshAll(); res.json({ok:true});
 });
@@ -1572,17 +1571,7 @@ select option{background:var(--surface)}
       <div class="field"><label>Name *</label><input id="f-name" placeholder="Canon-Floor2"/></div>
       <div class="field"><label>IP Address *</label><input id="f-ip" placeholder="192.168.18.x"/></div>
     </div>
-    <div class="field-row">
-      <div class="field"><label>Brand</label>
-        <select id="f-brand">
-          <option value="canon">Canon</option><option value="hp">HP</option>
-          <option value="brother">Brother</option><option value="epson">Epson</option>
-          <option value="ricoh">Ricoh</option><option value="xerox">Xerox</option>
-          <option value="generic">Other</option>
-        </select>
-      </div>
-      <div class="field"><label>SNMP Community</label><input id="f-community" value="public"/></div>
-    </div>
+    <div class="field"><label>SNMP Community</label><input id="f-community" value="public"/></div>
     <div class="field"><label>Location / Department</label><input id="f-location" placeholder="Floor 2, HR Dept…"/></div>
     <div class="modal-footer">
       <button class="btn-outline" onclick="closeModal()">Cancel</button>
@@ -1717,7 +1706,7 @@ function printerCard(p) {
       <div class="tab-panel" id="tp-\${p.id}-printcard">\${printCardPanel(p)}</div>
     </div>
     <div class="pcard-footer">
-      <span class="footer-ip">\${p.ip} · \${(p.brand||'').toUpperCase()}</span>
+      <span class="footer-ip">\${p.ip}</span>
       <div class="footer-actions">
         <button class="btn-ghost btn-sm" onclick="editPrinter(\${p.id})">✏</button>
         <button class="btn-danger btn-sm" onclick="delPrinter(\${p.id})">✕</button>
@@ -1758,7 +1747,7 @@ function traysPanel(p) {
 function infoPanel(p) {
   const items=[['IP',p.ip],['Model',p.model],['Serial',p.serial||'—'],['MAC',p.mac||'—'],
     ['Uptime',p.uptime||'—'],['Memory',p.memKB?Math.round(p.memKB/1024)+'MB':'—'],
-    ['Location',p.location||'—'],['Brand',(p.brand||'—').toUpperCase()],
+    ['Location',p.location||'—'],
     ['Community',p.community||'public'],['Checked',p.lastChecked?new Date(p.lastChecked).toLocaleTimeString():'—']];
   const grid=items.map(([l,v])=>\`<div class="info-item"><div class="info-label">\${l}</div><div class="info-value">\${esc(String(v||'—'))}</div></div>\`).join('');
   const con=p.console_msg?'<div style="margin-top:10px"><div class="info-label" style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Console</div><div class="console-msg">'+esc(p.console_msg)+'</div></div>':'';
@@ -2034,7 +2023,7 @@ async function addSnmpResult(ip, descr) {
   const name=prompt('Printer name:', descr.substring(0,30)||ip)||ip;
   const community=document.getElementById('disc-community').value.trim()||'public';
   await fetch('/api/printers',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name, ip, brand:'generic', community})});
+    body:JSON.stringify({name, ip, community})});
   alert('Added! Check the Overview tab.');
   runSnmpDiscover();
 }
@@ -2311,11 +2300,11 @@ function openModal(id) {
   if (id) {
     const p=state.data.find(x=>x.id===id);
     if (p) { document.getElementById('f-name').value=p.name||''; document.getElementById('f-ip').value=p.ip||'';
-      document.getElementById('f-brand').value=p.brand||'generic'; document.getElementById('f-community').value=p.community||'public';
+      document.getElementById('f-community').value=p.community||'public';
       document.getElementById('f-location').value=p.location||''; }
   } else {
     ['f-name','f-ip','f-location'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('f-brand').value='canon'; document.getElementById('f-community').value='public';
+    document.getElementById('f-community').value='public';
   }
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -2325,7 +2314,7 @@ document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.targe
 async function savePrinter() {
   const name=document.getElementById('f-name').value.trim(), ip=document.getElementById('f-ip').value.trim();
   if (!name||!ip) return alert('Name and IP are required');
-  const body={name,ip,brand:document.getElementById('f-brand').value,community:document.getElementById('f-community').value.trim()||'public',location:document.getElementById('f-location').value.trim()};
+  const body={name,ip,community:document.getElementById('f-community').value.trim()||'public',location:document.getElementById('f-location').value.trim()};
   const editId=document.getElementById('edit-id').value;
   await fetch(editId?'/api/printers/'+editId:'/api/printers',{method:editId?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   closeModal(); await load(false);

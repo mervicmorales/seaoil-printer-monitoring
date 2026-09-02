@@ -51,6 +51,13 @@ export function notifyActionSuccess(messageKey: string) {
   });
 }
 
+export function notifyActionError(message: string) {
+  gooeyToast.error("Action could not be completed", {
+    id: `action-error-${stableHash(message)}`,
+    description: message,
+  });
+}
+
 export function notifyActionPromise<T>(
   promise: Promise<T>,
   messages: {

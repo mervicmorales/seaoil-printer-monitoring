@@ -10,7 +10,13 @@ import { deleteTicketAction, updateTicketDetailsAction } from "../actions";
 import TicketStatusSelect from "../TicketStatusSelect";
 import TicketDetailsForm from "./TicketDetailsForm";
 
-export default async function ViewTicketPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ViewTicketPage({
+  params,
+  embedded = false,
+}: {
+  params: Promise<{ id: string }>;
+  embedded?: boolean;
+}) {
   const session = await requireSession();
   const access = await getModuleAccessMap(session.id, session.role);
   const { id } = await params;
@@ -40,7 +46,7 @@ export default async function ViewTicketPage({ params }: { params: Promise<{ id:
       <PageHeader
         title={`Ticket ${t.ticketNumber}`}
         subtitle={`Serial Number: ${t.serialNumber}`}
-        actions={
+        actions={!embedded ? (
           <>
             {access.repair && (
               <>
@@ -60,10 +66,14 @@ export default async function ViewTicketPage({ params }: { params: Promise<{ id:
               </>
             )}
           </>
-        }
+        ) : undefined}
       />
-      <Card className="p-6">
-        <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <Card className="overflow-hidden">
+        <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+          <h2 className="text-sm font-semibold text-slate-900">Ticket information</h2>
+          <p className="mt-1 text-xs text-slate-500">Printer, assignment, and service dates for this repair request.</p>
+        </div>
+        <dl className="grid grid-cols-1 gap-3 bg-slate-50/60 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
           <Field label="Requested Date" value={formatDate(t.requestedDate)} />
           <Field label="Department" value={record.departmentName || "—"} />
           <Field label="Location" value={record.locationName || "—"} />
@@ -87,9 +97,10 @@ export default async function ViewTicketPage({ params }: { params: Promise<{ id:
             resolutionAttachmentUrl={t.resolutionAttachmentUrl}
             resolutionAttachmentName={t.resolutionAttachmentName}
             statusOnly={session.role === "support"}
+            showActions={!embedded}
           />
         ) : (
-          <div className="mt-6 grid grid-cols-1 gap-5 border-t border-slate-100 pt-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 border-t border-slate-200 bg-white p-5 sm:p-6 lg:grid-cols-2">
             <Field label="Concern" value={t.problem} />
             <div>
               <Field label="Resolution" value={t.resolution || "—"} />
@@ -113,9 +124,9 @@ export default async function ViewTicketPage({ params }: { params: Promise<{ id:
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-800">{value}</p>
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</dt>
+      <dd className="mt-1.5 break-words text-sm font-semibold text-slate-800">{value}</dd>
     </div>
   );
 }

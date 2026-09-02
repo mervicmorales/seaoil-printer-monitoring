@@ -1,4 +1,4 @@
-import { PageHeader, Card } from "@/components/ui";
+import { PageHeader, Card, PrimaryButton } from "@/components/ui";
 import {
   getContracts,
   getDepartments,
@@ -10,12 +10,15 @@ import {
 import PrinterForm from "../PrinterForm";
 import { createPrinterAction } from "../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
+import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 import CreatePrinterStatusSelect from "./CreatePrinterStatusSelect";
 
 export default async function NewPrinterPage({
   searchParams,
+  embedded = false,
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  embedded?: boolean;
 }) {
   await requireModuleFullAccess("printers");
   const params = (await searchParams) ?? {};
@@ -27,7 +30,9 @@ export default async function NewPrinterPage({
   const monitoringAgentId = Number.isSafeInteger(parsedAgentId) && parsedAgentId > 0
     ? parsedAgentId
     : null;
-  const returnTo = typeof params.returnTo === "string" ? params.returnTo : "/printers";
+  const returnTo = normalizePrinterReturnTo(
+    typeof params.returnTo === "string" ? params.returnTo : null,
+  );
   const [tonerTypes, locations, departments, vendors, contracts, monitoringAgents] = await Promise.all([
     getTonerTypes(),
     getLocations(),
@@ -42,7 +47,20 @@ export default async function NewPrinterPage({
       <PageHeader
         title="Add Printer"
         subtitle="Register a new printer asset into the monitoring system."
-        actions={<CreatePrinterStatusSelect formId="printer-create-form" />}
+        actions={embedded ? (
+          <div className="flex flex-wrap items-end gap-2">
+            <CreatePrinterStatusSelect formId="printer-create-form" compact />
+            <PrimaryButton
+              type="submit"
+              form="printer-create-form"
+              className="px-3 py-1.5 text-xs"
+            >
+              Add Printer
+            </PrimaryButton>
+          </div>
+        ) : (
+          <CreatePrinterStatusSelect formId="printer-create-form" />
+        )}
       />
       <Card className="p-6">
         <PrinterForm
@@ -53,7 +71,6 @@ export default async function NewPrinterPage({
             assetTag: null,
             ipAddress: value("ip", 20) || null,
             serialNumber: value("serial", 255),
-            brand: value("brand", 255) || null,
             model: value("model", 255) || null,
             monthlyRate: "0",
             locationId: null,
@@ -72,6 +89,7 @@ export default async function NewPrinterPage({
           contracts={contracts}
           monitoringAgents={monitoringAgents}
           returnTo={returnTo}
+          showActions={!embedded}
         />
       </Card>
     </div>

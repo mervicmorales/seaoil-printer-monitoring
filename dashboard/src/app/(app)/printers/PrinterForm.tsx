@@ -26,7 +26,6 @@ type Printer = {
   assetTag: string | null;
   ipAddress: string | null;
   serialNumber: string;
-  brand: string | null;
   model: string | null;
   monthlyRate: string | null;
   locationId: number | null;
@@ -158,16 +157,6 @@ export default function PrinterForm({
           readOnly={mode === "edit"}
           disabled={mode === "edit"}
           error={state.fieldErrors?.serialNumber}
-          className={mode === "edit" ? "bg-slate-100 text-slate-500" : ""}
-        />
-        <Input
-          label="Brand"
-          name="brand"
-          required={mode === "create"}
-          defaultValue={printer?.brand ?? ""}
-          readOnly={mode === "edit"}
-          disabled={mode === "edit"}
-          error={state.fieldErrors?.brand}
           className={mode === "edit" ? "bg-slate-100 text-slate-500" : ""}
         />
         <Input
@@ -318,7 +307,7 @@ export default function PrinterForm({
           href={
             mode === "edit" && printer
               ? `/printers/${printer.id}?returnTo=${encodeURIComponent(returnTo)}`
-              : "/printers"
+              : returnTo
           }
         >
           <SecondaryButton type="button">Cancel</SecondaryButton>

@@ -5,7 +5,6 @@ export type PrintOpsPrinterTarget = {
   ip: string;
   queue: string;
   department: string | null;
-  brand: string | null;
   model: string | null;
   serialNumber: string | null;
 };
@@ -35,7 +34,6 @@ export function normalizePrintOpsSnapshot(value: unknown): PrintOpsSnapshot {
         ip: text(item.ip),
         queue: text(item.queue),
         department: text(item.department) || null,
-        brand: text(item.brand) || null,
         model: text(item.model) || null,
         serialNumber: text(item.serialNumber) || null,
       }))

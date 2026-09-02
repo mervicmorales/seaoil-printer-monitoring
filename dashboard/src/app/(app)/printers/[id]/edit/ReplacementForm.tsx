@@ -19,7 +19,6 @@ export default function ReplacementForm({
   action,
   printerId,
   oldSerialNumber,
-  brand,
   model,
   today,
   returnTo,
@@ -27,7 +26,6 @@ export default function ReplacementForm({
   action: (prev: PrinterFormState, formData: FormData) => Promise<PrinterFormState>;
   printerId: number;
   oldSerialNumber: string;
-  brand: string;
   model: string;
   today: string;
   returnTo: string;
@@ -51,7 +49,6 @@ export default function ReplacementForm({
           className="bg-slate-100 text-slate-500"
         />
         <Input label="New Serial Number" name="newSerialNumber" placeholder="Enter new serial number" required />
-        <Input label="Brand" name="brand" defaultValue={brand} />
         <Input label="Model" name="model" defaultValue={model} />
       </div>
       <div className="flex gap-3">

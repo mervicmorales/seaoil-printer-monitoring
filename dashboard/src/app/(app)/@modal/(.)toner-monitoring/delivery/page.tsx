@@ -7,8 +7,10 @@ export default function DeliveryTonerModal() {
       title="Delivery Toner"
       closeHref="/toner-monitoring"
       showTitle={false}
+      pageHeaderInModal
+      hideScrollbar
     >
-      <DeliveryTonerPage />
+      <DeliveryTonerPage embedded />
     </ModalShell>
   );
 }

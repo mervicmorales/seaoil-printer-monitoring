@@ -9,8 +9,14 @@ export default async function NewUserModal({
   const params = await searchParams;
   const returnTo = params.returnTo === "/manage/registrations" ? "/manage/registrations" : "/manage";
   return (
-    <ModalShell title="Create Account" closeHref={returnTo} showTitle={false}>
-      <NewUserPage searchParams={Promise.resolve(params)} />
+    <ModalShell
+      title="Create Account"
+      closeHref={returnTo}
+      showTitle={false}
+      pageHeaderInModal
+      contentClassName="overflow-x-hidden"
+    >
+      <NewUserPage searchParams={Promise.resolve(params)} embedded />
     </ModalShell>
   );
 }

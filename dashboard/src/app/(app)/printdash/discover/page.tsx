@@ -160,9 +160,8 @@ export default async function DiscoverPrintersPage({
               <tr>
                 <th className="w-[17%] whitespace-nowrap px-4 py-3">IP Address</th>
                 <th className="w-[19%] whitespace-nowrap px-4 py-3">Serial Number</th>
-                <th className="w-[16%] whitespace-nowrap px-4 py-3">Brand</th>
-                <th className="w-[27%] whitespace-nowrap px-4 py-3">Model / Description</th>
-                <th className="w-[21%] whitespace-nowrap px-4 py-3 text-right">Action</th>
+                <th className="w-[39%] whitespace-nowrap px-4 py-3">Model / Description</th>
+                <th className="w-[25%] whitespace-nowrap px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -173,7 +172,6 @@ export default async function DiscoverPrintersPage({
                   <tr key={printer.ip} className="hover:bg-slate-50/70">
                     <td className="px-4 py-3 font-semibold text-[#014171]">{printer.ip}</td>
                     <td className="px-4 py-3">{printer.serialNumber || "—"}</td>
-                    <td className="px-4 py-3">{printer.brand || "—"}</td>
                     <td className="px-4 py-3">
                       <p className="truncate font-medium" title={printer.model || printer.description}>{printer.model || printer.description || "—"}</p>
                       {printer.model && printer.description !== printer.model && <p className="mt-1 truncate text-xs text-slate-400" title={printer.description}>{printer.description}</p>}
@@ -204,7 +202,6 @@ function buildAddPrinterHref(printer: DiscoveredPrinter, agentId: number) {
   const params = new URLSearchParams({
     ip: printer.ip,
     serial: printer.serialNumber ?? "",
-    brand: printer.brand ?? "",
     model: printer.model ?? "",
     monitoringAgentId: String(agentId),
     returnTo: "/printdash/discover",

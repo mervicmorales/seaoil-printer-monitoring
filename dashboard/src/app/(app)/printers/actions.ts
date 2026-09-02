@@ -110,14 +110,12 @@ export async function createPrinterAction(
   await requireModuleFullAccess("printers");
 
   const serialNumber = str(formData.get("serialNumber"));
-  const brand = str(formData.get("brand"));
   const model = str(formData.get("model"));
   const status = str(formData.get("status")) || "Active";
   const returnTo = normalizePrinterReturnTo(str(formData.get("returnTo")));
 
   const fieldErrors: Record<string, string> = {};
   if (!serialNumber) fieldErrors.serialNumber = "Serial Number is required.";
-  if (!brand) fieldErrors.brand = "Brand is required.";
   if (!model) fieldErrors.model = "Model is required.";
   const monitoring = await validateMonitoringAssignment(formData, fieldErrors, {
     allowTextAddress: true,
@@ -136,7 +134,6 @@ export async function createPrinterAction(
           assetTag: str(formData.get("assetTag")),
           ipAddress: monitoring.ipAddress,
           serialNumber: serialNumber!,
-          brand,
           model,
           monthlyRate: String(num(formData.get("monthlyRate")) ?? 0),
           locationId: num(formData.get("locationId")),
@@ -277,7 +274,6 @@ export async function addReplacementAction(
   const printer = rows[0];
   if (!printer) return { error: "Printer not found." };
 
-  const brand = str(formData.get("brand")) || printer.brand;
   const model = str(formData.get("model")) || printer.model;
 
   try {
@@ -286,13 +282,12 @@ export async function addReplacementAction(
       replacementDate,
       oldSerialNumber: printer.serialNumber,
       newSerialNumber,
-      brand,
       model,
     });
 
     await db
       .update(printers)
-      .set({ serialNumber: newSerialNumber, brand, model, updatedAt: new Date() })
+      .set({ serialNumber: newSerialNumber, model, updatedAt: new Date() })
       .where(eq(printers.id, printerId));
   } catch (err) {
     console.error(err);

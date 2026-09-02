@@ -25,12 +25,14 @@ export default function ReportIssueForm({
   departments,
   vendors,
   today,
+  showActions = true,
 }: {
   action: (prev: RepairFormState, formData: FormData) => Promise<RepairFormState>;
   locations: Lookup[];
   departments: Lookup[];
   vendors: Lookup[];
   today: string;
+  showActions?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
   const [locationId, setLocationId] = useState("");
@@ -102,7 +104,7 @@ export default function ReportIssueForm({
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form id="report-printer-issue-form" action={formAction} className="space-y-5">
       {state.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
       )}
@@ -160,7 +162,7 @@ export default function ReportIssueForm({
         <Textarea label="Concern" name="problem" rows={4} required error={state.fieldErrors?.problem} />
         <Textarea label="Remarks" name="remarks" rows={4} />
       </div>
-      <div className="flex gap-3">
+      <div className={showActions ? "flex gap-3" : "hidden"}>
         <SubmitButton />
         <Link href="/repair-history"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>

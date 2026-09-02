@@ -32,12 +32,7 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
         title="User Management"
         subtitle="Manage user accounts and configure module access permissions."
       />
-      <SuccessBanner message={sp.success} />
-      {sp.error && (
-        <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {sp.error}
-        </p>
-      )}
+      <SuccessBanner message={sp.success} errorMessage={sp.error} showInline={false} />
 
       <TableCard className="min-h-0 flex-1 overflow-auto overscroll-contain">
         {allUsers.length === 0 ? (

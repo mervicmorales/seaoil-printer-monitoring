@@ -181,7 +181,7 @@ export function PrimaryButton(
   return (
     <button
       {...rest}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#012c50] disabled:cursor-not-allowed disabled:opacity-60 ${className || ""}`}
+      className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#012c50] disabled:cursor-not-allowed disabled:opacity-60 ${className || ""}`}
     >
       {children}
     </button>

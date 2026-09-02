@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
 import AuthBlob, { type BlobMood } from "@/components/AuthBlob";
 import { useBlobSkin } from "@/components/BlobSkinProvider";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 function ConfirmDeleteButton({
   label,
@@ -69,11 +70,10 @@ export default function BlobDeleteButton({
   const generatedId = useId();
   const titleId = `${generatedId}-title`;
   const descriptionId = `${generatedId}-description`;
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const focusFrame = window.requestAnimationFrame(() => {
       if (requireReason) reasonRef.current?.focus();
       else cancelRef.current?.focus();
@@ -107,7 +107,6 @@ export default function BlobDeleteButton({
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       window.cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, requireReason]);

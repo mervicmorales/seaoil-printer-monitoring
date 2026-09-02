@@ -35,7 +35,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
         subtitle="Centralized repository for printer service contracts."
         actions={session.role === "admin" ? <Link href="/contracts/new"><PrimaryButton>+ Upload Contract</PrimaryButton></Link> : undefined}
       />
-      <SuccessBanner message={sp.success} />
+      <SuccessBanner message={sp.success} showInline={false} />
 
       <TableCard className="min-h-0 flex-1 overflow-x-auto overflow-y-scroll overscroll-contain">
         {rows.length === 0 ? (

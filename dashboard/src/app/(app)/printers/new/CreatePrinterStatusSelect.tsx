@@ -13,12 +13,18 @@ const STATUS_COLORS = {
   orange: "border-orange-300 bg-orange-50 text-orange-700 focus:border-orange-500 focus:ring-orange-200",
 } as const;
 
-export default function CreatePrinterStatusSelect({ formId }: { formId: string }) {
+export default function CreatePrinterStatusSelect({
+  formId,
+  compact = false,
+}: {
+  formId: string;
+  compact?: boolean;
+}) {
   const [status, setStatus] = useState("Active");
   const statusColor = STATUS_COLORS[statusBadgeColor(status)];
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={`flex flex-col ${compact ? "gap-1" : "gap-1.5"}`}>
       <label htmlFor="new-printer-status" className="text-xs font-medium text-slate-600">
         Asset Status
       </label>
@@ -29,7 +35,7 @@ export default function CreatePrinterStatusSelect({ formId }: { formId: string }
         value={status}
         onChange={(event) => setStatus(event.target.value)}
         required
-        className={`min-w-48 rounded-lg border px-3.5 py-2.5 text-sm font-semibold outline-none transition focus:ring-2 ${statusColor}`}
+        className={`${compact ? "min-w-32 px-3 py-1.5 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-lg border font-semibold outline-none transition focus:ring-2 ${statusColor}`}
       >
         {PRINTER_STATUSES.map((item) => (
           <option key={item} value={item}>{item}</option>

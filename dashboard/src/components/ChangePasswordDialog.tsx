@@ -13,6 +13,7 @@ import {
   changePasswordAction,
   type ChangePasswordResult,
 } from "@/app/(app)/shell-actions";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 const EMPTY_RESULT: ChangePasswordResult = {};
 
@@ -31,6 +32,7 @@ export default function ChangePasswordDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const currentPasswordRef = useRef<HTMLInputElement>(null);
+  useBodyScrollLock(open);
 
   useEffect(() => {
     pendingRef.current = pending;
@@ -39,8 +41,6 @@ export default function ChangePasswordDialog({
   useEffect(() => {
     if (!open) return;
     formRef.current?.reset();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const focusFrame = window.requestAnimationFrame(() => currentPasswordRef.current?.focus());
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -71,7 +71,6 @@ export default function ChangePasswordDialog({
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       window.cancelAnimationFrame(focusFrame);
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose, open, triggerRef]);

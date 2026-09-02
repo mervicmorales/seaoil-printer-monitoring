@@ -107,7 +107,7 @@ cp settings.example.json settings.json
 
 | File | Purpose |
 |---|---|
-| `printers.json` | List of printers to monitor (IP, SNMP community string, brand, location) |
+| `printers.json` | List of printers to monitor (IP, SNMP community string, location) |
 | `settings.json` | Telegram bot token/chat ID and alert thresholds |
 | `users.json` | Created automatically on first run with default accounts `admin/admin123` and `user/user123` |
 

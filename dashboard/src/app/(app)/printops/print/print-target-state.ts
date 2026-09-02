@@ -13,7 +13,7 @@ export function getDefaultPrintTarget(agents: AgentPrinters[], agentId: string) 
 
 export function printerLabel(printer: PrintOpsPrinterTarget) {
   const department = printer.department || "No department";
-  const brandModel = [printer.brand, printer.model].filter(Boolean).join(" ") || "Unknown brand/model";
+  const model = printer.model || "Unknown model";
   const serial = printer.serialNumber || "Unknown serial";
-  return `${department} | ${brandModel} | SN: ${serial}`;
+  return `${department} | ${model} | SN: ${serial}`;
 }

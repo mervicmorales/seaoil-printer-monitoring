@@ -101,7 +101,6 @@ export async function GET(request: Request) {
         assetTag: printers.assetTag,
         ip: printers.ipAddress,
         serial: printers.serialNumber,
-        brand: printers.brand,
         model: printers.model,
         location: locations.name,
       })
@@ -122,7 +121,6 @@ export async function GET(request: Request) {
           name: target.assetTag || target.serial,
           ip: target.ip,
           serial: target.serial,
-          brand: target.brand,
           model: target.model,
           location: target.location,
         })),

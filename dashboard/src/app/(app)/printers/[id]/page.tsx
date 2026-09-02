@@ -181,7 +181,7 @@ export default async function PrinterViewPage({
           }
         />
       )}
-      <SuccessBanner message={sp.success} />
+      <SuccessBanner message={sp.success} showInline={false} />
 
       <Tabs
         tabs={[
@@ -192,7 +192,7 @@ export default async function PrinterViewPage({
               <Card className="p-6">
                 <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Asset Tag" value={p.assetTag || "—"} />
-                  <Field label="Brand / Model" value={`${p.brand || "—"} / ${p.model || "—"}`} />
+                  <Field label="Model" value={p.model || "—"} />
                   <Field
                     label="Toner Type / Monthly Rate"
                     value={`${toners.map((t) => t.name).join(", ") || "—"} / ${formatPHP(p.monthlyRate)}`}
@@ -297,7 +297,6 @@ export default async function PrinterViewPage({
                                 <ConsumableLevel
                                   key={consumable.id}
                                   consumable={consumable}
-                                  printerBrand={record.printer.brand}
                                   printerModel={record.printer.model}
                                 />
                               ))}
@@ -397,7 +396,6 @@ export default async function PrinterViewPage({
                         <th className="px-4 py-3">Replacement Date</th>
                         <th className="px-4 py-3">Old Serial Number</th>
                         <th className="px-4 py-3">New Serial Number</th>
-                        <th className="px-4 py-3">Brand</th>
                         <th className="px-4 py-3">Model</th>
                       </tr>
                     </thead>
@@ -407,7 +405,6 @@ export default async function PrinterViewPage({
                           <td className="px-4 py-3">{formatDate(r.replacementDate)}</td>
                           <td className="px-4 py-3">{r.oldSerialNumber}</td>
                           <td className="px-4 py-3">{r.newSerialNumber}</td>
-                          <td className="px-4 py-3">{r.brand}</td>
                           <td className="px-4 py-3">{r.model}</td>
                         </tr>
                       ))}
@@ -456,7 +453,6 @@ function StatusBlock({
 
 function ConsumableLevel({
   consumable,
-  printerBrand,
   printerModel,
 }: {
   consumable: {
@@ -466,14 +462,12 @@ function ConsumableLevel({
     status: string | null;
     isUnknown: boolean;
   };
-  printerBrand: string | null;
   printerModel: string | null;
 }) {
   const isUnknown = consumable.isUnknown || consumable.levelPercent === null;
   const percentage = isUnknown ? 0 : consumable.levelPercent ?? 0;
   const displayName = monitoringConsumableDisplayName(
     consumable.name,
-    printerBrand,
     printerModel,
   );
   const unknownLabel =
@@ -512,10 +506,9 @@ function ConsumableLevel({
 
 function monitoringConsumableDisplayName(
   name: string,
-  printerBrand: string | null,
   printerModel: string | null,
 ) {
-  const printerIdentity = `${printerBrand ?? ""} ${printerModel ?? ""}`.toLowerCase();
+  const printerIdentity = (printerModel ?? "").toLowerCase();
   if (
     printerIdentity.includes("canon") &&
     printerIdentity.includes("mf244w") &&

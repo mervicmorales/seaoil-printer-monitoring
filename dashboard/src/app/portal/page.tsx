@@ -32,7 +32,6 @@ export default async function PortalPage() {
         id: printers.id,
         assetTag: printers.assetTag,
         serialNumber: printers.serialNumber,
-        brand: printers.brand,
         model: printers.model,
         assignedUser: printers.assignedUser,
         status: printers.status,
@@ -40,7 +39,7 @@ export default async function PortalPage() {
         eq(printers.locationId, employee.primaryLocationId),
         eq(printers.departmentId, employee.departmentId),
         eq(printers.status, "Active"),
-      )).orderBy(asc(printers.brand), asc(printers.model), asc(printers.serialNumber))
+      )).orderBy(asc(printers.model), asc(printers.serialNumber))
     : [];
 
   const profileRows = [
@@ -96,7 +95,7 @@ export default async function PortalPage() {
                   {availablePrinters.map((printer) => (
                     <tr key={printer.id}>
                       <td className="px-5 py-3 font-medium">{printer.assetTag || "—"}</td>
-                      <td className="px-5 py-3">{[printer.brand, printer.model].filter(Boolean).join(" ") || "—"}</td>
+                      <td className="px-5 py-3">{printer.model || "—"}</td>
                       <td className="px-5 py-3">{printer.serialNumber}</td>
                       <td className="px-5 py-3">{printer.assignedUser || "Shared"}</td>
                       <td className="px-5 py-3"><Badge color="green">{printer.status}</Badge></td>

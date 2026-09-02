@@ -21,7 +21,9 @@
     "monitoring:agent:migrate-global": "node scripts/monitoring-agent-credentials.mjs migrate-global",
     "monitoring:assignments:migrate": "node scripts/migrate-monitoring-assignments.mjs",
     "db:migrate:features": "node scripts/migrate-notifications-registration-smtp.mjs",
-    "db:migrate:features:docker": "node --env-file=.env.docker scripts/migrate-notifications-registration-smtp.mjs"
+    "db:migrate:features:docker": "node --env-file=.env.docker scripts/migrate-notifications-registration-smtp.mjs",
+    "db:migrate:remove-brand": "node --env-file=.env.local scripts/remove-printer-brand.mjs",
+    "db:migrate:remove-brand:docker": "node --env-file=.env.docker scripts/remove-printer-brand.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

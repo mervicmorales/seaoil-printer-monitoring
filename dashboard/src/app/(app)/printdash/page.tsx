@@ -42,7 +42,6 @@ type PrinterMonitoringRow = {
   id: number;
   asset_tag: string | null;
   serial_number: string;
-  brand: string | null;
   model: string | null;
   ip_address: string | null;
   location_name: string | null;
@@ -100,7 +99,6 @@ export default async function PrintDashPage({
     filters.push(sql`(
       printers.asset_tag ilike ${pattern}
       or printers.serial_number ilike ${pattern}
-      or printers.brand ilike ${pattern}
       or printers.model ilike ${pattern}
       or coalesce(printers.ip_address, '') ilike ${pattern}
       or coalesce(locations.name, '') ilike ${pattern}
@@ -186,7 +184,6 @@ export default async function PrintDashPage({
         printers.id,
         printers.asset_tag,
         printers.serial_number,
-        printers.brand,
         printers.model,
         printers.ip_address,
         locations.name as location_name,
@@ -256,7 +253,6 @@ export default async function PrintDashPage({
       ${whereClause}
       order by
         case when latest_readings.id is null then 1 else 0 end,
-        printers.brand,
         printers.model,
         printers.serial_number
     `),
@@ -430,7 +426,7 @@ export default async function PrintDashPage({
                       </td>
                       <td className="px-4 py-3">
                         <p className="line-clamp-2 text-xs font-medium text-slate-700">
-                          {[printer.brand, printer.model].filter(Boolean).join(" ") || "Model not available"}
+                          {printer.model || "Model not available"}
                         </p>
                         <Link
                           href={printerDetailHref(printer.id, "/printdash")}
@@ -514,7 +510,7 @@ function PrinterMonitoringCard({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="break-words text-xs font-medium text-slate-500">
-            {[printer.brand, printer.model].filter(Boolean).join(" ") || "Model not available"}
+            {printer.model || "Model not available"}
           </p>
           <Link
             href={printerDetailHref(printer.id, "/printdash")}
@@ -685,10 +681,10 @@ function ConsumableLevel({ printer }: { printer: PrinterMonitoringRow }) {
 
 function tonerDisplayLabel(
   name: string,
-  printer: Pick<PrinterMonitoringRow, "brand" | "model">,
+  printer: Pick<PrinterMonitoringRow, "model">,
 ) {
   const normalized = name.toLowerCase();
-  const printerIdentity = `${printer.brand ?? ""} ${printer.model ?? ""}`.toLowerCase();
+  const printerIdentity = (printer.model ?? "").toLowerCase();
 
   if (
     printerIdentity.includes("canon") &&

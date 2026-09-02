@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeaderPlacement } from "@/components/PageHeaderPortal";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 export default function ModalShell({
   children,
@@ -13,6 +14,8 @@ export default function ModalShell({
   showTitle = true,
   headerActions,
   pageHeaderInModal = false,
+  hideScrollbar = false,
+  contentClassName = "",
 }: {
   children: ReactNode;
   title: string;
@@ -21,8 +24,11 @@ export default function ModalShell({
   showTitle?: boolean;
   headerActions?: ReactNode;
   pageHeaderInModal?: boolean;
+  hideScrollbar?: boolean;
+  contentClassName?: string;
 }) {
   const router = useRouter();
+  useBodyScrollLock(true);
   const close = useCallback(() => {
     if (closeHref) {
       router.push(closeHref);
@@ -32,16 +38,12 @@ export default function ModalShell({
   }, [closeHref, router]);
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
 
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [close]);
@@ -81,7 +83,9 @@ export default function ModalShell({
           </div>
         </div>
         <PageHeaderPlacement inAppHeader={false} inModalHeader={pageHeaderInModal}>
-          <div className="min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
+          <div className={`min-h-0 overflow-y-auto p-4 sm:p-6 ${hideScrollbar ? "scrollbar-hidden" : ""} ${contentClassName}`}>
+            {children}
+          </div>
         </PageHeaderPlacement>
       </section>
     </div>
