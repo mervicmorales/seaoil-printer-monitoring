@@ -2,10 +2,10 @@ import { PageHeader, Card } from "@/components/ui";
 import { getVendors } from "@/lib/lookups";
 import ContractForm from "../ContractForm";
 import { createContractAction } from "../actions";
-import { requireModuleFullAccess } from "@/lib/server-utils";
+import { requireAdmin } from "@/lib/server-utils";
 
 export default async function NewContractPage() {
-  await requireModuleFullAccess("contract");
+  await requireAdmin();
   const vendors = await getVendors();
   return (
     <div>

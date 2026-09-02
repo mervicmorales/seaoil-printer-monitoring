@@ -5,6 +5,7 @@ import { Input, PrimaryButton } from "@/components/ui";
 export default function ReminderSettingsForm({
   action,
   settings,
+  readOnly = false,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   settings: {
@@ -19,9 +20,11 @@ export default function ReminderSettingsForm({
     agentOfflineEmailEnabled: boolean;
     agentRecoveredEmailEnabled: boolean;
   };
+  readOnly?: boolean;
 }) {
   return (
     <form action={action} className="max-w-xl space-y-5">
+      <fieldset disabled={readOnly} className="space-y-5 disabled:opacity-70">
       <Input
         label="Toner Notofications Email"
         name="notificationEmail"
@@ -48,7 +51,8 @@ export default function ReminderSettingsForm({
         <input type="checkbox" name="systemNotificationEnabled" defaultChecked={settings.systemNotificationEnabled} />
         Send system (bell) notifications
       </label>
-      <PrimaryButton type="submit">Save Settings</PrimaryButton>
+      {!readOnly && <PrimaryButton type="submit">Save Settings</PrimaryButton>}
+      </fieldset>
     </form>
   );
 }

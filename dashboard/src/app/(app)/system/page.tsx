@@ -96,6 +96,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   updateAction={updateLocationAction}
                   deleteAction={deleteLocationAction}
                   placeholder="e.g. Head Office"
+                  readOnly={session.role !== "admin"}
                   fillHeight
                 />
               </Card>
@@ -112,6 +113,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   updateAction={updateDepartmentAction}
                   deleteAction={deleteDepartmentAction}
                   placeholder="e.g. IT Services"
+                  readOnly={session.role !== "admin"}
                   fillHeight
                 />
               </Card>
@@ -136,6 +138,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   deleteAction={deleteTonerTypeAction}
                   thresholdAction={updateThresholdAction}
                   visibilityAction={updateAlertCardVisibilityAction}
+                  isAdmin={session.role === "admin"}
                 />
               </Card>
             ),
@@ -145,7 +148,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
             label: "Vendor / Supplier",
             content: (
               <Card className="h-full min-h-0 overflow-hidden p-6">
-                <VendorManager vendors={allVendors} addAction={addVendorAction} updateAction={updateVendorAction} deleteAction={deleteVendorAction} />
+                <VendorManager vendors={allVendors} addAction={addVendorAction} updateAction={updateVendorAction} deleteAction={deleteVendorAction} readOnly={session.role !== "admin"} />
               </Card>
             ),
           },
@@ -154,7 +157,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
             label: "ITS Names",
             content: (
               <Card className="h-full min-h-0 overflow-hidden p-6">
-                <LookupTable items={allItsNames} addAction={addItsNameAction} deleteAction={deleteItsNameAction} editable={false} placeholder="e.g. Patrick" fillHeight />
+                <LookupTable items={allItsNames} addAction={addItsNameAction} deleteAction={deleteItsNameAction} editable={false} readOnly={session.role !== "admin"} placeholder="e.g. Patrick" fillHeight />
               </Card>
             ),
           },
@@ -163,7 +166,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
             label: "Toner Reminder & Email",
             content: (
               <Card className="h-full overflow-auto p-6">
-                <ReminderSettingsForm action={updateSettingsAction} settings={settings} />
+                <ReminderSettingsForm action={updateSettingsAction} settings={settings} readOnly={session.role !== "admin"} />
               </Card>
             ),
           },

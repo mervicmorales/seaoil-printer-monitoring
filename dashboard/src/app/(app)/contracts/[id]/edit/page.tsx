@@ -6,10 +6,10 @@ import { PageHeader, Card } from "@/components/ui";
 import { getVendors } from "@/lib/lookups";
 import ContractForm from "../../ContractForm";
 import { updateContractAction } from "../../actions";
-import { requireModuleFullAccess } from "@/lib/server-utils";
+import { requireAdmin } from "@/lib/server-utils";
 
 export default async function EditContractPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireModuleFullAccess("contract");
+  await requireAdmin();
   const { id } = await params;
   const rows = await db.select().from(contracts).where(eq(contracts.id, Number(id))).limit(1);
   const contract = rows[0];

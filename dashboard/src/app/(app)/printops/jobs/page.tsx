@@ -19,7 +19,7 @@ export default async function PrintOpsJobsPage({
   const params = await searchParams;
   const [agents, cancellations] = await Promise.all([
     getPrintOpsAgents(),
-    getRecentPrintOpsCommands("cancel-job", 10, session.role === "admin" ? undefined : session.id),
+    getRecentPrintOpsCommands("cancel-job", 10),
   ]);
   const renderedAt = new Date();
 
@@ -27,7 +27,7 @@ export default async function PrintOpsJobsPage({
     <div>
       <PageHeader
         title="PrintOps · Print Jobs"
-        subtitle="Review live physical printer states, CUPS queues, and recently completed jobs."
+        subtitle="Review live physical printer states and CUPS queues."
         actions={<RefreshControl refreshedAtLabel={formatTime(renderedAt)} intervalSeconds={5} />}
       />
       <PrintOpsFeedback success={params.success} error={params.error} />
@@ -92,14 +92,6 @@ export default async function PrintOpsJobsPage({
                 </div>
               </section>
             </div>
-
-            <section className="border-t border-slate-200 px-5 py-4">
-              <h3 className="mb-3 text-sm font-semibold text-slate-700">Recent History</h3>
-              <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
-                {agent.snapshot.completedJobs.map((job) => <div key={job} className="border-b border-slate-100 px-3 py-2.5 text-xs text-slate-600 last:border-b-0">{job}</div>)}
-                {agent.snapshot.completedJobs.length === 0 && <p className="px-4 py-6 text-center text-sm text-slate-500">No completed jobs reported.</p>}
-              </div>
-            </section>
           </Card>
         ))}
         {agents.length === 0 && <Card className="p-8 text-center text-sm text-slate-500">No office agents are configured.</Card>}

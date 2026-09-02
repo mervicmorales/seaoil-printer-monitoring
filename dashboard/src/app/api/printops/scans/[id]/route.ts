@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { printOpsCommands } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { getModuleAccessMap } from "@/lib/server-utils";
 
 export async function GET(
   _request: Request,
@@ -11,6 +12,10 @@ export async function GET(
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  }
+  const access = await getModuleAccessMap(session.id, session.role);
+  if (!access.printops) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
   const id = Number((await params).id);
   if (!Number.isSafeInteger(id) || id < 1) {
@@ -22,9 +27,6 @@ export async function GET(
     eq(printOpsCommands.type, "scan"),
     eq(printOpsCommands.status, "completed"),
   ];
-  if (session.role !== "admin") {
-    conditions.push(eq(printOpsCommands.requestedBy, session.id));
-  }
   const [scan] = await db
     .select({
       name: printOpsCommands.outputFileName,

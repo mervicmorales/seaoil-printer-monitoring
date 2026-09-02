@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { printerMonitoringAssignments, printers, printerTonerTypes } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { PageHeader, Card, Input } from "@/components/ui";
+import { PageHeader, Card, Input, PrimaryButton } from "@/components/ui";
 import {
   getContracts,
   getDepartments,
@@ -22,11 +22,13 @@ import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 export default async function EditPrinterPage({
   params,
   searchParams,
+  embedded = false,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ returnTo?: string }>;
+  embedded?: boolean;
 }) {
-  await requireModuleFullAccess("printers");
+  const session = await requireModuleFullAccess("printers");
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
   const returnTo = normalizePrinterReturnTo(resolvedSearchParams.returnTo);
@@ -62,13 +64,31 @@ export default async function EditPrinterPage({
       <PageHeader
         title="Edit Printer"
         subtitle={`Serial Number: ${printer.serialNumber}`}
-        actions={
+        actions={embedded ? (
+          <div className="flex flex-wrap items-end gap-2">
+            {session.role === "admin" && (
+              <PrinterStatusSelect
+                currentStatus={printer.status}
+                formId="printer-edit-form"
+                printerId={printer.id}
+                compact
+              />
+            )}
+            <PrimaryButton
+              type="submit"
+              form="printer-edit-form"
+              className="px-3 py-1.5 text-xs"
+            >
+              Save Changes
+            </PrimaryButton>
+          </div>
+        ) : session.role === "admin" ? (
           <PrinterStatusSelect
             currentStatus={printer.status}
             formId="printer-edit-form"
             printerId={printer.id}
           />
-        }
+        ) : undefined}
       />
       <Card className="p-6">
         <PrinterForm
@@ -87,6 +107,8 @@ export default async function EditPrinterPage({
             monitoringAgents={monitoringAgents}
             selectedTonerTypeIds={tonerLinks.map((t) => t.tonerTypeId)}
             returnTo={returnTo}
+            limitedSupport={session.role === "support"}
+            showActions={!embedded}
             replacementContent={
               <div className="space-y-5">
                 <div>
@@ -95,7 +117,7 @@ export default async function EditPrinterPage({
                     Replacing this unit preserves the old serial number in Replacement History.
                   </p>
                 </div>
-                <ReplacementForm
+                {session.role === "admin" ? <ReplacementForm
                   action={addReplacementAction}
                   printerId={printer.id}
                   oldSerialNumber={printer.serialNumber}
@@ -103,7 +125,7 @@ export default async function EditPrinterPage({
                   model={printer.model || ""}
                   today={todayISO()}
                   returnTo={returnTo}
-                />
+                /> : <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Replacement history is view-only for Support users. Open the printer details page to review past replacements.</p>}
               </div>
             }
           />

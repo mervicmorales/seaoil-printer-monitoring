@@ -9,7 +9,7 @@ export default async function NewUserPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireModuleFullAccess("manage_users");
+  const session = await requireModuleFullAccess("manage_users");
   const params = (await searchParams) ?? {};
   const returnTo = params.returnTo === "/manage/registrations" ? "/manage/registrations" : "/manage";
   const [locations, departments] = await Promise.all([getLocations(), getDepartments()]);
@@ -17,7 +17,7 @@ export default async function NewUserPage({
     <div>
       <PageHeader title="Create Account" subtitle="Create a new user account." />
       <Card className="p-6">
-        <UserForm mode="create" action={createUserAction} locations={locations} departments={departments} returnTo={returnTo} />
+        <UserForm mode="create" action={createUserAction} locations={locations} departments={departments} returnTo={returnTo} employeeOnly={session.role === "support"} />
       </Card>
     </div>
   );

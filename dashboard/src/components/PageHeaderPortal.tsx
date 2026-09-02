@@ -8,34 +8,41 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-const PageHeaderPlacementContext = createContext(true);
+type PageHeaderPlacementValue = "app" | "inline" | "modal";
+
+const PageHeaderPlacementContext = createContext<PageHeaderPlacementValue>("app");
 const subscribeToHeaderTarget = () => () => {};
-const getHeaderTarget = () => document.getElementById("app-page-header-slot");
+const getAppHeaderTarget = () => document.getElementById("app-page-header-slot");
+const getModalHeaderTarget = () => document.getElementById("modal-page-header-slot");
 const getServerHeaderTarget = () => null;
 
 export function PageHeaderPlacement({
   inAppHeader,
+  inModalHeader = false,
   children,
 }: {
   inAppHeader: boolean;
+  inModalHeader?: boolean;
   children: ReactNode;
 }) {
   return (
-    <PageHeaderPlacementContext.Provider value={inAppHeader}>
+    <PageHeaderPlacementContext.Provider
+      value={inModalHeader ? "modal" : inAppHeader ? "app" : "inline"}
+    >
       {children}
     </PageHeaderPlacementContext.Provider>
   );
 }
 
 export function PageHeaderPortal({ children }: { children: ReactNode }) {
-  const inAppHeader = useContext(PageHeaderPlacementContext);
+  const placement = useContext(PageHeaderPlacementContext);
   const target = useSyncExternalStore(
     subscribeToHeaderTarget,
-    getHeaderTarget,
+    placement === "modal" ? getModalHeaderTarget : getAppHeaderTarget,
     getServerHeaderTarget,
   );
 
-  if (!inAppHeader) {
+  if (placement === "inline") {
     return <div className="mb-6">{children}</div>;
   }
 

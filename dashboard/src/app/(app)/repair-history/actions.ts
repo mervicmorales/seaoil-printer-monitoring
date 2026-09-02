@@ -5,7 +5,7 @@ import { printers, repairTickets } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireModuleFullAccess, requireSession, generateTicketNumber, createNotification } from "@/lib/server-utils";
+import { requireAdmin, requireModuleFullAccess, requireSession, generateTicketNumber, createNotification } from "@/lib/server-utils";
 import { REPAIR_STATUSES } from "@/lib/constants";
 import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
@@ -70,7 +70,7 @@ export async function updateTicketDetailsAction(
   _prev: RepairFormState,
   formData: FormData,
 ): Promise<RepairFormState> {
-  await requireModuleFullAccess("repair");
+  const session = await requireModuleFullAccess("repair");
 
   const id = num(formData.get("id"));
   const status = str(formData.get("status"));
@@ -82,8 +82,8 @@ export async function updateTicketDetailsAction(
   if (!status || !REPAIR_STATUSES.some((item) => item === status)) {
     fieldErrors.status = "Select a valid status.";
   }
-  if (!problem) fieldErrors.problem = "Concern description is required.";
-  if (status === "Closed" && !resolution) {
+  if (session.role === "admin" && !problem) fieldErrors.problem = "Concern description is required.";
+  if (session.role === "admin" && status === "Closed" && !resolution) {
     fieldErrors.resolution = "Resolution is required when closing a ticket.";
   }
   if (Object.keys(fieldErrors).length) return { fieldErrors };
@@ -91,12 +91,31 @@ export async function updateTicketDetailsAction(
   const [existing] = await db
     .select({
       dateClosed: repairTickets.dateClosed,
+      resolution: repairTickets.resolution,
       resolutionAttachmentUrl: repairTickets.resolutionAttachmentUrl,
     })
     .from(repairTickets)
     .where(eq(repairTickets.id, id))
     .limit(1);
   if (!existing) return { error: "Repair ticket not found." };
+
+  if (session.role === "support") {
+    if (status === "Closed" && !existing.resolution) {
+      return { error: "An administrator must record a resolution before this ticket can be closed." };
+    }
+    await db
+      .update(repairTickets)
+      .set({
+        status: status!,
+        dateClosed: status === "Closed" ? existing.dateClosed || new Date().toISOString().slice(0, 10) : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(repairTickets.id, id));
+    revalidatePath("/repair-history");
+    revalidatePath(`/repair-history/${id}`);
+    revalidatePath("/dashboard");
+    return { success: "Repair ticket status updated successfully." };
+  }
 
   let attachment: Awaited<ReturnType<typeof saveResolutionAttachment>> = null;
   try {
@@ -177,7 +196,7 @@ export async function createReportAction(_prev: RepairFormState, formData: FormD
 }
 
 export async function updateTicketAction(_prev: RepairFormState, formData: FormData): Promise<RepairFormState> {
-  await requireModuleFullAccess("repair");
+  await requireAdmin();
 
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid ticket." };
@@ -233,7 +252,7 @@ export async function updateTicketAction(_prev: RepairFormState, formData: FormD
 }
 
 export async function deleteTicketAction(formData: FormData) {
-  await requireModuleFullAccess("repair");
+  await requireAdmin();
   const id = num(formData.get("id"));
   if (!id) return;
   const [ticket] = await db

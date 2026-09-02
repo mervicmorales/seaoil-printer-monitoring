@@ -20,7 +20,7 @@ export const MODULE_LABELS: Record<ModuleName, string> = {
   contract: "Contract",
   repair: "Printer Repair History",
   spot: "SPOT",
-  printops: "PrintOps",
+  printops: "Printer Services",
   system: "System",
   manage_users: "Manage Users",
   registrations: "Registrations",

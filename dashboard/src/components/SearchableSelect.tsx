@@ -13,6 +13,7 @@ export default function SearchableSelect({
   error,
   defaultValue,
   onValueChange,
+  disabled = false,
 }: {
   label: string;
   name: string;
@@ -22,6 +23,7 @@ export default function SearchableSelect({
   error?: string;
   defaultValue?: number | null;
   onValueChange?: (value: number | null) => void;
+  disabled?: boolean;
 }) {
   const inputId = useId();
   const listboxId = `${inputId}-listbox`;
@@ -59,6 +61,7 @@ export default function SearchableSelect({
           aria-invalid={Boolean(error)}
           autoComplete="off"
           required={required}
+          disabled={disabled}
           value={query}
           placeholder={placeholder}
           onFocus={() => setOpen(true)}
@@ -76,10 +79,11 @@ export default function SearchableSelect({
               select(filteredOptions[0]);
             }
           }}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-9 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-9 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
         />
         <button
           type="button"
+          disabled={disabled}
           aria-label={`Open ${label} options`}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setOpen((current) => !current)}
@@ -88,7 +92,7 @@ export default function SearchableSelect({
           ▾
         </button>
       </div>
-      {open && (
+      {open && !disabled && (
         <div id={listboxId} role="listbox" className="absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
           {filteredOptions.length === 0 ? (
             <p className="px-3 py-2 text-sm text-slate-400">No matches found.</p>

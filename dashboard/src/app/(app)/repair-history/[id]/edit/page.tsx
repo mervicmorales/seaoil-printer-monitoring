@@ -6,11 +6,11 @@ import { PageHeader, Card } from "@/components/ui";
 import { getDepartments, getLocations, getVendors } from "@/lib/lookups";
 import EditTicketForm from "./EditTicketForm";
 import { updateTicketAction } from "../../actions";
-import { requireModuleFullAccess } from "@/lib/server-utils";
+import { requireAdmin } from "@/lib/server-utils";
 import TicketStatusSelect from "../../TicketStatusSelect";
 
 export default async function EditTicketPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireModuleFullAccess("repair");
+  await requireAdmin();
   const { id } = await params;
   const ticketId = Number(id);
   if (!Number.isInteger(ticketId) || ticketId <= 0) notFound();

@@ -19,7 +19,7 @@ export default async function PrintOpsPrintPage({
   const params = await searchParams;
   const [agents, commands] = await Promise.all([
     getPrintOpsAgents(),
-    getRecentPrintOpsCommands("print", 20, session.role === "admin" ? undefined : session.id),
+    getRecentPrintOpsCommands("print", 20),
   ]);
   const printerTargets = agents.flatMap((agent) =>
     agent.snapshot.printerTargets.map((printer) => ({ agent, printer })),

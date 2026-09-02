@@ -168,13 +168,13 @@ export default async function PrinterViewPage({
                   <Link href={`/printers/${p.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
                     <SecondaryButton>Edit Printer</SecondaryButton>
                   </Link>
-                  <DeleteButton
+                  {session.role === "admin" ? <DeleteButton
                     action={deletePrinterAction}
                     id={p.id}
                     confirmText="Delete this printer? This cannot be undone."
                     label="Delete Printer"
                     className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                  />
+                  /> : <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">Delete Printer</button>}
                 </>
               )}
             </>
@@ -189,23 +189,27 @@ export default async function PrinterViewPage({
             key: "details",
             label: "Printer Details",
             content: (
-              <div className="space-y-5">
-                <Card className="p-6">
-                  <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    <Field label="Asset Tag" value={p.assetTag || "—"} />
-                    <Field label="Brand / Model" value={`${p.brand || "—"} / ${p.model || "—"}`} />
-                    <Field
-                      label="Toner Type / Monthly Rate"
-                      value={`${toners.map((t) => t.name).join(", ") || "—"} / ${formatPHP(p.monthlyRate)}`}
-                    />
-                    <Field label="Vendor / Supplier" value={record.vendorName || "—"} />
-                    <Field label="Contract Number" value={record.contractNumber || "—"} />
-                    <Field label="Warranty / End-of-Contract" value={formatDate(record.contractEnd)} />
-                    <Field label="Assigned User" value={p.assignedUser || "—"} />
-                  </dl>
-                </Card>
-
-                <Card className="p-6">
+              <Card className="p-6">
+                <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label="Asset Tag" value={p.assetTag || "—"} />
+                  <Field label="Brand / Model" value={`${p.brand || "—"} / ${p.model || "—"}`} />
+                  <Field
+                    label="Toner Type / Monthly Rate"
+                    value={`${toners.map((t) => t.name).join(", ") || "—"} / ${formatPHP(p.monthlyRate)}`}
+                  />
+                  <Field label="Vendor / Supplier" value={record.vendorName || "—"} />
+                  <Field label="Contract Number" value={record.contractNumber || "—"} />
+                  <Field label="Warranty / End-of-Contract" value={formatDate(record.contractEnd)} />
+                  <Field label="Assigned User" value={p.assignedUser || "—"} />
+                </dl>
+              </Card>
+            ),
+          },
+          {
+            key: "monitoring",
+            label: "Live Monitoring",
+            content: (
+              <Card className="p-6">
                   <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                     <div>
                       <h3 className="font-bold text-[#014171]">Live Monitoring</h3>
@@ -336,8 +340,7 @@ export default async function PrinterViewPage({
                       </div>
                     </>
                   )}
-                </Card>
-              </div>
+              </Card>
             ),
           },
           {

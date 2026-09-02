@@ -13,6 +13,7 @@ export default function LookupTable({
   deleteAction,
   placeholder = "Enter name",
   editable = true,
+  readOnly = false,
   fillHeight = false,
 }: {
   items: Item[];
@@ -21,13 +22,14 @@ export default function LookupTable({
   deleteAction: (formData: FormData) => void | Promise<void>;
   placeholder?: string;
   editable?: boolean;
+  readOnly?: boolean;
   fillHeight?: boolean;
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   return (
     <div className={fillHeight ? "flex h-full min-h-0 flex-col" : ""}>
-      <form action={addAction} className={`mb-4 flex gap-2 ${fillHeight ? "shrink-0" : ""}`}>
+      {!readOnly && <form action={addAction} className={`mb-4 flex gap-2 ${fillHeight ? "shrink-0" : ""}`}>
         <input
           name="name"
           required
@@ -35,7 +37,7 @@ export default function LookupTable({
           className="w-full max-w-sm rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40"
         />
         <PrimaryButton type="submit">Add</PrimaryButton>
-      </form>
+      </form>}
       <div className={`divide-y divide-slate-100 rounded-lg border border-slate-200 ${fillHeight ? "min-h-0 flex-1 overflow-y-auto" : ""}`}>
         {items.length === 0 && <p className="px-4 py-6 text-center text-sm text-slate-400">No records yet.</p>}
         {items.map((item) => (
@@ -57,7 +59,7 @@ export default function LookupTable({
               <>
                 <p className="text-sm text-slate-700">{item.name}</p>
                 <div className="flex gap-2">
-                  {editable && updateAction && (
+                  {!readOnly && editable && updateAction && (
                     <button
                       onClick={() => setEditingId(item.id)}
                       className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50"
@@ -65,7 +67,7 @@ export default function LookupTable({
                       Edit
                     </button>
                   )}
-                  <DeleteButton action={deleteAction} id={item.id} confirmText={`Delete "${item.name}"?`} />
+                  {!readOnly && <DeleteButton action={deleteAction} id={item.id} confirmText={`Delete "${item.name}"?`} />}
                 </div>
               </>
             )}

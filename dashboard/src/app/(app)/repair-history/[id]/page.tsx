@@ -48,7 +48,7 @@ export default async function ViewTicketPage({ params }: { params: Promise<{ id:
                   currentStatus={t.status}
                   formId="repair-ticket-details-form"
                 />
-                <div className="pt-5">
+                {session.role === "admin" && <div className="pt-5">
                   <DeleteButton
                     action={deleteTicketAction}
                     id={t.id}
@@ -56,7 +56,7 @@ export default async function ViewTicketPage({ params }: { params: Promise<{ id:
                     label="Delete Ticket"
                     className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
                   />
-                </div>
+                </div>}
               </>
             )}
           </>
@@ -86,6 +86,7 @@ export default async function ViewTicketPage({ params }: { params: Promise<{ id:
             resolution={t.resolution}
             resolutionAttachmentUrl={t.resolutionAttachmentUrl}
             resolutionAttachmentName={t.resolutionAttachmentName}
+            statusOnly={session.role === "support"}
           />
         ) : (
           <div className="mt-6 grid grid-cols-1 gap-5 border-t border-slate-100 pt-6 lg:grid-cols-2">

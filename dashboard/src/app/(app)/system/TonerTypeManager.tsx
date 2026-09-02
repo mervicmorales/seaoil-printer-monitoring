@@ -13,6 +13,7 @@ export default function TonerTypeManager({
   deleteAction,
   thresholdAction,
   visibilityAction,
+  isAdmin,
 }: {
   items: TonerType[];
   addAction: (formData: FormData) => void | Promise<void>;
@@ -20,14 +21,15 @@ export default function TonerTypeManager({
   deleteAction: (formData: FormData) => void | Promise<void>;
   thresholdAction: (formData: FormData) => void | Promise<void>;
   visibilityAction: (formData: FormData) => void | Promise<void>;
+  isAdmin: boolean;
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <form action={addAction} className="mb-6 flex shrink-0 gap-2">
-        <input name="name" required placeholder="e.g. TN263 B" className="w-full max-w-sm rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" />
-        <PrimaryButton type="submit">Add Toner Type</PrimaryButton>
+        <input name="name" required disabled={!isAdmin} placeholder="e.g. TN263 B" className="w-full max-w-sm rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-100" />
+        <PrimaryButton type="submit" disabled={!isAdmin}>Add Toner Type</PrimaryButton>
       </form>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
@@ -52,10 +54,10 @@ export default function TonerTypeManager({
                     <form action={visibilityAction} className="flex items-center gap-2">
                       <input type="hidden" name="tonerTypeId" value={t.id} />
                       <label className="flex items-center gap-2 text-xs text-slate-600">
-                        <input type="checkbox" name="showAlertCard" defaultChecked={t.showAlertCard} />
+                        <input type="checkbox" name="showAlertCard" defaultChecked={t.showAlertCard} disabled={!isAdmin} />
                         Show alert cards
                       </label>
-                      <SecondaryButton type="submit" className="px-2.5 py-1 text-xs">Save</SecondaryButton>
+                      <SecondaryButton type="submit" disabled={!isAdmin} className="px-2.5 py-1 text-xs">Save</SecondaryButton>
                     </form>
                     <form action={thresholdAction} className="flex items-center gap-2">
                       <input type="hidden" name="tonerTypeId" value={t.id} />
@@ -65,8 +67,8 @@ export default function TonerTypeManager({
                       <input type="number" name="criticalThreshold" min="0" max={t.threshold} defaultValue={t.criticalThreshold} className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-xs" />
                       <SecondaryButton type="submit" className="px-2.5 py-1 text-xs">Update</SecondaryButton>
                     </form>
-                    <button onClick={() => setEditingId(t.id)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">Rename</button>
-                    <DeleteButton action={deleteAction} id={t.id} confirmText={`Delete toner type "${t.name}"? Its dashboard alert card will be removed.`} />
+                    <button disabled={!isAdmin} onClick={() => setEditingId(t.id)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">Rename</button>
+                    {isAdmin ? <DeleteButton action={deleteAction} id={t.id} confirmText={`Delete toner type "${t.name}"? Its dashboard alert card will be removed.`} /> : <button type="button" disabled className="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-400">Delete</button>}
                   </div>
                 </>
               )}

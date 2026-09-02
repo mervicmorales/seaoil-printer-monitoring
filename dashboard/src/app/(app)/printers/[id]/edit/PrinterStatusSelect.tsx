@@ -20,10 +20,12 @@ export default function PrinterStatusSelect({
   currentStatus,
   formId,
   printerId,
+  compact = false,
 }: {
   currentStatus: string;
   formId: string;
   printerId: number;
+  compact?: boolean;
 }) {
   const [status, setStatus] = useState(currentStatus);
   const [isPending, startTransition] = useTransition();
@@ -61,7 +63,7 @@ export default function PrinterStatusSelect({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={`flex flex-col ${compact ? "gap-1" : "gap-1.5"}`}>
       <label htmlFor="printer-status" className="text-xs font-medium text-slate-600">
         Asset Status
       </label>
@@ -73,7 +75,7 @@ export default function PrinterStatusSelect({
         onChange={(event) => confirmStatusChange(event.target.value)}
         disabled={isPending}
         required
-        className={`min-w-48 rounded-lg border px-3.5 py-2.5 text-sm font-semibold outline-none transition focus:ring-2 disabled:cursor-wait disabled:opacity-70 ${statusColor}`}
+        className={`${compact ? "min-w-32 px-3 py-1.5 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-lg border font-semibold outline-none transition focus:ring-2 disabled:cursor-wait disabled:opacity-70 ${statusColor}`}
       >
         {PRINTER_STATUSES.map((item) => (
           <option key={item} value={item}>{item}</option>

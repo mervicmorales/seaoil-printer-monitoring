@@ -13,7 +13,7 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { isIP } from "net";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireModuleFullAccess } from "@/lib/server-utils";
+import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 
@@ -35,7 +35,7 @@ export async function updatePrinterStatusAction(
   printerId: number,
   status: string,
 ): Promise<{ success: boolean }> {
-  await requireModuleFullAccess("printers");
+  await requireAdmin();
 
   if (!Number.isInteger(printerId) || !PRINTER_STATUSES.some((item) => item === status)) {
     return { success: false };
@@ -175,7 +175,7 @@ export async function updatePrinterAction(
   _prev: PrinterFormState,
   formData: FormData,
 ): Promise<PrinterFormState> {
-  await requireModuleFullAccess("printers");
+  const session = await requireModuleFullAccess("printers");
 
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid printer." };
@@ -191,27 +191,34 @@ export async function updatePrinterAction(
 
   try {
     await db.transaction(async (tx) => {
-      await tx
-        .update(printers)
-        .set({
-          assetTag: str(formData.get("assetTag")),
-          ipAddress: monitoring.ipAddress,
-          monthlyRate: String(num(formData.get("monthlyRate")) ?? 0),
-          locationId: num(formData.get("locationId")),
-          departmentId: num(formData.get("departmentId")),
-          vendorId: num(formData.get("vendorId")),
-          contractId: num(formData.get("contractId")),
-          assignedUser: str(formData.get("assignedUser")),
-          status: str(formData.get("status")) || "Active",
-          updatedAt: new Date(),
-        })
-        .where(eq(printers.id, id));
-
-      await tx.delete(printerTonerTypes).where(eq(printerTonerTypes.printerId, id));
-      if (tonerTypeIds.length) {
+      if (session.role === "support") {
         await tx
-          .insert(printerTonerTypes)
-          .values(tonerTypeIds.map((tonerTypeId) => ({ printerId: id, tonerTypeId })));
+          .update(printers)
+          .set({ ipAddress: monitoring.ipAddress, updatedAt: new Date() })
+          .where(eq(printers.id, id));
+      } else {
+        await tx
+          .update(printers)
+          .set({
+            assetTag: str(formData.get("assetTag")),
+            ipAddress: monitoring.ipAddress,
+            monthlyRate: String(num(formData.get("monthlyRate")) ?? 0),
+            locationId: num(formData.get("locationId")),
+            departmentId: num(formData.get("departmentId")),
+            vendorId: num(formData.get("vendorId")),
+            contractId: num(formData.get("contractId")),
+            assignedUser: str(formData.get("assignedUser")),
+            status: str(formData.get("status")) || "Active",
+            updatedAt: new Date(),
+          })
+          .where(eq(printers.id, id));
+
+        await tx.delete(printerTonerTypes).where(eq(printerTonerTypes.printerId, id));
+        if (tonerTypeIds.length) {
+          await tx
+            .insert(printerTonerTypes)
+            .values(tonerTypeIds.map((tonerTypeId) => ({ printerId: id, tonerTypeId })));
+        }
       }
 
       if (monitoring.enabled && monitoring.agentId) {
@@ -243,7 +250,7 @@ export async function updatePrinterAction(
 }
 
 export async function deletePrinterAction(formData: FormData) {
-  await requireModuleFullAccess("printers");
+  await requireAdmin();
   const id = num(formData.get("id"));
   if (!id) return;
   await db.delete(printers).where(eq(printers.id, id));
@@ -256,7 +263,7 @@ export async function addReplacementAction(
   _prev: PrinterFormState,
   formData: FormData,
 ): Promise<PrinterFormState> {
-  await requireModuleFullAccess("printers");
+  await requireAdmin();
 
   const printerId = num(formData.get("printerId"));
   const newSerialNumber = str(formData.get("newSerialNumber"));

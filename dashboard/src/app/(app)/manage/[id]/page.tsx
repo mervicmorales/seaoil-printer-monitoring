@@ -5,10 +5,11 @@ import { db } from "@/db";
 import { departments, locations, userModuleAccess, users } from "@/db/schema";
 import { Card, PageHeader, SecondaryButton } from "@/components/ui";
 import DeleteButton from "@/components/DeleteButton";
+import SuccessBanner from "@/components/SuccessBanner";
 import { emptyModuleAccess } from "@/lib/permissions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 import PermissionsPanel from "../PermissionsPanel";
-import { deleteUserAction, updatePermissionsAction } from "../actions";
+import { deleteUserAction, sendEmployeePasswordResetAction, updatePermissionsAction } from "../actions";
 
 function Detail({ label, value }: { label: string; value: string | null }) {
   return (
@@ -21,13 +22,16 @@ function Detail({ label, value }: { label: string; value: string | null }) {
 
 export default async function ViewUserPage({
   params,
+  searchParams,
   embedded = false,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ success?: string; error?: string }>;
   embedded?: boolean;
 }) {
   const session = await requireModuleFullAccess("manage_users");
   const { id } = await params;
+  const messages = (await searchParams) ?? {};
   const userId = Number(id);
   if (!Number.isInteger(userId) || userId < 1) notFound();
 
@@ -59,6 +63,8 @@ export default async function ViewUserPage({
           actions={<Link href="/manage"><SecondaryButton>Back to User Management</SecondaryButton></Link>}
         />
       )}
+      <SuccessBanner message={messages.success} />
+      {messages.error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{messages.error}</p>}
       <Card className="p-6">
         <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Detail label="Full Name" value={user.fullName} />
@@ -71,7 +77,7 @@ export default async function ViewUserPage({
           <Detail label="Status" value={user.accountStatus} />
         </dl>
 
-        <div className="mt-8 border-t pt-6">
+        {session.role === "admin" && <div className="mt-8 border-t pt-6">
           <h2 className="mb-3 text-sm font-semibold text-[#014171]">Page Permissions</h2>
           <PermissionsPanel
             userId={user.id}
@@ -79,10 +85,17 @@ export default async function ViewUserPage({
             access={access}
             action={updatePermissionsAction}
           />
-        </div>
+        </div>}
 
         {!embedded && (
           <div className="mt-8 flex flex-wrap gap-3 border-t pt-6">
+            {session.role === "admin" && <>
+            {user.role === "employee" && user.accountStatus === "active" && (
+              <form action={sendEmployeePasswordResetAction}>
+                <input type="hidden" name="id" value={user.id} />
+                <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
+              </form>
+            )}
             <Link href={`/manage/${user.id}/edit`}><SecondaryButton>Edit Account</SecondaryButton></Link>
             {user.id !== session.id && (
               <DeleteButton
@@ -95,6 +108,17 @@ export default async function ViewUserPage({
                 className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
               />
             )}
+            </>}
+            {session.role === "support" && <>
+              {user.role === "employee" && user.accountStatus === "active" && (
+                <form action={sendEmployeePasswordResetAction}>
+                  <input type="hidden" name="id" value={user.id} />
+                  <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
+                </form>
+              )}
+              <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">Edit Account</button>
+              <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">Delete Account</button>
+            </>}
           </div>
         )}
       </Card>

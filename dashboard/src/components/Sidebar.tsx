@@ -81,9 +81,9 @@ const NAV: NavItem[] = [
       { href: "/printops/jobs", label: "Print Jobs", icon: FileText },
     ],
   },
-  { href: "/system", label: MODULE_LABELS.system, icon: Settings, separated: true, module: "system" },
+  { href: "/manage/registrations", label: MODULE_LABELS.registrations, icon: KeyRound, separated: true, module: "registrations" },
   { href: "/manage", label: MODULE_LABELS.manage_users, icon: Users, module: "manage_users" },
-  { href: "/manage/registrations", label: MODULE_LABELS.registrations, icon: KeyRound, module: "registrations" },
+  { href: "/system", label: MODULE_LABELS.system, icon: Settings, module: "system" },
 ];
 
 const EMPLOYEE_NAV: NavItem[] = [

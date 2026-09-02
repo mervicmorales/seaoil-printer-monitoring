@@ -10,11 +10,22 @@ export default async function EditPrinterModal({
   searchParams: Promise<{ returnTo?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
+  const { id } = await params;
   const returnTo = normalizePrinterReturnTo(resolvedSearchParams.returnTo);
+  const detailsHref = `/printers/${id}?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
-    <ModalShell title="Edit printer" closeHref={returnTo} showTitle={false}>
-      <EditPrinterPage params={params} searchParams={Promise.resolve(resolvedSearchParams)} />
+    <ModalShell
+      title="Edit printer"
+      closeHref={detailsHref}
+      showTitle={false}
+      pageHeaderInModal
+    >
+      <EditPrinterPage
+        params={Promise.resolve({ id })}
+        searchParams={Promise.resolve(resolvedSearchParams)}
+        embedded
+      />
     </ModalShell>
   );
 }

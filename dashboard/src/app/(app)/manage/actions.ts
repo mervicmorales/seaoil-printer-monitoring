@@ -3,11 +3,11 @@
 import { createHash, randomBytes } from "crypto";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { auditLogs, manualUserVerificationTokens, userRegistrationRequests, users, userModuleAccess } from "@/db/schema";
+import { auditLogs, manualUserVerificationTokens, passwordResetTokens, userRegistrationRequests, users, userModuleAccess } from "@/db/schema";
 import { eq, and, isNull, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireModuleFullAccess } from "@/lib/server-utils";
+import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/auth";
 import { MODULES, defaultAccessForRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
@@ -60,6 +60,23 @@ async function sendManualUserVerificationEmail(user: { fullName: string; email: 
   });
 }
 
+async function sendManagedPasswordResetEmail(user: { fullName: string; email: string }, rawToken: string) {
+  const resetUrl = `${await applicationOrigin()}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  await sendEmail({
+    to: user.email,
+    subject: "SEAOIL Printer - Reset Your Password",
+    text: [
+      `Hello ${user.fullName},`,
+      "SEAOIL IT requested a password reset for your account.",
+      "Use the link below to set a new password:",
+      resetUrl,
+      "This single-use link expires in 1 hour.",
+      "If you were not expecting this email, please contact IT Support.",
+    ].join("\n\n"),
+    html: `<p>Hello ${escapeHtml(user.fullName)},</p><p>SEAOIL IT requested a password reset for your account.</p><p><a href="${escapeHtml(resetUrl)}">Reset password</a></p><p>This single-use link expires in 1 hour.</p><p>If you were not expecting this email, please contact IT Support.</p>`,
+  });
+}
+
 export type UserFormState = { error?: string; fieldErrors?: Record<string, string> };
 
 export async function createUserAction(_prev: UserFormState, formData: FormData): Promise<UserFormState> {
@@ -78,6 +95,9 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
   const role = roleValue(formData.get("role"));
 
   const fieldErrors: Record<string, string> = {};
+  if (creator.role === "support" && role !== "employee") {
+    fieldErrors.role = "Support users can only create Employee accounts.";
+  }
   if (!fullName) fieldErrors.fullName = "Full Name is required.";
   if (!email) fieldErrors.email = "Email Address is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email address.";
@@ -159,7 +179,7 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
 }
 
 export async function updateUserAction(_prev: UserFormState, formData: FormData): Promise<UserFormState> {
-  await requireModuleFullAccess("manage_users");
+  await requireAdmin();
 
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid user." };
@@ -207,7 +227,7 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
 }
 
 export async function deleteUserAction(formData: FormData) {
-  const admin = await requireModuleFullAccess("manage_users");
+  const admin = await requireAdmin();
   const id = num(formData.get("id"));
   if (!id || id === admin.id) {
     redirect("/manage?success=Cannot delete this account.");
@@ -257,8 +277,74 @@ export async function deleteUserAction(formData: FormData) {
   redirect("/manage?success=User deleted. Registration history was preserved.");
 }
 
+export async function sendEmployeePasswordResetAction(formData: FormData) {
+  const actor = await requireModuleFullAccess("manage_users");
+  if (actor.role !== "support" && actor.role !== "admin") redirect("/access-denied");
+
+  const userId = num(formData.get("id"));
+  if (!userId) redirect("/manage?error=Invalid user account.");
+  const returnPath = `/manage/${userId}`;
+  const [employee] = await db
+    .select({
+      id: users.id,
+      fullName: users.fullName,
+      email: users.email,
+      role: users.role,
+      accountStatus: users.accountStatus,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!employee || employee.role !== "employee" || employee.accountStatus !== "active") {
+    redirect(`${returnPath}?error=${encodeURIComponent("Password reset emails can only be sent to active Employee accounts.")}`);
+  }
+
+  const rawToken = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 60 * 60_000);
+  const [createdToken] = await db.transaction(async (tx) => {
+    await tx
+      .update(passwordResetTokens)
+      .set({ consumedAt: now })
+      .where(and(
+        eq(passwordResetTokens.userId, employee.id),
+        isNull(passwordResetTokens.consumedAt),
+      ));
+    const inserted = await tx
+      .insert(passwordResetTokens)
+      .values({ userId: employee.id, tokenHash, expiresAt })
+      .returning({ id: passwordResetTokens.id });
+    await tx.insert(auditLogs).values({
+      actorUserId: actor.id,
+      action: "account.password_reset_requested",
+      targetType: "user",
+      targetId: String(employee.id),
+      metadata: { email: employee.email },
+    });
+    return inserted;
+  });
+
+  try {
+    await sendManagedPasswordResetEmail(employee, rawToken);
+  } catch (error) {
+    console.error("Managed password reset email failed:", error instanceof Error ? error.message : "UnknownError");
+    if (createdToken) {
+      await db
+        .update(passwordResetTokens)
+        .set({ consumedAt: new Date() })
+        .where(eq(passwordResetTokens.id, createdToken.id));
+    }
+    redirect(`${returnPath}?error=${encodeURIComponent("The password reset email could not be sent. Check the SMTP settings and try again.")}`);
+  }
+
+  revalidatePath(returnPath);
+  redirect(`${returnPath}?success=${encodeURIComponent(`A password reset link was sent to ${employee.email}.`)}`);
+}
+
 export async function updatePermissionsAction(formData: FormData) {
-  await requireModuleFullAccess("manage_users");
+  await requireAdmin();
   const userId = num(formData.get("userId"));
   if (!userId) return;
 

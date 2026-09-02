@@ -38,6 +38,7 @@ export default function UserForm({
   locations,
   departments,
   returnTo = "/manage",
+  employeeOnly = false,
 }: {
   mode: "create" | "edit";
   action: (prev: UserFormState, formData: FormData) => Promise<UserFormState>;
@@ -45,9 +46,10 @@ export default function UserForm({
   locations: Lookup[];
   departments: Lookup[];
   returnTo?: "/manage" | "/manage/registrations";
+  employeeOnly?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
-  const [role, setRole] = useState(user?.role === "user" ? "support" : (user?.role ?? "support"));
+  const [role, setRole] = useState(employeeOnly ? "employee" : (user?.role === "user" ? "support" : (user?.role ?? "support")));
   const [showPassword, setShowPassword] = useState(false);
   const employeeRequired = role === "employee";
 
@@ -64,9 +66,10 @@ export default function UserForm({
         <Input label="Username" name="username" required defaultValue={user?.username ?? ""} error={state.fieldErrors?.username} />
         <Select label="Role" name="role" value={role} onChange={(event) => setRole(event.target.value)} required>
           <option value="employee">Employee</option>
-          <option value="support">Support</option>
-          <option value="admin">Admin</option>
+          {!employeeOnly && <option value="support">Support</option>}
+          {!employeeOnly && <option value="admin">Admin</option>}
         </Select>
+        {state.fieldErrors?.role && <p className="text-xs text-red-600 sm:col-span-2">{state.fieldErrors.role}</p>}
         <Input
           label="Employee ID"
           name="employeeId"
@@ -100,10 +103,9 @@ export default function UserForm({
               ? "Support access is controlled through module permissions in User Management."
               : "Administrators always have full system access."}
         </div>
-        <div className="sm:col-span-2">
+        {mode === "create" && <div className="sm:col-span-2">
           <label htmlFor="user-password" className="mb-1.5 block text-sm font-medium text-slate-700">
-            {mode === "create" ? "Password" : "New Password (leave blank to keep current)"}
-            {mode === "create" && <span className="text-red-500"> *</span>}
+            Password<span className="text-red-500"> *</span>
           </label>
           <div className="relative">
             <input
@@ -111,7 +113,7 @@ export default function UserForm({
               name="password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
-              required={mode === "create"}
+              required
               aria-invalid={Boolean(state.fieldErrors?.password) || undefined}
               aria-describedby={state.fieldErrors?.password ? "user-password-error" : undefined}
               className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-11 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40"
@@ -137,7 +139,7 @@ export default function UserForm({
             </p>
           )}
           <p className="mt-1 text-xs text-slate-400">{PASSWORD_RULE_TEXT}</p>
-        </div>
+        </div>}
       </div>
       {mode === "create" && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

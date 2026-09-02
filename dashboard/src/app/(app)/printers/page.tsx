@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { printers, locations, departments, vendors, tonerTypes, printerTonerTypes } from "@/db/schema";
+import { printers, locations, departments } from "@/db/schema";
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
-import { PageHeader, TableCard, Badge, statusBadgeColor, EmptyState } from "@/components/ui";
+import { PageHeader, TableCard, EmptyState } from "@/components/ui";
 import { requireSession, getModuleAccessMap } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import SuccessBanner from "@/components/SuccessBanner";
@@ -47,33 +47,18 @@ export default async function PrintersPage({
   const rows = await db
     .select({
       id: printers.id,
-      assetTag: printers.assetTag,
       ipAddress: printers.ipAddress,
       serialNumber: printers.serialNumber,
       brand: printers.brand,
       model: printers.model,
-      status: printers.status,
       locationName: locations.name,
       departmentName: departments.name,
-      vendorName: vendors.name,
     })
     .from(printers)
     .leftJoin(locations, eq(printers.locationId, locations.id))
     .leftJoin(departments, eq(printers.departmentId, departments.id))
-    .leftJoin(vendors, eq(printers.vendorId, vendors.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(asc(printers.id));
-
-  const tonerRows = await db
-    .select({ printerId: printerTonerTypes.printerId, name: tonerTypes.name })
-    .from(printerTonerTypes)
-    .innerJoin(tonerTypes, eq(printerTonerTypes.tonerTypeId, tonerTypes.id));
-  const tonerByPrinter = new Map<number, string[]>();
-  for (const t of tonerRows) {
-    const arr = tonerByPrinter.get(t.printerId) ?? [];
-    arr.push(t.name);
-    tonerByPrinter.set(t.printerId, arr);
-  }
 
   const allLocations = await db.select().from(locations).orderBy(asc(locations.name));
   const totalCount = await db.select({ count: sql<number>`count(*)::int` }).from(printers);
@@ -140,14 +125,11 @@ export default async function PrintersPage({
         {rows.length === 0 ? (
           <EmptyState message="No printers found. Try adjusting your filters or add a new printer." />
         ) : (
-          <table className="w-full min-w-[1035px] table-fixed text-left text-sm">
+          <table className="w-full min-w-[610px] table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[190px]" />
               <col className="w-[175px]" />
               <col className="w-[170px]" />
-              <col className="w-[185px]" />
-              <col className="w-[135px]" />
-              <col className="w-[105px]" />
               <col className="w-[75px]" />
             </colgroup>
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -155,9 +137,6 @@ export default async function PrintersPage({
                 <th className="whitespace-nowrap px-4 py-3">Location / Department</th>
                 <th className="whitespace-nowrap px-4 py-3">IP / Serial Number</th>
                 <th className="whitespace-nowrap px-4 py-3">Brand / Model</th>
-                <th className="whitespace-nowrap px-4 py-3">Toner Type</th>
-                <th className="whitespace-nowrap px-4 py-3">Vendor</th>
-                <th className="whitespace-nowrap px-4 py-3">Status</th>
                 <th className="whitespace-nowrap px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -186,18 +165,6 @@ export default async function PrintersPage({
                   <td className="px-4 py-3">
                     <p>{p.brand}</p>
                     <p className="text-xs text-slate-400">{p.model}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {(tonerByPrinter.get(p.id) || []).map((n) => (
-                        <Badge key={n} color="blue">{n}</Badge>
-                      ))}
-                      {!(tonerByPrinter.get(p.id) || []).length && <span className="text-xs text-slate-400">—</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">{p.vendorName || "—"}</td>
-                  <td className="px-4 py-3">
-                    <Badge color={statusBadgeColor(p.status)}>{p.status}</Badge>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex justify-end gap-2">

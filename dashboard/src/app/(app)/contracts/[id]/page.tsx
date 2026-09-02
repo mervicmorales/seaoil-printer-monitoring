@@ -5,7 +5,7 @@ import { contracts, vendors, printers, locations, departments } from "@/db/schem
 import { and, eq, ilike } from "drizzle-orm";
 import { PageHeader, Card, TableCard, SecondaryButton, EmptyState, Badge, statusBadgeColor } from "@/components/ui";
 import { formatDate } from "@/lib/format";
-import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
+import { requireSession } from "@/lib/server-utils";
 import SearchInput from "@/components/SearchInput";
 
 export default async function ViewContractPage({
@@ -16,7 +16,6 @@ export default async function ViewContractPage({
   searchParams: Promise<{ serial?: string }>;
 }) {
   const session = await requireSession();
-  const access = await getModuleAccessMap(session.id, session.role);
   const { id } = await params;
   const sp = await searchParams;
   const serial = sp.serial?.trim() ?? "";
@@ -54,7 +53,7 @@ export default async function ViewContractPage({
         subtitle="Contract details and linked printers."
         actions={
           <>
-            {access.contract && <Link href={`/contracts/${c.id}/edit`}><SecondaryButton>Update Contract</SecondaryButton></Link>}
+            {session.role === "admin" && <Link href={`/contracts/${c.id}/edit`}><SecondaryButton>Update Contract</SecondaryButton></Link>}
             <Link href="/contracts"><SecondaryButton>Back to List</SecondaryButton></Link>
           </>
         }

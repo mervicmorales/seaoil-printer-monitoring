@@ -61,6 +61,8 @@ export default function PrinterForm({
   selectedTonerTypeIds = [],
   replacementContent,
   returnTo = "/printers",
+  limitedSupport = false,
+  showActions = true,
 }: {
   mode: "create" | "edit";
   action: (prev: PrinterFormState, formData: FormData) => Promise<PrinterFormState>;
@@ -74,6 +76,8 @@ export default function PrinterForm({
   selectedTonerTypeIds?: number[];
   replacementContent?: ReactNode;
   returnTo?: string;
+  limitedSupport?: boolean;
+  showActions?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
   const [contractId, setContractId] = useState<string>(printer?.contractId ? String(printer.contractId) : "");
@@ -135,6 +139,7 @@ export default function PrinterForm({
           label="Asset Tag"
           name="assetTag"
           defaultValue={printer?.assetTag ?? ""}
+          disabled={mode === "edit" && limitedSupport}
         />
         <Input
           label="IP Address"
@@ -182,6 +187,7 @@ export default function PrinterForm({
           step="0.01"
           min="0"
           defaultValue={printer?.monthlyRate ?? "0"}
+          disabled={mode === "edit" && limitedSupport}
         />
         <SearchableSelect
           label="Location"
@@ -189,6 +195,7 @@ export default function PrinterForm({
           options={locations}
           placeholder="Search location..."
           defaultValue={printer?.locationId}
+          disabled={mode === "edit" && limitedSupport}
         />
         <SearchableSelect
           label="Department"
@@ -196,6 +203,7 @@ export default function PrinterForm({
           options={departments}
           placeholder="Search department..."
           defaultValue={printer?.departmentId}
+          disabled={mode === "edit" && limitedSupport}
         />
         <SearchableSelect
           label="Vendor / Supplier"
@@ -203,6 +211,7 @@ export default function PrinterForm({
           options={vendors}
           placeholder="Search vendor or supplier..."
           defaultValue={printer?.vendorId}
+          disabled={mode === "edit" && limitedSupport}
         />
         <SearchableSelect
           label="Contract Number"
@@ -214,6 +223,7 @@ export default function PrinterForm({
           placeholder="Search contract number..."
           defaultValue={printer?.contractId}
           onValueChange={(value) => setContractId(value ? String(value) : "")}
+          disabled={mode === "edit" && limitedSupport}
         />
         <Input
           label="Warranty / End-of-Contract"
@@ -227,6 +237,7 @@ export default function PrinterForm({
           name="assignedUser"
           defaultValue={printer?.assignedUser ?? ""}
           placeholder="Employee name"
+          disabled={mode === "edit" && limitedSupport}
         />
       </div>
 
@@ -293,6 +304,7 @@ export default function PrinterForm({
                 value={t.id}
                 checked={checkedToners.includes(t.id)}
                 onChange={() => toggleToner(t.id)}
+                disabled={mode === "edit" && limitedSupport}
               />
               {t.name}
             </label>
@@ -300,7 +312,7 @@ export default function PrinterForm({
         </div>
       </div>
 
-      <div className={mode === "edit" && activeTab === "replacement" ? "hidden" : "flex gap-3"}>
+      <div className={!showActions || (mode === "edit" && activeTab === "replacement") ? "hidden" : "flex gap-3"}>
         <SubmitButton label={mode === "create" ? "Add Printer" : "Save Changes"} />
         <Link
           href={

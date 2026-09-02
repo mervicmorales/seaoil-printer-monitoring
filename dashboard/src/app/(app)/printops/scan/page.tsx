@@ -19,7 +19,7 @@ export default async function PrintOpsScanPage({
   const params = await searchParams;
   const [agents, scans] = await Promise.all([
     getPrintOpsAgents(),
-    getRecentPrintOpsCommands("scan", 30, session.role === "admin" ? undefined : session.id),
+    getRecentPrintOpsCommands("scan", 30),
   ]);
   const scannerTargets = agents.flatMap((agent) =>
     agent.snapshot.scanDevices.map((device) => ({ agent, device })),

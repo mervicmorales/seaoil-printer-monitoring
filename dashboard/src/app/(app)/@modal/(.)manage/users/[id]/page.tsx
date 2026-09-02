@@ -6,7 +6,7 @@ import ModalShell from "@/components/ModalShell";
 import DeleteButton from "@/components/DeleteButton";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { deleteUserAction } from "@/app/(app)/manage/actions";
+import { deleteUserAction, sendEmployeePasswordResetAction } from "@/app/(app)/manage/actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export default async function ViewUserModal({
@@ -21,6 +21,8 @@ export default async function ViewUserModal({
   const [user] = await db.select({
     id: users.id,
     username: users.username,
+    role: users.role,
+    accountStatus: users.accountStatus,
   }).from(users).where(eq(users.id, userId)).limit(1);
   if (!user) notFound();
 
@@ -30,8 +32,14 @@ export default async function ViewUserModal({
       closeHref="/manage"
       headerActions={
         <>
-          <Link href={`/manage/${user.id}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Edit</Link>
-          {user.id !== session.id && (
+          {session.role === "admin" && user.role === "employee" && user.accountStatus === "active" && (
+            <form action={sendEmployeePasswordResetAction}>
+              <input type="hidden" name="id" value={user.id} />
+              <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
+            </form>
+          )}
+          {session.role === "admin" && <Link href={`/manage/${user.id}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Edit</Link>}
+          {session.role === "admin" && user.id !== session.id && (
             <DeleteButton
               action={deleteUserAction}
               id={user.id}
@@ -42,6 +50,16 @@ export default async function ViewUserModal({
               className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
             />
           )}
+          {session.role === "support" && <>
+            {user.role === "employee" && user.accountStatus === "active" && (
+              <form action={sendEmployeePasswordResetAction}>
+                <input type="hidden" name="id" value={user.id} />
+                <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
+              </form>
+            )}
+            <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400">Edit</button>
+            <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400">Delete</button>
+          </>}
         </>
       }
     >

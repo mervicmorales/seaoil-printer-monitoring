@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeaderPlacement } from "@/components/PageHeaderPortal";
 
 export default function ModalShell({
   children,
@@ -11,6 +12,7 @@ export default function ModalShell({
   closeHref,
   showTitle = true,
   headerActions,
+  pageHeaderInModal = false,
 }: {
   children: ReactNode;
   title: string;
@@ -18,6 +20,7 @@ export default function ModalShell({
   closeHref?: string;
   showTitle?: boolean;
   headerActions?: ReactNode;
+  pageHeaderInModal?: boolean;
 }) {
   const router = useRouter();
   const close = useCallback(() => {
@@ -56,11 +59,15 @@ export default function ModalShell({
         aria-label={title}
         className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-[#f4f6f9] shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
       >
-        <div className={`flex shrink-0 items-center border-b border-slate-200 bg-white px-4 py-3 sm:px-6 ${showTitle ? "justify-between" : "justify-end"}`}>
-          <div className={showTitle ? "min-w-0 pr-3" : "sr-only"}>
-            <h2 className="truncate text-sm font-semibold text-[#014171]">{title}</h2>
-            {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
-          </div>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+          {pageHeaderInModal ? (
+            <div id="modal-page-header-slot" className="min-w-0 flex-1" />
+          ) : (
+            <div className={showTitle ? "min-w-0 pr-3" : "sr-only"}>
+              <h2 className="truncate text-sm font-semibold text-[#014171]">{title}</h2>
+              {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             {headerActions}
             <button
@@ -73,7 +80,9 @@ export default function ModalShell({
             </button>
           </div>
         </div>
-        <div className="min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
+        <PageHeaderPlacement inAppHeader={false} inModalHeader={pageHeaderInModal}>
+          <div className="min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
+        </PageHeaderPlacement>
       </section>
     </div>
   );

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { departments, locations, users } from "@/db/schema";
-import { asc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { PageHeader, TableCard, Badge, EmptyState } from "@/components/ui";
 import SuccessBanner from "@/components/SuccessBanner";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -24,7 +24,7 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
   }).from(users)
     .leftJoin(locations, eq(users.primaryLocationId, locations.id))
     .leftJoin(departments, eq(users.departmentId, departments.id))
-    .orderBy(asc(users.fullName));
+    .orderBy(desc(users.createdAt), desc(users.id));
 
   return (
     <div className="flex h-[calc(100dvh-7rem)] min-h-0 flex-col overflow-hidden">

@@ -7,11 +7,11 @@ import { PrimaryButton, Textarea } from "@/components/ui";
 import { notifyActionSuccess } from "@/lib/toast-notifications";
 import type { RepairFormState } from "../actions";
 
-function SubmitButton() {
+function SubmitButton({ label = "Save Changes" }: { label?: string }) {
   const { pending } = useFormStatus();
   return (
     <PrimaryButton type="submit" disabled={pending}>
-      {pending ? "Saving..." : "Save Changes"}
+      {pending ? "Saving..." : label}
     </PrimaryButton>
   );
 }
@@ -25,6 +25,7 @@ export default function TicketDetailsForm({
   resolution,
   resolutionAttachmentUrl,
   resolutionAttachmentName,
+  statusOnly = false,
 }: {
   action: (prev: RepairFormState, formData: FormData) => Promise<RepairFormState>;
   ticketId: number;
@@ -34,6 +35,7 @@ export default function TicketDetailsForm({
   resolution: string | null;
   resolutionAttachmentUrl: string | null;
   resolutionAttachmentName: string | null;
+  statusOnly?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
   const [selectedStatus, setSelectedStatus] = useState(status);
@@ -69,6 +71,7 @@ export default function TicketDetailsForm({
           rows={3}
           defaultValue={problem}
           required
+          readOnly={statusOnly}
           error={state.fieldErrors?.problem}
         />
         <Textarea
@@ -76,7 +79,8 @@ export default function TicketDetailsForm({
           name="resolution"
           rows={3}
           defaultValue={resolution ?? ""}
-          required={selectedStatus === "Closed"}
+          required={!statusOnly && selectedStatus === "Closed"}
+          readOnly={statusOnly}
           error={state.fieldErrors?.resolution}
         />
         <Textarea
@@ -84,19 +88,20 @@ export default function TicketDetailsForm({
           name="remarks"
           rows={3}
           defaultValue={remarks ?? ""}
+          readOnly={statusOnly}
         />
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="resolution-attachment">
             Resolution Attachment
           </label>
-          <input
+          {!statusOnly && <input
             id="resolution-attachment"
             type="file"
             name="resolutionAttachment"
             accept="image/jpeg,image/png,image/webp"
             className="block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
-          />
-          <p className="mt-1 text-xs text-slate-400">JPEG, PNG, or WebP up to 5 MB.</p>
+          />}
+          {!statusOnly && <p className="mt-1 text-xs text-slate-400">JPEG, PNG, or WebP up to 5 MB.</p>}
           {resolutionAttachmentUrl && (
             <a
               href={resolutionAttachmentUrl}
@@ -109,7 +114,7 @@ export default function TicketDetailsForm({
           )}
         </div>
       </div>
-      <SubmitButton />
+      <SubmitButton label={statusOnly ? "Save Status" : "Save Changes"} />
     </form>
   );
 }
