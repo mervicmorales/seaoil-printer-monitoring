@@ -46,7 +46,7 @@ export default function TicketStatusSelect({
         value={status}
         onChange={(event) => handleStatusChange(event.target.value)}
         required
-        className={`${compact ? "min-w-36 px-3 py-1.5 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-lg border font-semibold outline-none transition focus:ring-2 ${statusColor}`}
+        className={`${compact ? "min-w-36 px-3 py-2 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-xl border font-semibold shadow-sm outline-none transition focus:ring-2 ${statusColor}`}
       >
         {REPAIR_STATUSES.map((item) => (
           <option key={item} value={item}>{item}</option>

@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Activity, Droplets, Printer, RefreshCw, type IconNode } from "lucide";
+import { MorphIcon } from "morphicons/react";
 import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
 import { formatDate } from "@/lib/format";
@@ -14,11 +16,11 @@ type ContractLookup = { id: number; contractNumber: string; endDate: string | nu
 type MonitoringAgentLookup = { id: number; key: string; name: string };
 type EditTab = "details" | "monitoring" | "toner" | "replacement";
 
-const EDIT_TABS: { key: EditTab; label: string }[] = [
-  { key: "details", label: "Printer Details" },
-  { key: "monitoring", label: "Live Monitoring" },
-  { key: "toner", label: "Toner Type" },
-  { key: "replacement", label: "Replacement" },
+const EDIT_TABS: { key: EditTab; label: string; icon: IconNode }[] = [
+  { key: "details", label: "Printer Details", icon: Printer },
+  { key: "monitoring", label: "Live Monitoring", icon: Activity },
+  { key: "toner", label: "Toner Type", icon: Droplets },
+  { key: "replacement", label: "Replacement", icon: RefreshCw },
 ];
 
 type Printer = {
@@ -109,7 +111,7 @@ export default function PrinterForm({
         <div
           role="tablist"
           aria-label="Edit printer sections"
-          className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-100 p-1"
+          className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5"
         >
           {EDIT_TABS.map((tab) => (
             <button
@@ -118,22 +120,29 @@ export default function PrinterForm({
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 rounded-lg px-3.5 py-2 text-sm font-medium transition sm:flex-1 ${
+              className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition sm:flex-1 ${
                 activeTab === tab.key
-                  ? "bg-white text-[#014171] shadow-sm"
+                  ? "bg-white text-[#014171] shadow-[0_2px_8px_rgba(15,23,42,0.08)]"
                   : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               }`}
             >
+              <MorphIcon icon={tab.icon} size={16} strokeWidth={2} reducedMotion="user" />
               {tab.label}
             </button>
           ))}
         </div>
       )}
 
-      <div
+      <section
         role={mode === "edit" ? "tabpanel" : undefined}
-        className={`${mode === "edit" && activeTab !== "details" ? "hidden" : "grid"} grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3`}
+        className={mode === "edit" && activeTab !== "details" ? "hidden" : "block"}
       >
+        <FormSectionHeader
+          icon={Printer}
+          title="Printer details"
+          description="Asset identity, assignment, and commercial information"
+        />
+        <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
         <Input
           label="Asset Tag"
           name="assetTag"
@@ -228,21 +237,27 @@ export default function PrinterForm({
           placeholder="Employee name"
           disabled={mode === "edit" && limitedSupport}
         />
-      </div>
+        </div>
+      </section>
 
-      <div
+      <section
         role={mode === "edit" ? "tabpanel" : undefined}
-        className={`${mode === "edit" && activeTab !== "monitoring" ? "hidden" : "block"} rounded-xl border border-slate-200 bg-slate-50/70 p-4`}
+        className={`${mode === "edit" && activeTab !== "monitoring" ? "hidden" : "block"} overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/45`}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Live Monitoring</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Assign this asset to one authenticated PrintDash agent. Disabling
-              monitoring keeps its existing history.
-            </p>
+        <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+              <MorphIcon icon={Activity} size={17} strokeWidth={2} reducedMotion="user" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-[#014171]">Live monitoring</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Assign this asset to one authenticated PrintDash agent. Disabling
+                monitoring keeps its existing history.
+              </p>
+            </div>
           </div>
-          <label className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-700">
+          <label className="flex shrink-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
               name="monitoringEnabled"
@@ -255,7 +270,7 @@ export default function PrinterForm({
         </div>
 
         {monitoringEnabled && (
-          <div className="mt-4 max-w-xl">
+          <div className="max-w-2xl p-4 sm:p-5">
             <SearchableSelect
               label="Monitoring Agent"
               name="monitoringAgentId"
@@ -276,17 +291,21 @@ export default function PrinterForm({
             )}
           </div>
         )}
-      </div>
+      </section>
 
-      <div
+      <section
         role={mode === "edit" ? "tabpanel" : undefined}
         className={mode === "edit" && activeTab !== "toner" ? "hidden" : "block"}
       >
-        <p className="mb-2 text-sm font-medium text-slate-700">Toner Type(s)</p>
-        <div className="flex flex-wrap gap-3 rounded-lg border border-slate-200 p-4">
+        <FormSectionHeader
+          icon={Droplets}
+          title="Toner types"
+          description="Consumables compatible with this printer"
+        />
+        <div className="mt-4 flex flex-wrap gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5">
           {tonerTypes.length === 0 && <p className="text-sm text-slate-400">No toner types configured yet.</p>}
           {tonerTypes.map((t) => (
-            <label key={t.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm">
+            <label key={t.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${checkedToners.includes(t.id) ? "border-sky-200 bg-sky-50 text-[#014171]" : "border-slate-200 bg-white text-slate-700"}`}>
               <input
                 type="checkbox"
                 name="tonerTypeIds"
@@ -299,7 +318,7 @@ export default function PrinterForm({
             </label>
           ))}
         </div>
-      </div>
+      </section>
 
       <div className={!showActions || (mode === "edit" && activeTab === "replacement") ? "hidden" : "flex gap-3"}>
         <SubmitButton label={mode === "create" ? "Add Printer" : "Save Changes"} />
@@ -323,5 +342,27 @@ export default function PrinterForm({
       </div>
     )}
     </>
+  );
+}
+
+function FormSectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+        <MorphIcon icon={icon} size={17} strokeWidth={2} reducedMotion="user" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold text-[#014171]">{title}</h3>
+        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+      </div>
+    </div>
   );
 }

@@ -2,7 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Input, Select, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { ClipboardList, Droplets, PackagePlus, Send, type IconNode } from "lucide";
+import { MorphIcon } from "morphicons/react";
+import { Input, Select, PrimaryButton, SecondaryButton, Textarea } from "@/components/ui";
 import type { TonerFormState } from "./actions";
 import Link from "next/link";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -70,9 +72,15 @@ export default function TonerDeliveryRequestForm({
       className="space-y-6"
     >
       {state.error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section>
+        <FormSectionHeader
+          icon={mode === "delivery" ? PackagePlus : Send}
+          title={mode === "delivery" ? "Delivery details" : "Request details"}
+          description={mode === "delivery" ? "Stock receipt and assignment information" : "Toner issue and destination information"}
+        />
+        <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
         <Input label="Date" name="date" type="date" defaultValue={today} required error={state.fieldErrors?.date} />
         <Input
           label="Ticket Reference"
@@ -118,14 +126,19 @@ export default function TonerDeliveryRequestForm({
           required={mode === "request"}
           error={state.fieldErrors?.itsNameId}
         />
-      </div>
+        </div>
+      </section>
 
-      <div>
-        <p className="mb-2 text-sm font-medium text-slate-700">Toner Type(s) <span className="text-red-500">*</span></p>
-        <div className="flex flex-wrap gap-3 rounded-lg border border-slate-200 p-4">
+      <section>
+        <FormSectionHeader
+          icon={Droplets}
+          title="Toner types"
+          description="Select one or more toner types for this transaction"
+        />
+        <div className="mt-4 flex flex-wrap gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5">
           {tonerTypes.length === 0 && <p className="text-sm text-slate-400">No toner types configured yet.</p>}
           {tonerTypes.map((t) => (
-            <label key={t.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm">
+            <label key={t.id} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${checked.includes(t.id) ? "border-sky-200 bg-sky-50 text-[#014171]" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}>
               <input type="checkbox" name="tonerTypeIds" value={t.id} checked={checked.includes(t.id)} onChange={() => toggle(t.id)} />
               <span>{t.name}</span>
               {mode === "request" && (
@@ -152,17 +165,45 @@ export default function TonerDeliveryRequestForm({
             Requested quantity exceeds available stock for {insufficientToners.map((toner) => `${toner.name} (${toner.stock} available)`).join(", ")}.
           </p>
         )}
-      </div>
+      </section>
 
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Remarks</label>
-        <textarea name="remarks" rows={3} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40" />
-      </div>
+      <section>
+        <FormSectionHeader
+          icon={ClipboardList}
+          title="Additional notes"
+          description="Optional context for this toner transaction"
+        />
+        <div className="mt-4">
+          <Textarea label="Remarks" name="remarks" rows={3} />
+        </div>
+      </section>
 
-      <div className={showActions ? "flex gap-3" : "hidden"}>
+      <div className={showActions ? "flex gap-3 border-t border-slate-200 pt-5" : "hidden"}>
         <SubmitButton label={mode === "delivery" ? "Save Delivery" : "Save Request"} disabled={requestBlocked} />
         <Link href="/toner-monitoring"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>
     </form>
+  );
+}
+
+function FormSectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+        <MorphIcon icon={icon} size={17} strokeWidth={2} reducedMotion="user" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold text-[#014171]">{title}</h3>
+        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+      </div>
+    </div>
   );
 }

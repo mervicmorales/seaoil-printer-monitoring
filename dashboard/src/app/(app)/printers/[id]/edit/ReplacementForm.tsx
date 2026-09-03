@@ -39,7 +39,7 @@ export default function ReplacementForm({
       {state.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
         <Input label="Replacement Date" name="replacementDate" type="date" defaultValue={today} required />
         <Input
           label="OLD Serial Number"

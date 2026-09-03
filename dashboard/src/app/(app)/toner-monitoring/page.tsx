@@ -9,8 +9,8 @@ import {
   itsNames,
 } from "@/db/schema";
 import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
-import { Droplets } from "lucide";
-import { PageHeader, Card, TableCard, Badge, statusBadgeColor, PrimaryButton, SecondaryButton, EmptyState, IconGlyph } from "@/components/ui";
+import { CalendarDays, Droplets, Filter, PackagePlus, Pencil, Send, X } from "lucide";
+import { PageHeader, Card, TableCard, Badge, statusBadgeColor, EmptyState, IconGlyph } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
@@ -103,8 +103,20 @@ export default async function TonerMonitoringPage({
         actions={
           access.toner ? (
             <>
-              <Link href="/toner-monitoring/delivery"><PrimaryButton>+ Delivery Toner</PrimaryButton></Link>
-              <Link href="/toner-monitoring/request"><SecondaryButton>+ Request Toner</SecondaryButton></Link>
+              <Link
+                href="/toner-monitoring/delivery"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012c50] hover:shadow-md"
+              >
+                <IconGlyph icon={PackagePlus} size={16} />
+                Add Toner
+              </Link>
+              <Link
+                href="/toner-monitoring/request"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
+              >
+                <IconGlyph icon={Send} size={15} />
+                Request Toner
+              </Link>
             </>
           ) : undefined
         }
@@ -114,8 +126,23 @@ export default async function TonerMonitoringPage({
         showInline={false}
       />
 
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Inventory</p>
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">Current toner stock</h2>
+          <p className="mt-1 text-xs text-slate-500">On-hand quantities and stock health by toner type.</p>
+        </div>
+        <span className="hidden rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm sm:inline-flex">
+          {inventoryRows.length} toner types
+        </span>
+      </div>
+
       <section aria-label="Toner inventory" className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {inventoryRows.map((t) => {
+        {inventoryRows.length === 0 ? (
+          <Card className="p-8 text-center text-sm text-slate-500 sm:col-span-2 lg:col-span-4">
+            No toner types are currently configured for inventory alerts.
+          </Card>
+        ) : inventoryRows.map((t) => {
           const stock = t.stock ?? 0;
           const threshold = t.threshold ?? 5;
           const criticalThreshold = t.criticalThreshold ?? 2;
@@ -143,7 +170,10 @@ export default async function TonerMonitoringPage({
                 </div>
                 {status && <Badge color={status === "Low" ? "yellow" : "red"}>{status}</Badge>}
               </div>
-              <p className="mt-4 text-2xl font-bold leading-none tracking-[-0.025em] text-slate-900">{stock} <span className="text-xs font-semibold tracking-normal text-slate-500">on hand</span></p>
+              <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-100 pt-3.5">
+                <p className="text-2xl font-bold leading-none tracking-[-0.025em] text-slate-900">{stock} <span className="text-xs font-semibold tracking-normal text-slate-500">on hand</span></p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Low at {threshold}</p>
+              </div>
             </Card>
           );
         })}
@@ -167,21 +197,45 @@ export default async function TonerMonitoringPage({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
             <SearchInput
               key={ticket}
+              label="Ticket or P.O reference"
               name="ticket"
               defaultValue={ticket}
               placeholder="Search by Ticket and P.O Number"
               aria-label="Search toner transactions"
             />
-            <input type="date" name="dateFrom" defaultValue={dateFrom} className="rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" />
-            <input type="date" name="dateTo" defaultValue={dateTo} className="rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" />
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Date from</span>
+              <span className="relative block">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><IconGlyph icon={CalendarDays} size={15} /></span>
+                <input type="date" name="dateFrom" defaultValue={dateFrom} className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15" />
+              </span>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Date to</span>
+              <span className="relative block">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><IconGlyph icon={CalendarDays} size={15} /></span>
+                <input type="date" name="dateTo" defaultValue={dateTo} className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15" />
+              </span>
+            </label>
             <div className="flex items-end">
-              <Link href="/toner-monitoring"><SecondaryButton type="button">Clear</SecondaryButton></Link>
+              <Link href="/toner-monitoring" className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 lg:w-auto">
+                <IconGlyph icon={X} size={14} />
+                Clear
+              </Link>
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 p-3">
-            <p className="text-sm font-semibold text-[#014171]">Filter options</p>
-            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-sky-50 text-[#014171]">
+                <IconGlyph icon={Filter} size={15} />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-[#014171]">Filter options</p>
+                <p className="text-xs text-slate-500">Select one or more values in each category.</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <FilterGroup title="Status" name="status" options={[{ id: "Delivery", name: "Delivery" }, { id: "Request", name: "Request" }]} selected={statusFilters} />
               <FilterGroup title="Toner Type" name="tonerType" options={allTonerTypes} selected={tonerTypeFilters.map(String)} />
               <FilterGroup title="Location" name="location" options={allLocations} selected={locationFilters.map(String)} />
@@ -193,10 +247,62 @@ export default async function TonerMonitoringPage({
         </AutoSubmitFilterForm>
       </CollapsibleFilterPanel>
 
+      <div className="mb-3 mt-7 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Activity</p>
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">Toner transactions</h2>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
+          {txnRows.length} records
+        </span>
+      </div>
+
       <TableCard>
         {txnRows.length === 0 ? (
           <EmptyState message="No toner transactions match your filters." />
         ) : (
+          <>
+          <div className="divide-y divide-slate-100 lg:hidden">
+            {txnRows.map((t) => (
+              <article key={t.id} className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-800">{t.tonerTypeName}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">{formatDate(t.date)}</p>
+                  </div>
+                  <Badge color={statusBadgeColor(t.type)}>{t.type}</Badge>
+                </div>
+
+                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+                  <TransactionField label="Quantity" value={String(t.quantity)} />
+                  <TransactionField label="Ticket / P.O" value={t.ticketReference || "—"} mono />
+                  <TransactionField label="Location" value={t.locationName || "—"} />
+                  <TransactionField label="Department" value={t.departmentName || "—"} />
+                  <TransactionField label="ITS Name" value={t.itsName || "—"} />
+                  <TransactionField label="Remarks" value={t.remarks || "—"} />
+                </dl>
+
+                {access.toner && (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Link href={`/toner-monitoring/${t.id}/edit`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50">
+                      <IconGlyph icon={Pencil} size={13} />
+                      Edit
+                    </Link>
+                    <DeleteButton
+                      action={deleteTransactionAction}
+                      id={t.id}
+                      title="Delete transaction?"
+                      confirmText="This transaction will be permanently removed and the toner inventory will be adjusted automatically."
+                      confirmLabel="Delete transaction"
+                      className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100"
+                    />
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden lg:block">
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
@@ -216,16 +322,22 @@ export default async function TonerMonitoringPage({
                 <tr key={t.id}>
                   <td className="px-4 py-3"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
                   <td className="px-4 py-3">{formatDate(t.date)}</td>
-                  <td className="px-4 py-3">{t.ticketReference || "—"}</td>
-                  <td className="px-4 py-3">{t.tonerTypeName}</td>
-                  <td className="px-4 py-3">{t.quantity}</td>
-                  <td className="px-4 py-3">{t.locationName || "—"} / {t.departmentName || "—"}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{t.ticketReference || "—"}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">{t.tonerTypeName}</td>
+                  <td className="px-4 py-3 font-bold text-slate-800">{t.quantity}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-slate-700">{t.locationName || "—"}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">{t.departmentName || "—"}</p>
+                  </td>
                   <td className="px-4 py-3">{t.itsName || "—"}</td>
                   <td className="px-4 py-3 max-w-xs truncate" title={t.remarks || ""}>{t.remarks || "—"}</td>
                   <td className="w-px whitespace-nowrap px-4 py-3">
                     {access.toner && (
                       <div className="flex justify-end gap-2">
-                        <Link href={`/toner-monitoring/${t.id}/edit`} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">Edit</Link>
+                        <Link href={`/toner-monitoring/${t.id}/edit`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+                          <IconGlyph icon={Pencil} size={13} />
+                          Edit
+                        </Link>
                         <DeleteButton
                           action={deleteTransactionAction}
                           id={t.id}
@@ -240,6 +352,8 @@ export default async function TonerMonitoringPage({
               ))}
             </tbody>
           </table>
+          </div>
+          </>
         )}
       </TableCard>
     </div>
@@ -258,17 +372,26 @@ function FilterGroup({
   selected: string[];
 }) {
   return (
-    <div>
-      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
-      <div className="max-h-32 space-y-1 overflow-y-auto pr-1">
+    <fieldset className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
+      <legend className="px-1 text-[10px] font-bold uppercase tracking-[0.09em] text-slate-500">{title}</legend>
+      <div className="mt-1 max-h-32 space-y-1.5 overflow-y-auto pr-1">
         {options.length === 0 && <p className="text-xs text-slate-400">None</p>}
         {options.map((o) => (
-          <label key={o.id} className="flex items-center gap-2 text-xs text-slate-700">
-            <input type="checkbox" name={name} value={o.id} defaultChecked={selected.includes(String(o.id))} />
-            {o.name}
+          <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-white">
+            <input className="size-3.5 rounded border-slate-300" type="checkbox" name={name} value={o.id} defaultChecked={selected.includes(String(o.id))} />
+            <span className="min-w-0 truncate" title={o.name}>{o.name}</span>
           </label>
         ))}
       </div>
+    </fieldset>
+  );
+}
+
+function TransactionField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</dt>
+      <dd className={`mt-1 line-clamp-2 text-xs font-medium text-slate-700 ${mono ? "font-mono" : ""}`}>{value}</dd>
     </div>
   );
 }

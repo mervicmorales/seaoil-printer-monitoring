@@ -23,7 +23,6 @@ import {
   KeyRound,
   LogOut,
   Menu,
-  Monitor,
   Radar,
   PanelLeftClose,
   Printer,
@@ -35,6 +34,7 @@ import {
 } from "lucide";
 import LogoutConfirmationDialog from "@/components/LogoutConfirmationDialog";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import SidebarAboutDialog from "@/components/SidebarAboutDialog";
 import AuthBlob from "@/components/AuthBlob";
 import { useBlobSkin } from "@/components/BlobSkinProvider";
 import {
@@ -48,27 +48,25 @@ type NavItem = {
   icon: IconNode;
   module?: ModuleName;
   separated?: boolean;
-  children?: Array<{ href: string; label: string; icon: IconNode; adminOnly?: boolean; disabled?: boolean }>;
+  children?: Array<{ href: string; label: string; icon: IconNode; module?: ModuleName; adminOnly?: boolean; disabled?: boolean }>;
 };
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: MODULE_LABELS.dashboard, icon: LayoutDashboard, module: "dashboard" },
-  { href: "/printers", label: MODULE_LABELS.printers, icon: Printer, module: "printers" },
-  { href: "/toner-monitoring", label: MODULE_LABELS.toner, icon: Droplets, module: "toner" },
-  { href: "/contracts", label: MODULE_LABELS.contract, icon: FileText, module: "contract" },
-  { href: "/repair-history", label: MODULE_LABELS.repair, icon: Wrench, module: "repair" },
   {
-    href: "/printdash",
-    label: MODULE_LABELS.spot,
-    icon: Monitor,
-    separated: true,
-    module: "spot",
+    href: "/printers",
+    label: MODULE_LABELS.printers,
+    icon: Printer,
+    module: "printers",
     children: [
-      { href: "/printdash", label: "Overview", icon: LayoutDashboard },
-      { href: "/printdash/alerts", label: "Monitoring Alert", icon: Bell },
-      { href: "/printdash/discover", label: "Discover Printers", icon: Radar, adminOnly: true },
+      { href: "/printers", label: "Printer Records", icon: Printer, module: "printers" },
+      { href: "/printdash/alerts", label: "Monitoring Alert", icon: Bell, module: "spot" },
+      { href: "/printdash/discover", label: "Discover Printers", icon: Radar, module: "spot", adminOnly: true },
     ],
   },
+  { href: "/toner-monitoring", label: MODULE_LABELS.toner, icon: Droplets, module: "toner", separated: true },
+  { href: "/contracts", label: MODULE_LABELS.contract, icon: FileText, module: "contract" },
+  { href: "/repair-history", label: MODULE_LABELS.repair, icon: Wrench, module: "repair" },
   {
     href: "/printops",
     label: MODULE_LABELS.printops,
@@ -142,18 +140,35 @@ export default function Sidebar({
   const { blobSkin, setBlobSkin } = useBlobSkin();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(initialCollapsed ?? false);
-  const [spotOpen, setSpotOpen] = useState(pathname.startsWith("/printdash"));
+  const [printersOpen, setPrintersOpen] = useState(
+    pathname.startsWith("/printers") ||
+      pathname.startsWith("/printdash/alerts") ||
+      pathname.startsWith("/printdash/discover"),
+  );
   const [printOpsOpen, setPrintOpsOpen] = useState(pathname.startsWith("/printops"));
   const [employeeServicesOpen, setEmployeeServicesOpen] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [accountPosition, setAccountPosition] = useState({ top: 0, left: 0 });
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const signOutButtonRef = useRef<HTMLButtonElement>(null);
-  const permittedItems = NAV.filter((item) => !item.module || moduleAccess[item.module]);
+  const aboutButtonRef = useRef<HTMLButtonElement>(null);
+  const permittedItems = NAV
+    .filter((item) =>
+      !item.module ||
+      moduleAccess[item.module] ||
+      item.children?.some((child) => child.module && moduleAccess[child.module]),
+    )
+    .map((item) => ({
+      ...item,
+      children: item.children?.filter((child) => !child.module || moduleAccess[child.module]),
+    }));
   const items = employeeMode ? EMPLOYEE_NAV : permittedItems;
+  const brandSubtitle = employeeMode ? "Printer Services" : "Printer Management System";
+  const brandName = `SEAOIL ${brandSubtitle}`;
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -331,20 +346,24 @@ export default function Sidebar({
         <nav className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2 py-4">
           {items.map((item) => {
             const active = pathname === item.href;
-            const sectionActive = active || pathname.startsWith(`${item.href}/`);
-            const isSpot = item.href === "/printdash";
+            const childRouteActive = item.children?.some(
+              (child) => pathname === child.href || pathname.startsWith(`${child.href}/`),
+            ) ?? false;
+            const directDescendantActive = !item.children && item.href !== "/printdash" && pathname.startsWith(`${item.href}/`);
+            const sectionActive = active || childRouteActive || directDescendantActive;
+            const isPrinters = item.href === "/printers";
             const isPrintOps = item.href === "/printops";
             const isEmployeeServices = item.href === "/portal#print-services";
-            const isDropdown = isSpot || isPrintOps || isEmployeeServices;
-            const submenuOpen = isSpot
-              ? spotOpen
+            const isDropdown = isPrinters || isPrintOps || isEmployeeServices;
+            const submenuOpen = isPrinters
+              ? printersOpen
               : isPrintOps
                 ? printOpsOpen
                 : isEmployeeServices
                   ? employeeServicesOpen
                   : sectionActive;
-            const submenuId = isSpot
-              ? "spot-submenu"
+            const submenuId = isPrinters
+              ? "printers-submenu"
               : isPrintOps
                 ? "printops-submenu"
                 : isEmployeeServices
@@ -352,7 +371,11 @@ export default function Sidebar({
                   : undefined;
             return (
               <div key={item.href}>
-                {item.separated && <div className="mx-2 my-3 border-t border-white/15" />}
+                {item.separated &&
+                  (item.href !== "/toner-monitoring" || printersOpen) &&
+                  (item.href !== "/manage/registrations" || printOpsOpen) && (
+                  <div className="mx-2 my-3 border-t border-white/15" />
+                )}
                 <div className="group/nav relative">
                   <Link
                     href={item.href}
@@ -362,9 +385,9 @@ export default function Sidebar({
                     aria-controls={submenuId}
                     title={collapsed ? item.label : undefined}
                     onClick={(event) => {
-                      if (isSpot) {
+                      if (isPrinters) {
                         event.preventDefault();
-                        setSpotOpen((open) => !open);
+                        setPrintersOpen((open) => !open);
                         return;
                       }
                       if (isPrintOps) {
@@ -397,7 +420,7 @@ export default function Sidebar({
                       aria-expanded={submenuOpen}
                       aria-controls={submenuId}
                       onClick={() => {
-                        if (isSpot) setSpotOpen((open) => !open);
+                        if (isPrinters) setPrintersOpen((open) => !open);
                         if (isPrintOps) setPrintOpsOpen((open) => !open);
                         if (isEmployeeServices) setEmployeeServicesOpen((open) => !open);
                       }}
@@ -424,7 +447,7 @@ export default function Sidebar({
                     <div className="min-h-0 overflow-hidden">
                       <div className="space-y-1 pl-8 lg:pl-0">
                         {item.children.filter((child) => !child.adminOnly || isAdmin || canManageSpot).map((child) => {
-                          const childActive = pathname === child.href;
+                          const childActive = pathname === child.href || pathname.startsWith(`${child.href}/`);
                           return (
                             <div key={child.href} className="group/child relative">
                               {child.disabled ? (
@@ -467,7 +490,16 @@ export default function Sidebar({
         </nav>
 
         <div className="shrink-0 border-t border-white/10 p-2">
-          <div className={`flex h-12 items-center gap-3 rounded-xl px-2 ${collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""}`}>
+          <button
+            ref={aboutButtonRef}
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={aboutOpen}
+            aria-label={`About ${brandName}`}
+            title={collapsed ? brandName : `About ${brandName}`}
+            onClick={() => setAboutOpen(true)}
+            className={`flex min-h-14 w-full items-center gap-3 rounded-xl px-2 text-left transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""}`}
+          >
             <div
               className={`flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg text-base font-black text-[#014171] ${
                 logoUrl ? "bg-transparent" : "bg-[#FEF200]"
@@ -482,9 +514,9 @@ export default function Sidebar({
             </div>
             <div className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-all duration-200 ${copyClass} ${collapsed ? "lg:hidden" : ""}`}>
               <p className="text-sm font-bold leading-tight">SEAOIL</p>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-[#9cc0df]">Printer Monitoring</p>
+              <p className="mt-0.5 whitespace-normal text-[9px] font-semibold uppercase leading-3 tracking-[0.1em] text-[#9cc0df]">{brandSubtitle}</p>
             </div>
-          </div>
+          </button>
         </div>
       </aside>
 
@@ -582,6 +614,12 @@ export default function Sidebar({
         open={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
         triggerRef={accountButtonRef}
+      />
+      <SidebarAboutDialog
+        open={aboutOpen}
+        employeeMode={employeeMode}
+        onClose={() => setAboutOpen(false)}
+        triggerRef={aboutButtonRef}
       />
     </>
   );

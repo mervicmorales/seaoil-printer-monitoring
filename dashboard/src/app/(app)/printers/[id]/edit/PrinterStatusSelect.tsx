@@ -134,7 +134,7 @@ export default function PrinterStatusSelect({
           onChange={(event) => openDialog(event.target.value)}
           disabled={isPending || nextStatus !== null}
           required
-          className={`${compact ? "min-w-32 px-3 py-1.5 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-lg border font-semibold outline-none transition focus:ring-2 disabled:cursor-wait disabled:opacity-70 ${statusColor}`}
+          className={`${compact ? "min-w-32 px-3 py-2 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-xl border font-semibold shadow-sm outline-none transition focus:ring-2 disabled:cursor-wait disabled:opacity-70 ${statusColor}`}
         >
           {PRINTER_STATUSES.map((item) => (
             <option key={item} value={item}>{item}</option>
@@ -155,7 +155,7 @@ export default function PrinterStatusSelect({
             aria-modal="true"
             aria-labelledby="printer-status-dialog-title"
             aria-describedby="printer-status-dialog-description"
-            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl sm:p-7"
+            className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-[0_28px_80px_rgba(15,23,42,0.28)] sm:p-7"
           >
             <AuthBlob mood={mood} size={148} skin={blobSkin} className="mx-auto -mt-3 -mb-2" />
             <h2 id="printer-status-dialog-title" className="mt-2 text-xl font-bold text-[#014171]">
@@ -172,7 +172,7 @@ export default function PrinterStatusSelect({
                 onClick={closeDialog}
                 onMouseEnter={() => setMood("success")}
                 onMouseLeave={() => setMood("idle")}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:opacity-60"
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -182,7 +182,7 @@ export default function PrinterStatusSelect({
                 onClick={confirmStatusChange}
                 onMouseEnter={() => setMood("concerned")}
                 onMouseLeave={() => !isPending && setMood("idle")}
-                className="rounded-lg bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#012c50] focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:cursor-wait disabled:opacity-65"
+                className="rounded-xl bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012c50] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:cursor-wait disabled:opacity-65"
               >
                 {isPending ? "Updating…" : "Confirm"}
               </button>

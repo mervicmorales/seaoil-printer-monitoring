@@ -11,6 +11,8 @@ export default function EditTonerTransactionModal({
       title="Edit Toner Transaction"
       closeHref="/toner-monitoring"
       showTitle={false}
+      pageHeaderInModal
+      hideScrollbar
     >
       <EditTransactionPage params={params} />
     </ModalShell>

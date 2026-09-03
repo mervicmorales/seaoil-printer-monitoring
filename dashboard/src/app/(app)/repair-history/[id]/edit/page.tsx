@@ -32,7 +32,7 @@ export default async function EditTicketPage({ params }: { params: Promise<{ id:
           />
         }
       />
-      <Card className="p-6">
+      <Card className="p-5 sm:p-6">
         <EditTicketForm
           action={updateTicketAction}
           ticket={ticket}

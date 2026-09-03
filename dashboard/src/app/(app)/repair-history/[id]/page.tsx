@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { repairTickets, locations, departments, vendors } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { PageHeader, Card, Badge, statusBadgeColor } from "@/components/ui";
+import { ClipboardList } from "lucide";
+import { PageHeader, Card, Badge, statusBadgeColor, IconGlyph } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import DeleteButton from "@/components/DeleteButton";
@@ -60,7 +61,7 @@ export default async function ViewTicketPage({
                     id={t.id}
                     confirmText="Delete this repair ticket?"
                     label="Delete Ticket"
-                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100"
                   />
                 </div>}
               </>
@@ -69,9 +70,14 @@ export default async function ViewTicketPage({
         ) : undefined}
       />
       <Card className="overflow-hidden">
-        <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
-          <h2 className="text-sm font-semibold text-slate-900">Ticket information</h2>
-          <p className="mt-1 text-xs text-slate-500">Printer, assignment, and service dates for this repair request.</p>
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+            <IconGlyph icon={ClipboardList} size={17} />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-[#014171]">Ticket information</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Printer, assignment, and service dates for this repair request.</p>
+          </div>
         </div>
         <dl className="grid grid-cols-1 gap-3 bg-slate-50/60 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
           <Field label="Requested Date" value={formatDate(t.requestedDate)} />

@@ -14,6 +14,7 @@ export default function RegistrationDetailModal({
       closeHref="/manage/registrations"
       showTitle={false}
       pageHeaderInModal
+      hideScrollbar
       contentClassName="overflow-x-hidden"
     >
       <RegistrationDetailPage params={params} searchParams={searchParams} />

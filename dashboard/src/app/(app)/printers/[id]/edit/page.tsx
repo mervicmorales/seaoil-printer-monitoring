@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { printerMonitoringAssignments, printers, printerTonerTypes } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { PageHeader, Card, Input, PrimaryButton } from "@/components/ui";
+import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
+import { RefreshCw } from "lucide";
 import {
   getContracts,
   getDepartments,
@@ -90,7 +91,7 @@ export default async function EditPrinterPage({
           />
         ) : undefined}
       />
-      <Card className="p-6">
+      <Card className="p-5 sm:p-6">
         <PrinterForm
             mode="edit"
             action={updatePrinterAction}
@@ -111,11 +112,16 @@ export default async function EditPrinterPage({
             showActions={!embedded}
             replacementContent={
               <div className="space-y-5">
-                <div>
-                  <h3 className="text-base font-semibold text-[#014171]">Record Replacement</h3>
+                <div className="flex items-start gap-3 border-b border-slate-200 pb-4">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+                    <IconGlyph icon={RefreshCw} size={17} />
+                  </span>
+                  <div>
+                  <h3 className="text-sm font-bold text-[#014171]">Record Replacement</h3>
                   <p className="mt-1 text-sm text-slate-500">
                     Replacing this unit preserves the old serial number in Replacement History.
                   </p>
+                  </div>
                 </div>
                 {session.role === "admin" ? <ReplacementForm
                   action={addReplacementAction}

@@ -25,7 +25,7 @@ export default async function EditTransactionPage({ params }: { params: Promise<
   return (
     <div>
       <PageHeader title="Edit Toner Transaction" subtitle="Update transaction details. Inventory is recalculated automatically." />
-      <Card className="p-6">
+      <Card className="p-5 sm:p-6">
         <EditTransactionForm
           action={updateTransactionAction}
           txn={txn}

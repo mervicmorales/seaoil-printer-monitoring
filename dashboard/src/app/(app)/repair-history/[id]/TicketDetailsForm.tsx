@@ -3,6 +3,8 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
+import { ClipboardCheck, Paperclip } from "lucide";
+import { MorphIcon } from "morphicons/react";
 import { PrimaryButton, Textarea } from "@/components/ui";
 import { notifyActionSuccess } from "@/lib/toast-notifications";
 import type { RepairFormState } from "../actions";
@@ -64,19 +66,24 @@ export default function TicketDetailsForm({
   return (
     <form id="repair-ticket-details-form" action={formAction} className="border-t border-slate-200 bg-white p-5 sm:p-6">
       <input type="hidden" name="id" value={ticketId} />
-      <div className="mb-5">
-        <h2 className="text-sm font-semibold text-slate-900">Issue and resolution</h2>
-        <p className="mt-1 text-xs text-slate-500">Review the reported concern and document the work completed.</p>
+      <div className="mb-5 flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+          <MorphIcon icon={ClipboardCheck} size={17} strokeWidth={2} reducedMotion="user" />
+        </span>
+        <div>
+          <h2 className="text-sm font-bold text-[#014171]">Issue and resolution</h2>
+          <p className="mt-0.5 text-xs text-slate-500">Review the reported concern and document the work completed.</p>
+        </div>
       </div>
 
       {(state.error || state.fieldErrors?.status) && (
-        <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
           {state.error || state.fieldErrors?.status}
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
           <Textarea
             label="Concern"
             name="problem"
@@ -88,7 +95,7 @@ export default function TicketDetailsForm({
             className="min-h-28 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
           />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
           <Textarea
             label="Resolution"
             name="resolution"
@@ -100,7 +107,7 @@ export default function TicketDetailsForm({
             className="min-h-28 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
           />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
           <Textarea
             label="Remarks"
             name="remarks"
@@ -110,8 +117,9 @@ export default function TicketDetailsForm({
             className="min-h-28 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
           />
         </div>
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4">
-          <label className="block text-sm font-medium text-slate-700" htmlFor="resolution-attachment">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-4">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700" htmlFor="resolution-attachment">
+            <MorphIcon icon={Paperclip} size={16} strokeWidth={2} reducedMotion="user" />
             Resolution Attachment
           </label>
           <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -123,7 +131,7 @@ export default function TicketDetailsForm({
               type="file"
               name="resolutionAttachment"
               accept="image/jpeg,image/png,image/webp"
-              className="mt-3 block w-full cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+              className="mt-3 block w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-600 shadow-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
             />
           )}
           {resolutionAttachmentUrl && (
@@ -131,8 +139,9 @@ export default function TicketDetailsForm({
               href={resolutionAttachmentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-[#014171] transition hover:bg-sky-100"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-[#014171] shadow-sm transition hover:bg-sky-100"
             >
+              <MorphIcon icon={Paperclip} size={14} strokeWidth={2} reducedMotion="user" />
               {resolutionAttachmentName || "View current attachment"}
             </a>
           )}

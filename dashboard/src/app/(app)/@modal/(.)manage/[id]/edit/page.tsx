@@ -7,8 +7,15 @@ export default function EditUserModal({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <ModalShell title="Edit User" closeHref="/manage" showTitle={false}>
-      <EditUserPage params={params} />
+    <ModalShell
+      title="Edit User"
+      closeHref="/manage"
+      showTitle={false}
+      pageHeaderInModal
+      hideScrollbar
+      contentClassName="overflow-x-hidden"
+    >
+      <EditUserPage params={params} embedded />
     </ModalShell>
   );
 }

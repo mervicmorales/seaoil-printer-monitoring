@@ -2,6 +2,8 @@
 
 import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { ClipboardList, Printer, type IconNode } from "lucide";
+import { MorphIcon } from "morphicons/react";
 import { Input, Textarea, PrimaryButton, SecondaryButton } from "@/components/ui";
 import type { RepairFormState } from "./actions";
 import Link from "next/link";
@@ -106,9 +108,15 @@ export default function ReportIssueForm({
   return (
     <form id="report-printer-issue-form" action={formAction} className="space-y-5">
       {state.error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section>
+        <FormSectionHeader
+          icon={Printer}
+          title="Printer and assignment"
+          description="Find the printer by serial number to populate its service assignment"
+        />
+        <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
         <SearchInput
           label="Printer Serial Number"
           name="serialNumber"
@@ -152,20 +160,50 @@ export default function ReportIssueForm({
           disabled
           className="bg-slate-100 text-slate-600"
         />
-      </div>
+        </div>
+      </section>
       {lookupMsg && lookupState === "found" ? (
-        <p className="text-xs text-[#014171]" role="status" aria-live="polite">
+        <p className="rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-xs font-medium text-[#014171]" role="status" aria-live="polite">
           {lookupMsg}
         </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Textarea label="Concern" name="problem" rows={4} required error={state.fieldErrors?.problem} />
-        <Textarea label="Remarks" name="remarks" rows={4} />
-      </div>
-      <div className={showActions ? "flex gap-3" : "hidden"}>
+      <section>
+        <FormSectionHeader
+          icon={ClipboardList}
+          title="Issue details"
+          description="Describe the reported concern and include any supporting notes"
+        />
+        <div className="mt-4 grid grid-cols-1 gap-5 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5 lg:grid-cols-2">
+          <Textarea label="Concern" name="problem" rows={4} required error={state.fieldErrors?.problem} />
+          <Textarea label="Remarks" name="remarks" rows={4} />
+        </div>
+      </section>
+      <div className={showActions ? "flex gap-3 border-t border-slate-200 pt-5" : "hidden"}>
         <SubmitButton />
         <Link href="/repair-history"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>
     </form>
+  );
+}
+
+function FormSectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+        <MorphIcon icon={icon} size={17} strokeWidth={2} reducedMotion="user" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold text-[#014171]">{title}</h3>
+        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
-import { PageHeader, Card, PrimaryButton } from "@/components/ui";
+import { UserPlus } from "lucide";
+import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import UserForm from "../UserForm";
 import { createUserAction } from "../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -19,18 +20,19 @@ export default async function NewUserPage({
     <div>
       <PageHeader
         title="Create Account"
-        subtitle="Create a new user account."
+        subtitle="Add identity, assignment, role, and sign-in details for a new user."
         actions={embedded ? (
           <PrimaryButton
             type="submit"
             form="user-create-form"
             className="px-3 py-1.5 text-xs"
           >
+            <IconGlyph icon={UserPlus} size={14} />
             Create Account
           </PrimaryButton>
         ) : undefined}
       />
-      <Card className="p-6">
+      <Card className="p-5 sm:p-6">
         <UserForm
           mode="create"
           action={createUserAction}

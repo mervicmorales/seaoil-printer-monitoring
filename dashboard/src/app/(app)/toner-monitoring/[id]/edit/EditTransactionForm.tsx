@@ -2,7 +2,9 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Input, Select, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { ClipboardList, Pencil, type IconNode } from "lucide";
+import { MorphIcon } from "morphicons/react";
+import { Input, Select, PrimaryButton, SecondaryButton, Textarea } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { TonerFormState } from "../../actions";
 import Link from "next/link";
@@ -52,9 +54,15 @@ export default function EditTransactionForm({
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="id" value={txn.id} />
       {state.error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section>
+        <FormSectionHeader
+          icon={Pencil}
+          title="Transaction details"
+          description="Update the toner, quantity, assignment, and reference information"
+        />
+        <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
         <Select label="Status / Type" name="type" defaultValue={txn.type} required>
           <option value="Delivery">Delivery</option>
           <option value="Request">Request</option>
@@ -91,15 +99,44 @@ export default function EditTransactionForm({
           placeholder="Search ITS Name..."
           defaultValue={txn.itsNameId}
         />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Remarks</label>
-        <textarea name="remarks" defaultValue={txn.remarks ?? ""} rows={3} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40" />
-      </div>
-      <div className="flex gap-3">
+        </div>
+      </section>
+      <section>
+        <FormSectionHeader
+          icon={ClipboardList}
+          title="Additional notes"
+          description="Optional context retained with this transaction"
+        />
+        <div className="mt-4">
+          <Textarea label="Remarks" name="remarks" defaultValue={txn.remarks ?? ""} rows={3} />
+        </div>
+      </section>
+      <div className="flex gap-3 border-t border-slate-200 pt-5">
         <SubmitButton />
         <Link href="/toner-monitoring"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>
     </form>
+  );
+}
+
+function FormSectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+        <MorphIcon icon={icon} size={17} strokeWidth={2} reducedMotion="user" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold text-[#014171]">{title}</h3>
+        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+      </div>
+    </div>
   );
 }

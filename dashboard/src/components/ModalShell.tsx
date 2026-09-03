@@ -68,8 +68,8 @@ export default function ModalShell({
             <div id="modal-page-header-slot" className="min-w-0 flex-1" />
           ) : (
             <div className={showTitle ? "min-w-0 pr-3" : "sr-only"}>
-              <h2 className="truncate text-sm font-semibold text-[#014171]">{title}</h2>
-              {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
+              <h2 className="truncate text-base font-bold tracking-[-0.015em] text-[#014171]">{title}</h2>
+              {subtitle && <p className="mt-0.5 truncate text-xs font-medium text-slate-500">{subtitle}</p>}
             </div>
           )}
           <div className="flex items-center gap-2">

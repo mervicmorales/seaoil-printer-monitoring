@@ -3,13 +3,26 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { AlertCircle, ArrowLeft, BadgeCheck, Building2, KeyRound, LoaderCircle, Mail, MailCheck, Send, UserRound } from "lucide";
+import { MorphIcon } from "morphicons/react";
 import SearchableSelect from "@/components/SearchableSelect";
 import { Input, PrimaryButton } from "@/components/ui";
 import { registerAction, resendVerificationAction, type RegistrationState } from "./actions";
 
 function Submit() {
   const { pending } = useFormStatus();
-  return <PrimaryButton type="submit" disabled={pending}>{pending ? "Submitting..." : "Register"}</PrimaryButton>;
+  return (
+    <PrimaryButton type="submit" disabled={pending} className="min-w-36 px-5">
+      <MorphIcon
+        icon={pending ? LoaderCircle : Send}
+        size={16}
+        strokeWidth={2}
+        reducedMotion="user"
+        className={pending ? "animate-spin" : ""}
+      />
+      {pending ? "Submitting…" : "Submit request"}
+    </PrimaryButton>
+  );
 }
 
 const RESEND_COOLDOWN_STORAGE_KEY = "registration-resend-cooldown-until";
@@ -32,11 +45,18 @@ function ResendSubmit({ remainingSeconds }: { remainingSeconds: number }) {
 
   return (
     <PrimaryButton type="submit" disabled={disabled}>
+      <MorphIcon
+        icon={pending ? LoaderCircle : MailCheck}
+        size={16}
+        strokeWidth={2}
+        reducedMotion="user"
+        className={pending ? "animate-spin" : ""}
+      />
       {pending
-        ? "Sending..."
+        ? "Sending…"
         : remainingSeconds > 0
           ? `Resend in ${formatCountdown(remainingSeconds)}`
-          : "Resend"}
+          : "Resend email"}
     </PrimaryButton>
   );
 }
@@ -48,34 +68,66 @@ export default function RegisterForm({ locations, departments }: { locations: { 
     if (state.cooldownUntil) publishResendCooldown(state.cooldownUntil);
   }, [state.cooldownUntil]);
 
-  return <form action={action} className="space-y-4">
-    {state.success && <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{state.success}</div>}
-    {state.error && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.error}</div>}
-    <Input label="Full Name" name="fullName" required error={state.fieldErrors?.fullName} />
-    <Input label="Employee ID" name="employeeId" placeholder="SPI00001" required error={state.fieldErrors?.employeeId} />
-    <Input label="SEAOIL Email" name="email" type="email" placeholder="name@seaoil.com.ph" required error={state.fieldErrors?.email} />
-    <div className="grid gap-4 sm:grid-cols-2">
-      <SearchableSelect
-        label="Location"
-        name="primaryLocationId"
-        options={locations}
-        placeholder="Search location..."
-        required
-        error={state.fieldErrors?.primaryLocationId}
-      />
-      <SearchableSelect
-        label="Department"
-        name="departmentId"
-        options={departments}
-        placeholder="Search department..."
-        required
-        error={state.fieldErrors?.departmentId}
-      />
-    </div>
-    <Input label="Password" name="password" type="password" required error={state.fieldErrors?.password} />
-    <Input label="Confirm Password" name="confirmPassword" type="password" required error={state.fieldErrors?.confirmPassword} />
-    <div className="flex items-center justify-between"><Submit /><Link href="/login" className="text-sm text-[#014171] hover:underline">Back to login</Link></div>
-  </form>;
+  return (
+    <form action={action} className="space-y-7">
+      {state.success && (
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-700">
+          <MorphIcon icon={BadgeCheck} size={18} strokeWidth={2} reducedMotion="user" className="mt-0.5 shrink-0" />
+          <span>{state.success}</span>
+        </div>
+      )}
+      {state.error && (
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
+          <MorphIcon icon={AlertCircle} size={18} strokeWidth={2} reducedMotion="user" className="mt-0.5 shrink-0" />
+          <span>{state.error}</span>
+        </div>
+      )}
+
+      <FormSection icon={UserRound} title="Employee information" description="Enter the details shown on your company records.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input id="registration-full-name" label="Full Name" name="fullName" autoComplete="name" required error={state.fieldErrors?.fullName} />
+          <Input id="registration-employee-id" label="Employee ID" name="employeeId" placeholder="SPI00001" autoComplete="off" required error={state.fieldErrors?.employeeId} />
+        </div>
+        <Input id="registration-email" label="SEAOIL Email" name="email" type="email" placeholder="name@seaoil.com.ph" autoComplete="email" required error={state.fieldErrors?.email} />
+      </FormSection>
+
+      <FormSection icon={Building2} title="Work assignment" description="Select your primary office location and department.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SearchableSelect
+            label="Location"
+            name="primaryLocationId"
+            options={locations}
+            placeholder="Search location..."
+            required
+            error={state.fieldErrors?.primaryLocationId}
+          />
+          <SearchableSelect
+            label="Department"
+            name="departmentId"
+            options={departments}
+            placeholder="Search department..."
+            required
+            error={state.fieldErrors?.departmentId}
+          />
+        </div>
+      </FormSection>
+
+      <FormSection icon={KeyRound} title="Account security" description="Choose the password you will use after approval.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input id="registration-password" label="Password" name="password" type="password" autoComplete="new-password" required error={state.fieldErrors?.password} />
+          <Input id="registration-confirm-password" label="Confirm Password" name="confirmPassword" type="password" autoComplete="new-password" required error={state.fieldErrors?.confirmPassword} />
+        </div>
+      </FormSection>
+
+      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <Link href="/login" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-[#014171]">
+          <MorphIcon icon={ArrowLeft} size={16} strokeWidth={2} reducedMotion="user" />
+          Back to sign in
+        </Link>
+        <Submit />
+      </div>
+    </form>
+  );
 }
 
 export function ResendVerificationForm() {
@@ -133,24 +185,63 @@ export function ResendVerificationForm() {
   const remainingSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
 
   return (
-    <form action={action} className="mt-6 border-t pt-6">
-      <p className="mb-3 text-sm font-semibold text-[#014171]">Resend verification email</p>
-      <div className="flex gap-2">
+    <form action={action} className="mt-8 rounded-2xl border border-[#dfe6ee] bg-slate-50/70 p-4 sm:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#014171]/8 text-[#014171]">
+          <MorphIcon icon={Mail} size={17} strokeWidth={2} reducedMotion="user" />
+        </span>
+        <div>
+          <p className="text-sm font-bold text-[#014171]">Need another verification email?</p>
+          <p className="mt-0.5 text-xs leading-5 text-slate-500">Enter the same SEAOIL email used for registration.</p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2.5 sm:flex-row">
         <input
           name="email"
           type="email"
+          autoComplete="email"
           required
+          aria-label="Registered SEAOIL email"
           placeholder="name@seaoil.com.ph"
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
         />
         <ResendSubmit remainingSeconds={remainingSeconds} />
       </div>
-      {state.success && <p className="mt-2 text-xs text-slate-500">{state.success}</p>}
+      {state.success && <p className="mt-3 text-xs font-medium text-emerald-700">{state.success}</p>}
       {remainingSeconds > 0 && (
-        <p aria-live="polite" className="mt-2 text-xs font-medium text-amber-700">
+        <p aria-live="polite" className="mt-3 text-xs font-medium text-amber-700">
           You can request another verification email in {formatCountdown(remainingSeconds)}.
         </p>
       )}
     </form>
+  );
+}
+
+function FormSection({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: typeof UserRound;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#014171]/8 text-[#014171]">
+          <MorphIcon icon={icon} size={17} strokeWidth={2} reducedMotion="user" />
+        </span>
+        <div>
+          <h3 className="text-sm font-bold text-slate-800">{title}</h3>
+          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+        </div>
+      </div>
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
+        {children}
+      </div>
+    </section>
   );
 }

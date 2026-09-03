@@ -3,9 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { Eye, EyeOff, LoaderCircle, LogIn } from "lucide";
+import { AlertCircle, AtSign, Eye, EyeOff, LoaderCircle, LockKeyhole, LogIn } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import AuthBlob, { type BlobMood } from "@/components/AuthBlob";
 import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
@@ -14,17 +13,7 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
   const { pending } = useFormStatus();
   const identifierRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-  const [focusedField, setFocusedField] = useState<"identifier" | "password" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-
-  const hasError = Boolean(state.error || Object.keys(state.fieldErrors ?? {}).length);
-  const mood: BlobMood = pending
-    ? "thinking"
-    : hasError
-        ? "concerned"
-        : focusedField
-          ? "focused"
-          : "idle";
 
   useEffect(() => {
     if (state.fieldErrors?.identifier) {
@@ -40,25 +29,21 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
       <input type="hidden" name="next" value={nextPath} />
 
       {state.error ? (
-        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {state.error}
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
+          <MorphIcon icon={AlertCircle} size={18} strokeWidth={2} reducedMotion="user" className="mt-0.5 shrink-0" />
+          <span>{state.error}</span>
         </div>
       ) : null}
 
-      <div className="flex items-center gap-4 sm:gap-5">
-        <AuthBlob
-          mood={mood}
-          size={136}
-          sensitive={focusedField === "password"}
-          gaze={focusedField === "identifier" ? { x: 18, y: -5, intensity: 0.75 } : undefined}
-          className="shrink-0"
-        />
-
-        <div className="min-w-0 flex-1 space-y-5">
-          <div>
-            <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-medium text-slate-700">
-              Email or Username <span className="text-red-500">*</span>
-            </label>
+      <div className="space-y-5">
+        <div>
+          <label htmlFor="login-identifier" className="mb-1.5 block text-sm font-semibold text-slate-700">
+            Email or Username <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex w-11 items-center justify-center text-slate-400">
+              <MorphIcon icon={AtSign} size={17} strokeWidth={2} reducedMotion="user" />
+            </span>
             <input
               ref={identifierRef}
               id="login-identifier"
@@ -71,70 +56,68 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
               aria-invalid={Boolean(state.fieldErrors?.identifier) || undefined}
               aria-describedby={state.fieldErrors?.identifier ? "login-identifier-error" : undefined}
               placeholder="you@seaoil.com.ph"
-              onFocus={() => setFocusedField("identifier")}
-              onBlur={() => setFocusedField(null)}
-              className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40 disabled:bg-slate-100 disabled:text-slate-500"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-11 pr-3.5 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15 disabled:bg-slate-100 disabled:text-slate-500"
             />
-            {state.fieldErrors?.identifier ? (
-              <p id="login-identifier-error" className="mt-1 text-xs text-red-600">
-                {state.fieldErrors.identifier}
-              </p>
-            ) : null}
           </div>
+          {state.fieldErrors?.identifier ? (
+            <p id="login-identifier-error" className="mt-1.5 text-xs text-red-600">
+              {state.fieldErrors.identifier}
+            </p>
+          ) : null}
+        </div>
 
-          <div>
-            <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-slate-700">
+        <div>
+          <div className="mb-1.5 flex items-center justify-between gap-4">
+            <label htmlFor="login-password" className="text-sm font-semibold text-slate-700">
               Password <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <input
-                ref={passwordRef}
-                id="login-password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                disabled={pending}
-                aria-invalid={Boolean(state.fieldErrors?.password) || undefined}
-                aria-describedby={state.fieldErrors?.password ? "login-password-error" : undefined}
-                placeholder="••••••••"
-                onFocus={() => setFocusedField("password")}
-                onBlur={() => setFocusedField(null)}
-                className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-11 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40 disabled:bg-slate-100 disabled:text-slate-500"
-              />
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="absolute inset-y-0 right-1 flex w-9 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:opacity-50"
-              >
-                <MorphIcon icon={showPassword ? EyeOff : Eye} size={18} strokeWidth={2} reducedMotion="user" />
-              </button>
-            </div>
-            {state.fieldErrors?.password ? (
-              <p id="login-password-error" className="mt-1 text-xs text-red-600">
-                {state.fieldErrors.password}
-              </p>
-            ) : null}
-          </div>
-
-          <p className="-mt-2 text-right text-sm font-medium">
             <Link
               href="/forgot-password"
-              className="rounded-sm text-[#014171] hover:underline focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
+              className="rounded-sm text-xs font-semibold text-[#014171] hover:underline focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
             >
-            Forgot password?
+              Forgot password?
             </Link>
-          </p>
+          </div>
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex w-11 items-center justify-center text-slate-400">
+              <MorphIcon icon={LockKeyhole} size={17} strokeWidth={2} reducedMotion="user" />
+            </span>
+            <input
+              ref={passwordRef}
+              id="login-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              disabled={pending}
+              aria-invalid={Boolean(state.fieldErrors?.password) || undefined}
+              aria-describedby={state.fieldErrors?.password ? "login-password-error" : undefined}
+              placeholder="Enter your password"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-11 pr-12 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15 disabled:bg-slate-100 disabled:text-slate-500"
+            />
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-1 flex w-10 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:opacity-50"
+            >
+              <MorphIcon icon={showPassword ? EyeOff : Eye} size={18} strokeWidth={2} reducedMotion="user" />
+            </button>
+          </div>
+          {state.fieldErrors?.password ? (
+            <p id="login-password-error" className="mt-1.5 text-xs text-red-600">
+              {state.fieldErrors.password}
+            </p>
+          ) : null}
         </div>
       </div>
 
       <button
         type="submit"
         disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#012c50] focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012c50] hover:shadow-md active:translate-y-px focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
       >
         <MorphIcon
           icon={pending ? LoaderCircle : LogIn}
@@ -157,7 +140,7 @@ export default function LoginForm({ nextPath = "/dashboard" }: { nextPath?: stri
   const [state, formAction] = useActionState(loginAction, initialState);
 
   return (
-    <form action={formAction} className="mt-5 space-y-5" noValidate>
+    <form action={formAction} className="mt-6 space-y-5" noValidate>
       <LoginFields state={state} nextPath={nextPath} />
     </form>
   );

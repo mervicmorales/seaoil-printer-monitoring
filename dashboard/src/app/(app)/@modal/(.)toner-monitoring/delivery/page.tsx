@@ -4,7 +4,7 @@ import ModalShell from "@/components/ModalShell";
 export default function DeliveryTonerModal() {
   return (
     <ModalShell
-      title="Delivery Toner"
+      title="Add Toner"
       closeHref="/toner-monitoring"
       showTitle={false}
       pageHeaderInModal

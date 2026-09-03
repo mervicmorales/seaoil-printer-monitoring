@@ -1,4 +1,5 @@
-import { PageHeader, Card, PrimaryButton } from "@/components/ui";
+import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
+import { PackageCheck } from "lucide";
 import { getDepartments, getItsNames, getLocations, getTonerTypes } from "@/lib/lookups";
 import { createDeliveryAction } from "../actions";
 import TonerDeliveryRequestForm from "../TonerDeliveryRequestForm";
@@ -21,18 +22,20 @@ export default async function DeliveryTonerPage({
   return (
     <div>
       <PageHeader
-        title="Delivery Toner"
+        title="Add Toner"
+        subtitle="Record toner stock received from a delivery."
         actions={embedded ? (
           <PrimaryButton
             type="submit"
             form="toner-delivery-form"
             className="px-3 py-1.5 text-xs"
           >
+            <IconGlyph icon={PackageCheck} size={14} />
             Save Delivery
           </PrimaryButton>
         ) : undefined}
       />
-      <Card className="p-6">
+      <Card className="p-5 sm:p-6">
         <TonerDeliveryRequestForm
           mode="delivery"
           action={createDeliveryAction}

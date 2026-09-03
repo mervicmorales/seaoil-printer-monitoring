@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 import AuthBlob, { type BlobMood } from "@/components/AuthBlob";
 import { useBlobSkin } from "@/components/BlobSkinProvider";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
+import { Trash2 } from "lucide";
+import { MorphIcon } from "morphicons/react";
 
 function ConfirmDeleteButton({
   label,
@@ -29,7 +31,7 @@ function ConfirmDeleteButton({
       onClick={onConfirm}
       onMouseEnter={onConcern}
       onMouseLeave={onNeutral}
-      className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-65"
+      className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-65"
     >
       {pending ? "Deleting…" : label}
     </button>
@@ -46,7 +48,7 @@ export default function BlobDeleteButton({
   requireReason = false,
   reasonLabel = "Reason for deletion",
   reasonPlaceholder = "Enter the reason for deleting this record",
-  className = "rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100",
+  className = "rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100",
 }: {
   action: (formData: FormData) => void | Promise<void>;
   id: number;
@@ -129,8 +131,9 @@ export default function BlobDeleteButton({
         ref={triggerRef}
         type="button"
         onClick={openDialog}
-        className={className}
+        className={`inline-flex items-center justify-center gap-1.5 ${className}`}
       >
+        <MorphIcon icon={Trash2} size={13} strokeWidth={2} reducedMotion="user" />
         {label}
       </button>
 
@@ -147,7 +150,7 @@ export default function BlobDeleteButton({
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
-            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl sm:p-7"
+            className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-[0_28px_80px_rgba(15,23,42,0.28)] sm:p-7"
           >
             <AuthBlob mood={mood} size={148} skin={blobSkin} className="mx-auto -mt-3 -mb-2" />
             <h2 id={titleId} className="mt-2 text-xl font-bold text-[#014171]">
@@ -171,7 +174,7 @@ export default function BlobDeleteButton({
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
                     placeholder={reasonPlaceholder}
-                    className="mt-1.5 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40"
+                    className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal shadow-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
                   />
                 </label>
               )}
@@ -181,7 +184,7 @@ export default function BlobDeleteButton({
                 onClick={closeDialog}
                 onMouseEnter={() => setMood("success")}
                 onMouseLeave={() => setMood("idle")}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
               >
                 Cancel
               </button>

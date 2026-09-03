@@ -7,7 +7,13 @@ export default function RepairTicketEditModal({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <ModalShell title="Edit repair ticket" closeHref="/repair-history">
+    <ModalShell
+      title="Edit repair ticket"
+      closeHref="/repair-history"
+      showTitle={false}
+      pageHeaderInModal
+      hideScrollbar
+    >
       <EditTicketPage params={params} />
     </ModalShell>
   );

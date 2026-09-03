@@ -1,4 +1,5 @@
-import { Badge, Card, PageHeader, TableCard } from "@/components/ui";
+import { Clock3, FileText, Printer, Send, TriangleAlert } from "lucide";
+import { Badge, Card, IconGlyph, PageHeader, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
 import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import AgentSyncPanel from "../AgentSyncPanel";
@@ -8,6 +9,8 @@ import { queueDurablePrintAction } from "../actions";
 import PrintTargetSelect from "./PrintTargetSelect";
 
 export const dynamic = "force-dynamic";
+
+type PrintRequest = Awaited<ReturnType<typeof getRecentPrintOpsCommands>>[number];
 
 export default async function PrintOpsPrintPage({
   searchParams,
@@ -36,21 +39,36 @@ export default async function PrintOpsPrintPage({
       <PrintOpsFeedback success={params.success} error={params.error} />
       <AgentSyncPanel agents={agents} returnTo="/printops/print" canManage={access.printops} />
 
-      <Card className="mb-6 p-5 sm:p-6">
-        <h2 className="font-semibold text-[#014171]">Send a File to Print</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Files are transferred to the selected office agent and removed from the command after submission.
-        </p>
+      <Card className="mb-6 overflow-hidden">
+        <div className="flex items-start gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+            <IconGlyph icon={Send} size={18} />
+          </span>
+          <div>
+            <h2 className="font-bold text-[#014171]">Send a file to print</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Files are transferred securely to the selected office agent and removed from the command after submission.
+            </p>
+          </div>
+        </div>
         {!access.printops ? (
-          <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            You have view-only access to PrintOps.
-          </p>
+          <div className="m-5 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-700 sm:m-6">
+            <span className="mt-0.5 shrink-0 text-slate-500"><IconGlyph icon={FileText} size={17} /></span>
+            <div>
+              <p className="font-semibold">View-only access</p>
+              <p className="mt-0.5 text-xs text-slate-500">You can review print requests, but you cannot submit a new document.</p>
+            </div>
+          </div>
         ) : printerTargets.length === 0 ? (
-          <p className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            No assigned printers are currently online. Refresh an online office agent above.
-          </p>
+          <div className="m-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm text-amber-800 sm:m-6">
+            <span className="mt-0.5 shrink-0 text-amber-600"><IconGlyph icon={TriangleAlert} size={17} /></span>
+            <div>
+              <p className="font-semibold">No printer available</p>
+              <p className="mt-0.5 text-xs leading-5 text-amber-700">No assigned printers are currently online. Refresh an online office agent above.</p>
+            </div>
+          </div>
         ) : (
-          <form action={queueDurablePrintAction} className="mt-5 grid gap-4 lg:grid-cols-2">
+          <form action={queueDurablePrintAction} className="grid gap-5 p-5 sm:p-6 lg:grid-cols-2">
             <PrintTargetSelect
               agents={agents.map((agent) => ({
                 id: agent.id,
@@ -63,34 +81,92 @@ export default async function PrintOpsPrintPage({
         )}
       </Card>
 
-      <h2 className="mb-3 text-base font-semibold text-[#014171]">Recent Print Requests</h2>
+      <div className="mb-3 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Print activity</p>
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">Recent print requests</h2>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
+          {commands.length} records
+        </span>
+      </div>
       <TableCard className="h-[24rem]">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-            <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Agent</th><th className="px-4 py-3">Printer</th><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Status</th></tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {commands.map((command) => (
-              <tr key={command.id}>
-                <td className="px-4 py-3 font-medium text-slate-800">{command.inputFileName || "File"}</td>
-                <td className="px-4 py-3 text-slate-600">{command.agentName}</td>
-                <td className="px-4 py-3 text-slate-600">{payloadText(command.payload, "printerName") || payloadText(command.payload, "printer") || "—"}</td>
-                <td className="px-4 py-3 text-slate-500">{formatDateTime(command.requestedAt)}</td>
-                <td className="px-4 py-3">
-                  <Badge color={statusColor(command.status)}>{command.status}</Badge>
-                  {command.errorMessage && <p className="mt-1 max-w-xs text-xs text-red-600">{command.errorMessage}</p>}
-                </td>
-              </tr>
-            ))}
-            {commands.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No print requests yet.</td></tr>}
-          </tbody>
-        </table>
+        {commands.length === 0 ? (
+          <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <IconGlyph icon={Printer} size={22} />
+            </span>
+            <p className="mt-4 text-sm font-semibold text-slate-700">No print requests yet</p>
+            <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">Submitted documents and their processing status will appear here.</p>
+          </div>
+        ) : (
+          <>
+            <div className="divide-y divide-slate-100 lg:hidden">
+              {commands.map((command) => <PrintRequestCard key={command.id} command={command} />)}
+            </div>
+            <div className="hidden lg:block">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className="bg-slate-50/95 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
+                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Agent</th><th className="px-4 py-3">Printer</th><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Status</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {commands.map((command) => (
+                    <tr key={command.id} className="transition hover:bg-slate-50/70">
+                      <td className="px-4 py-4 font-semibold text-slate-800">{command.inputFileName || "File"}</td>
+                      <td className="px-4 py-4 text-slate-600">{command.agentName}</td>
+                      <td className="px-4 py-4 text-slate-600">{printerName(command)}</td>
+                      <td className="px-4 py-4 text-xs font-medium text-slate-500">{formatDateTime(command.requestedAt)}</td>
+                      <td className="px-4 py-4">
+                        <Badge color={statusColor(command.status)}>{command.status}</Badge>
+                        {command.errorMessage && <p className="mt-1.5 max-w-xs text-xs leading-5 text-red-600">{command.errorMessage}</p>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </TableCard>
     </div>
   );
 }
 
-const inputClassName = "w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40";
+function PrintRequestCard({ command }: { command: PrintRequest }) {
+  return (
+    <article className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+            <IconGlyph icon={FileText} size={17} />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-800">{command.inputFileName || "File"}</p>
+            <p className="mt-1 text-xs text-slate-500">{command.agentName}</p>
+          </div>
+        </div>
+        <Badge color={statusColor(command.status)}>{command.status}</Badge>
+      </div>
+      <dl className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:grid-cols-2">
+        <div className="min-w-0">
+          <dt className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400"><IconGlyph icon={Printer} size={11} /> Printer</dt>
+          <dd className="mt-1 break-words text-xs font-semibold text-slate-700">{printerName(command)}</dd>
+        </div>
+        <div>
+          <dt className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400"><IconGlyph icon={Clock3} size={11} /> Requested</dt>
+          <dd className="mt-1 text-xs font-medium leading-5 text-slate-600">{formatDateTime(command.requestedAt)}</dd>
+        </div>
+      </dl>
+      {command.errorMessage && <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">{command.errorMessage}</p>}
+    </article>
+  );
+}
+
+function printerName(command: PrintRequest) {
+  return payloadText(command.payload, "printerName") || payloadText(command.payload, "printer") || "—";
+}
+
+const inputClassName = "h-11 w-full rounded-xl border border-slate-300 px-3.5 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15";
 const selectClassName = `${inputClassName} bg-white`;
 
 function payloadText(payload: Record<string, unknown>, key: string) {

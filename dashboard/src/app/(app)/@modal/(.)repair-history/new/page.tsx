@@ -8,6 +8,7 @@ export default function ReportPrinterIssueModal() {
       closeHref="/repair-history"
       showTitle={false}
       pageHeaderInModal
+      hideScrollbar
     >
       <ReportIssuePage embedded />
     </ModalShell>

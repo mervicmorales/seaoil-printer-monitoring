@@ -14,6 +14,7 @@ export default async function NewUserModal({
       closeHref={returnTo}
       showTitle={false}
       pageHeaderInModal
+      hideScrollbar
       contentClassName="overflow-x-hidden"
     >
       <NewUserPage searchParams={Promise.resolve(params)} embedded />

@@ -1,6 +1,16 @@
 import { db } from "@/db";
 import { locations, departments, itsNames, tonerTypes, tonerInventory, vendors } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
+import {
+  BellRing,
+  Building2,
+  Droplets,
+  Info,
+  Mail,
+  MapPin,
+  Truck,
+  UserRound,
+} from "lucide";
 import { PageHeader, Card } from "@/components/ui";
 import SuccessBanner from "@/components/SuccessBanner";
 import Tabs from "@/components/Tabs";
@@ -72,9 +82,9 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="flex h-[calc(100dvh-7rem)] min-h-[36rem] flex-col">
-      <PageHeader title="System" subtitle="Manage lookup databases and monitoring preferences." />
+      <PageHeader title="System Settings" subtitle="Manage reference data, notifications, integrations, and monitoring preferences." />
       <SuccessBanner message={sp.success} />
-      {sp.error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{sp.error}</p>}
+      {sp.error && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{sp.error}</p>}
 
       <Tabs
         fillHeight
@@ -83,13 +93,15 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
           {
             key: "email",
             label: "Email / SMTP",
-            content: <Card className="h-full overflow-auto p-6">{session.role === "admin" ? <SmtpSettingsForm action={updateSmtpSettingsAction} settings={publicSmtpSettings} /> : <p className="text-sm text-red-700">Administrator access is required.</p>}</Card>,
+            icon: Mail,
+            content: <Card className="h-full overflow-auto p-5 sm:p-6">{session.role === "admin" ? <SmtpSettingsForm action={updateSmtpSettingsAction} settings={publicSmtpSettings} /> : <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">Administrator access is required.</p>}</Card>,
           },
           {
             key: "locations",
             label: "Locations",
+            icon: MapPin,
             content: (
-              <Card className="h-full min-h-0 overflow-hidden p-6">
+              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
                 <LookupTable
                   items={allLocations}
                   addAction={addLocationAction}
@@ -98,6 +110,8 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   placeholder="e.g. Head Office"
                   readOnly={session.role !== "admin"}
                   fillHeight
+                  title="Office locations"
+                  description="Locations used for printer, user, and monitoring assignments."
                 />
               </Card>
             ),
@@ -105,8 +119,9 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
           {
             key: "departments",
             label: "Departments",
+            icon: Building2,
             content: (
-              <Card className="h-full min-h-0 overflow-hidden p-6">
+              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
                 <LookupTable
                   items={allDepartments}
                   addAction={addDepartmentAction}
@@ -115,6 +130,8 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   placeholder="e.g. IT Services"
                   readOnly={session.role !== "admin"}
                   fillHeight
+                  title="Departments"
+                  description="Departments used to organize users and printer assignments."
                 />
               </Card>
             ),
@@ -122,8 +139,9 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
           {
             key: "toner",
             label: "Toner Types",
+            icon: Droplets,
             content: (
-              <Card className="h-full min-h-0 overflow-hidden p-6">
+              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
                 <TonerTypeManager
                   items={tonerRows.map((t) => ({
                     id: t.id,
@@ -146,8 +164,9 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
           {
             key: "vendors",
             label: "Vendor / Supplier",
+            icon: Truck,
             content: (
-              <Card className="h-full min-h-0 overflow-hidden p-6">
+              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
                 <VendorManager vendors={allVendors} addAction={addVendorAction} updateAction={updateVendorAction} deleteAction={deleteVendorAction} readOnly={session.role !== "admin"} />
               </Card>
             ),
@@ -155,17 +174,19 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
           {
             key: "its",
             label: "ITS Names",
+            icon: UserRound,
             content: (
-              <Card className="h-full min-h-0 overflow-hidden p-6">
-                <LookupTable items={allItsNames} addAction={addItsNameAction} deleteAction={deleteItsNameAction} editable={false} readOnly={session.role !== "admin"} placeholder="e.g. Patrick" fillHeight />
+              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
+                <LookupTable items={allItsNames} addAction={addItsNameAction} deleteAction={deleteItsNameAction} editable={false} readOnly={session.role !== "admin"} placeholder="e.g. Patrick" fillHeight title="ITS names" description="Support names available in printer and service records." />
               </Card>
             ),
           },
           {
             key: "reminders",
             label: "Toner Reminder & Email",
+            icon: BellRing,
             content: (
-              <Card className="h-full overflow-auto p-6">
+              <Card className="h-full overflow-auto p-5 sm:p-6">
                 <ReminderSettingsForm action={updateSettingsAction} settings={settings} readOnly={session.role !== "admin"} />
               </Card>
             ),
@@ -173,6 +194,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
           {
             key: "general",
             label: "About",
+            icon: Info,
             content: <GeneralSettings />,
           },
         ]}

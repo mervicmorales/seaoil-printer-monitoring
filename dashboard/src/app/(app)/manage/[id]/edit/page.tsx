@@ -2,13 +2,20 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { PageHeader, Card } from "@/components/ui";
+import { Save } from "lucide";
+import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import UserForm from "../../UserForm";
 import { updateUserAction } from "../../actions";
 import { requireAdmin } from "@/lib/server-utils";
 import { getDepartments, getLocations } from "@/lib/lookups";
 
-export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditUserPage({
+  params,
+  embedded = false,
+}: {
+  params: Promise<{ id: string }>;
+  embedded?: boolean;
+}) {
   await requireAdmin();
   const { id } = await params;
   const [rows, locations, departments] = await Promise.all([
@@ -20,10 +27,30 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   if (!user) notFound();
 
   return (
-    <div>
-      <PageHeader title="Edit User" subtitle={user.username} />
-      <Card className="p-6">
-        <UserForm mode="edit" action={updateUserAction} user={user} locations={locations} departments={departments} />
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title="Edit Account"
+        subtitle={`Update identity, role, and assignment details for ${user.fullName} (${user.username}).`}
+        actions={embedded ? (
+          <PrimaryButton
+            type="submit"
+            form="user-edit-form"
+            className="min-h-9 px-3 py-1.5 text-xs"
+          >
+            <IconGlyph icon={Save} size={14} />
+            Save Changes
+          </PrimaryButton>
+        ) : undefined}
+      />
+      <Card className="p-5 sm:p-6">
+        <UserForm
+          mode="edit"
+          action={updateUserAction}
+          user={user}
+          locations={locations}
+          departments={departments}
+          showActions={!embedded}
+        />
       </Card>
     </div>
   );

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { db } from "@/db";
 import { printers, locations, departments } from "@/db/schema";
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
-import { Badge, PageHeader, TableCard, EmptyState, statusBadgeColor } from "@/components/ui";
+import { Eye, Plus, Printer } from "lucide";
+import { Badge, PageHeader, TableCard, EmptyState, statusBadgeColor, IconGlyph } from "@/components/ui";
 import { requireSession, getModuleAccessMap } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import SuccessBanner from "@/components/SuccessBanner";
@@ -192,9 +193,10 @@ export default async function PrintersPage({
             {access.printers && (
             <Link
               href="/printers/new"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#012c50]"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012c50] hover:shadow-md"
             >
-              + Add Printer
+              <IconGlyph icon={Plus} size={16} />
+              Add Printer
             </Link>
             )}
           </>
@@ -216,19 +218,19 @@ export default async function PrintersPage({
             placeholder="Serial, asset tag, IP, model, location or department"
             aria-label="Search printers"
           />
-          <select name="status" defaultValue={params.status || ""} className="rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm">
+          <select name="status" defaultValue={params.status || ""} className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15">
             <option value="">All Statuses</option>
             {PRINTER_STATUSES.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          <select name="location" defaultValue={params.location || ""} className="rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm">
+          <select name="location" defaultValue={params.location || ""} className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15">
             <option value="">All Locations</option>
             {allLocations.map((l) => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
-          <Link href="/printers" className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          <Link href="/printers" className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50">
             Clear
           </Link>
         </AutoSubmitFilterForm>
@@ -238,6 +240,64 @@ export default async function PrintersPage({
         {rows.length === 0 ? (
           <EmptyState message="No printers found. Try adjusting your filters or add a new printer." />
         ) : (
+          <>
+          <div className="divide-y divide-slate-100 lg:hidden">
+            {rows.map((p) => {
+              const monitoring = monitoringByPrinter.get(p.id) ?? null;
+              return (
+                <article key={p.id} className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+                        <IconGlyph icon={Printer} size={17} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-800">{p.model || "Model not available"}</p>
+                        <Link
+                          href={printerDetailHref(p.id, printerListReturnTo)}
+                          className="mt-0.5 block truncate font-mono text-xs font-semibold text-[#014171]"
+                        >
+                          {p.serialNumber}
+                        </Link>
+                      </div>
+                    </div>
+                    <Badge color={statusBadgeColor(p.status)}>{p.status}</Badge>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs">
+                    <MobileField label="Location" value={p.locationName ?? "Unassigned"} />
+                    <MobileField label="Department" value={p.departmentName ?? "No department"} />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">IP Address</p>
+                      {p.ipAddress ? (
+                        <a href={printerWebUrl(p.ipAddress)} target="_blank" rel="noreferrer" className="mt-1 block truncate font-mono font-semibold text-[#014171]">
+                          {p.ipAddress}
+                        </a>
+                      ) : <p className="mt-1 text-slate-500">No IP address</p>}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Monitoring</p>
+                      <div className="mt-1"><MonitoringBadge printer={monitoring} /></div>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Toner</p>
+                      <ConsumableLevel printer={monitoring} />
+                    </div>
+                  </div>
+
+                  <Link
+                    href={printerDetailHref(p.id, printerListReturnTo)}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm"
+                  >
+                    <IconGlyph icon={Eye} size={14} />
+                    View printer
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="hidden lg:block">
           <table className="w-full min-w-[1085px] table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[200px]" />
@@ -263,7 +323,7 @@ export default async function PrintersPage({
               {rows.map((p) => {
                 const monitoring = monitoringByPrinter.get(p.id) ?? null;
                 return (
-                <tr key={p.id} className="align-top transition hover:bg-slate-50/80">
+                <tr key={p.id} className="transition hover:bg-slate-50/80">
                   <td className="px-4 py-3">
                     <p className="line-clamp-2 text-xs font-medium text-slate-700">
                       {p.locationName ?? "Unassigned"}
@@ -278,7 +338,7 @@ export default async function PrintersPage({
                         href={printerWebUrl(p.ipAddress)}
                         target="_blank"
                         rel="noreferrer"
-                        className="block truncate text-xs font-semibold text-[#014171] hover:underline"
+                        className="block truncate font-mono text-xs font-semibold text-[#014171] hover:underline"
                         title={`Open ${p.ipAddress} in a new browser tab`}
                       >
                         {p.ipAddress}
@@ -293,7 +353,7 @@ export default async function PrintersPage({
                     </p>
                     <Link
                       href={printerDetailHref(p.id, printerListReturnTo)}
-                      className="mt-1 block truncate text-xs font-semibold text-[#014171] hover:underline"
+                      className="mt-1 block truncate font-mono text-xs font-semibold text-[#014171] hover:underline"
                       title={`View printer ${p.serialNumber}`}
                     >
                       {p.serialNumber}
@@ -311,7 +371,10 @@ export default async function PrintersPage({
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex justify-end gap-2">
-                      <Link href={printerDetailHref(p.id, printerListReturnTo)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">View</Link>
+                      <Link href={printerDetailHref(p.id, printerListReturnTo)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+                        <IconGlyph icon={Eye} size={13} />
+                        View
+                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -319,8 +382,19 @@ export default async function PrintersPage({
               })}
             </tbody>
           </table>
+          </div>
+          </>
         )}
       </TableCard>
+    </div>
+  );
+}
+
+function MobileField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 line-clamp-2 font-medium text-slate-700">{value}</p>
     </div>
   );
 }

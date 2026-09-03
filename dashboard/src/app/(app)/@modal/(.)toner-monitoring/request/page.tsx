@@ -8,6 +8,7 @@ export default function RequestTonerModal() {
       closeHref="/toner-monitoring"
       showTitle={false}
       pageHeaderInModal
+      hideScrollbar
     >
       <RequestTonerPage embedded />
     </ModalShell>
