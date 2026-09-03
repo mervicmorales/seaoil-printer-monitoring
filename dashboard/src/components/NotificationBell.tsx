@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import { Bell } from "lucide";
+import { MorphIcon } from "morphicons/react";
 import {
   markAllNotificationsReadAction,
   markNotificationReadAction,
@@ -32,10 +34,10 @@ export default function NotificationBell({ notifications }: { notifications: Not
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg transition hover:bg-slate-50"
+        className="relative flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#014171] shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
         aria-label="Notifications"
       >
-        🔔
+        <MorphIcon icon={Bell} size={18} strokeWidth={2} reducedMotion="user" />
         {unread > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
             {unread}
@@ -43,7 +45,7 @@ export default function NotificationBell({ notifications }: { notifications: Not
         )}
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+        <div className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_48px_rgba(15,23,42,0.16)]">
           <div className="flex items-center justify-between px-2 py-1.5">
             <p className="text-sm font-semibold text-[#014171]">Notifications</p>
             {unread > 0 && (

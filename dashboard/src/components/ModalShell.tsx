@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide";
+import { MorphIcon } from "morphicons/react";
 import { PageHeaderPlacement } from "@/components/PageHeaderPortal";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
@@ -50,7 +52,7 @@ export default function ModalShell({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[1px] sm:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close();
       }}
@@ -59,7 +61,7 @@ export default function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-[#f4f6f9] shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
+        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-[#f4f7fa] shadow-[0_28px_80px_rgba(15,23,42,0.28)] sm:max-h-[calc(100dvh-3rem)]"
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
           {pageHeaderInModal ? (
@@ -76,9 +78,9 @@ export default function ModalShell({
               type="button"
               onClick={close}
               aria-label={`Close ${title.toLowerCase()}`}
-              className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-xl leading-none text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
+              className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
             >
-              <span aria-hidden="true">×</span>
+              <MorphIcon icon={X} size={17} strokeWidth={2} reducedMotion="user" />
             </button>
           </div>
         </div>

@@ -9,7 +9,8 @@ import {
   itsNames,
 } from "@/db/schema";
 import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
-import { PageHeader, Card, TableCard, Badge, statusBadgeColor, PrimaryButton, SecondaryButton, EmptyState } from "@/components/ui";
+import { Droplets } from "lucide";
+import { PageHeader, Card, TableCard, Badge, statusBadgeColor, PrimaryButton, SecondaryButton, EmptyState, IconGlyph } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
@@ -113,23 +114,40 @@ export default async function TonerMonitoringPage({
         showInline={false}
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Toner inventory" className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {inventoryRows.map((t) => {
           const stock = t.stock ?? 0;
           const threshold = t.threshold ?? 5;
           const criticalThreshold = t.criticalThreshold ?? 2;
           const status = stock <= 0 ? "Empty" : stock <= criticalThreshold ? "Critical" : stock <= threshold ? "Low" : null;
+          const attentionClasses = status === "Low"
+            ? "border-amber-200 bg-amber-50/20"
+            : status
+              ? "border-red-200 bg-red-50/20"
+              : "";
+          const accentClass = status === "Low" ? "bg-amber-500" : status ? "bg-red-500" : "bg-emerald-500";
+          const iconClass = status === "Low"
+            ? "bg-amber-50 text-amber-600"
+            : status
+              ? "bg-red-50 text-red-600"
+              : "bg-emerald-50 text-emerald-600";
           return (
-            <Card key={t.id} className={`p-4 ${status ? "border-red-300" : ""}`}>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-[#014171]">{t.name}</p>
-                {status && <Badge color="red">{status}</Badge>}
+            <Card key={t.id} className={`relative min-h-28 overflow-hidden p-4 ${attentionClasses}`}>
+              <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${accentClass}`} />
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
+                    <IconGlyph icon={Droplets} size={16} />
+                  </span>
+                  <p className="truncate text-sm font-semibold text-[#014171]" title={t.name}>{t.name}</p>
+                </div>
+                {status && <Badge color={status === "Low" ? "yellow" : "red"}>{status}</Badge>}
               </div>
-              <p className="mt-2 text-xl font-bold">{stock} <span className="text-xs font-normal text-slate-400">on hand</span></p>
+              <p className="mt-4 text-2xl font-bold leading-none tracking-[-0.025em] text-slate-900">{stock} <span className="text-xs font-semibold tracking-normal text-slate-500">on hand</span></p>
             </Card>
           );
         })}
-      </div>
+      </section>
 
       <CollapsibleFilterPanel activeFilterCount={activeFilterCount}>
         <AutoSubmitFilterForm

@@ -259,7 +259,7 @@ export default function Sidebar({
         onClick={() => setMobileOpen((open) => !open)}
         aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
         aria-expanded={mobileOpen}
-        className="fixed left-4 top-3.5 z-50 flex size-10 items-center justify-center rounded-xl bg-[#014171] text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] lg:hidden"
+        className="fixed left-4 top-4 z-50 flex size-10 items-center justify-center rounded-xl border border-white/10 bg-[#014171] text-white shadow-lg focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] lg:hidden"
       >
         <MorphIcon icon={mobileOpen ? X : Menu} size={20} strokeWidth={2} reducedMotion="user" />
       </button>
@@ -268,7 +268,7 @@ export default function Sidebar({
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-30 bg-slate-950/45 lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-950/55 backdrop-blur-[2px] lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -276,11 +276,11 @@ export default function Sidebar({
       <aside
         aria-label="Primary navigation"
         data-collapsed={collapsed}
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-x-hidden border-r border-white/10 bg-[#014171] text-white shadow-xl transition-[width,transform] duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-x-hidden border-r border-white/10 bg-gradient-to-b from-[#064b7d] to-[#01375f] text-white shadow-xl transition-[width,transform] duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none ${
           collapsed ? "lg:w-[4.5rem]" : "lg:w-64"
         } ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <div className="shrink-0 border-b border-white/15 p-2 pl-16 lg:pl-2">
+        <div className="shrink-0 border-b border-white/10 p-2 pl-16 lg:pl-2">
           <div className="flex items-center gap-1">
             <button
               ref={accountButtonRef}
@@ -328,7 +328,7 @@ export default function Sidebar({
           </div>
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2 py-3">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2 py-4">
           {items.map((item) => {
             const active = pathname === item.href;
             const sectionActive = active || pathname.startsWith(`${item.href}/`);
@@ -381,7 +381,7 @@ export default function Sidebar({
                     }}
                     className={`relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${isDropdown ? "pr-10" : ""} ${
                       active && !isDropdown
-                        ? "bg-[#FEF200] text-[#014171]"
+                        ? "bg-[#FEF200] text-[#014171] shadow-[0_4px_14px_rgba(0,0,0,0.12)]"
                         : sectionActive
                           ? "bg-white/10 text-white"
                           : "text-[#dfe9f4] hover:bg-white/10 hover:text-white"
@@ -446,7 +446,7 @@ export default function Sidebar({
                                   onClick={() => setMobileOpen(false)}
                                   className={`flex h-9 items-center gap-2.5 rounded-lg px-3 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${
                                     childActive
-                                      ? "bg-[#FEF200] text-[#014171]"
+                                      ? "bg-[#FEF200] text-[#014171] shadow-[0_4px_14px_rgba(0,0,0,0.12)]"
                                       : "text-[#dfe9f4] hover:bg-white/10 hover:text-white"
                                   }`}
                                 >
@@ -466,7 +466,7 @@ export default function Sidebar({
           })}
         </nav>
 
-        <div className="shrink-0 border-t border-white/15 p-2">
+        <div className="shrink-0 border-t border-white/10 p-2">
           <div className={`flex h-12 items-center gap-3 rounded-xl px-2 ${collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""}`}>
             <div
               className={`flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg text-base font-black text-[#014171] ${

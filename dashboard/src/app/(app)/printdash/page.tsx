@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { printerDetailHref } from "@/lib/printer-navigation";
 import { sql, type SQL } from "drizzle-orm";
+import {
+  BellRing,
+  CircleCheckBig,
+  CircleHelp,
+  CircleOff,
+  Clock3,
+  Droplets,
+  TriangleAlert,
+  type IconNode,
+} from "lucide";
 import { db } from "@/db";
-import { Badge, Card, PageHeader, TableCard } from "@/components/ui";
+import { Badge, Card, PageHeader, StatCard, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
 import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
 import PrintDashStatusToasts, {
@@ -286,13 +296,13 @@ export default async function PrintDashPage({
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
-        <MonitoringStatCard label="Online" value={summary.online} icon="●" accent="#0f9d58" />
-        <MonitoringStatCard label="Offline" value={summary.offline} icon="●" accent="#d64545" />
-        <MonitoringStatCard label="Warning" value={summary.warning} icon="⚠️" accent="#e2a800" />
-        <MonitoringStatCard label="Stale" value={summary.stale} icon="◷" accent="#b7791f" />
-        <MonitoringStatCard label="Low Consumable" value={summary.low_consumable} icon="🧴" accent="#f97316" />
-        <MonitoringStatCard label="Not Monitored" value={summary.not_monitored} icon="?" accent="#64748b" />
-        <MonitoringStatCard label="Active Alerts" value={summary.active_alerts} icon="🔔" accent="#8b5cf6" />
+        <MonitoringStatCard label="Online" value={summary.online} icon={CircleCheckBig} accent="#07834c" />
+        <MonitoringStatCard label="Offline" value={summary.offline} icon={CircleOff} accent="#c83f49" />
+        <MonitoringStatCard label="Warning" value={summary.warning} icon={TriangleAlert} accent="#c47f08" />
+        <MonitoringStatCard label="Stale" value={summary.stale} icon={Clock3} accent="#a56510" />
+        <MonitoringStatCard label="Low Consumable" value={summary.low_consumable} icon={Droplets} accent="#dd6516" />
+        <MonitoringStatCard label="Not Monitored" value={summary.not_monitored} icon={CircleHelp} accent="#64748b" />
+        <MonitoringStatCard label="Active Alerts" value={summary.active_alerts} icon={BellRing} accent="#7c4dcc" />
       </div>
 
       <CollapsibleFilterPanel activeFilterCount={activeFilterCount} className="mt-6">
@@ -473,28 +483,11 @@ function MonitoringStatCard({
 }: {
   label: string;
   value: number;
-  icon: string;
+  icon: IconNode;
   accent: string;
 }) {
   return (
-    <Card className="h-full min-w-0 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase leading-4 tracking-wide text-slate-500">
-            {label}
-          </p>
-          <p className="mt-2 text-xl font-bold" style={{ color: accent }}>
-            {value}
-          </p>
-        </div>
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm"
-          style={{ backgroundColor: `${accent}14`, color: accent }}
-        >
-          {icon}
-        </span>
-      </div>
-    </Card>
+    <StatCard label={label} value={value} icon={icon} accent={accent} compact />
   );
 }
 

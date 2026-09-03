@@ -19,7 +19,7 @@ export default async function LoginPage({
 
   return (
     <main className="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <section className="relative hidden flex-col justify-between overflow-hidden bg-[#014171] p-12 text-white lg:flex">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-[#075184] via-[#014171] to-[#012f53] p-12 text-white lg:flex">
         <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#7DA8D0]/30 blur-3xl" />
         <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-[#FEF200]/20 blur-3xl" />
         <div className="relative z-10 flex items-center gap-3">
@@ -56,8 +56,8 @@ export default async function LoginPage({
         </p>
       </section>
 
-      <section className="flex items-center justify-center bg-[#f4f6f9] px-6 py-12">
-        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 shadow-xl sm:p-10">
+      <section className="flex items-center justify-center bg-transparent px-6 py-12">
+        <div className="app-card w-full max-w-lg rounded-3xl border border-[#dfe6ee] bg-white p-8 shadow-[0_24px_64px_rgba(15,23,42,0.1)] sm:p-10">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <div
               className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-lg font-black text-[#FEF200] ${

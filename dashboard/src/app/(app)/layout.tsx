@@ -50,7 +50,7 @@ export default async function AppLayout({
       accountId={String(session.id)}
       initialSkin={isBlobSkin(blobSkinCookie) ? blobSkinCookie : "violet"}
     >
-      <div className="flex min-h-screen bg-[#f4f6f9]">
+      <div className="flex min-h-screen bg-transparent">
         <AgentStatusNotifications />
         <Sidebar
           isAdmin={session.role === "admin"}
@@ -69,7 +69,7 @@ export default async function AppLayout({
               createdAt: n.createdAt.toISOString(),
             }))}
           />
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">{children}</main>
+          <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-7">{children}</main>
         </div>
         <PageHeaderPlacement inAppHeader={false}>{modal}</PageHeaderPlacement>
       </div>
