@@ -12,10 +12,12 @@ export default function LogoutConfirmationDialog({
   open,
   onClose,
   triggerRef,
+  employeeMode = false,
 }: {
   open: boolean;
   onClose: () => void;
   triggerRef: RefObject<HTMLButtonElement | null>;
+  employeeMode?: boolean;
 }) {
   const { blobSkin } = useBlobSkin();
   const [mood, setMood] = useState<BlobMood>("idle");
@@ -115,7 +117,9 @@ export default function LogoutConfirmationDialog({
           Sign out?
         </h2>
         <p id="logout-dialog-description" className="mx-auto mt-2 max-w-xs text-sm leading-6 text-slate-600">
-          You’ll need to sign in again to access printer monitoring and administration.
+          {employeeMode
+            ? "You’ll need to sign in again to access SEAOIL printer services and continue printing or scanning."
+            : "You’ll need to sign in again to access printer management, monitoring, and employee print services."}
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-3">

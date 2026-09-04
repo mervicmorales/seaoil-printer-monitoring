@@ -123,8 +123,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8 pb-2">
       <PageHeader
-        title="Dashboard"
-        subtitle="Overview of the SEAOIL printer fleet, toner inventory and open tickets."
+        title="PrintOps · Dashboard"
+        subtitle="Overview of the SEAOIL Printer Operations across all locations, live monitoring and toner inventory"
         actions={
           <RefreshControl
             refreshedAtLabel={formatDateTime(renderedAt)}

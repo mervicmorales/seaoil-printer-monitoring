@@ -5,7 +5,6 @@ import {
   BellRing,
   Building2,
   Droplets,
-  Info,
   Mail,
   MapPin,
   Truck,
@@ -17,7 +16,6 @@ import Tabs from "@/components/Tabs";
 import LookupTable from "@/components/LookupTable";
 import VendorManager from "./VendorManager";
 import TonerTypeManager from "./TonerTypeManager";
-import GeneralSettings from "./GeneralSettings";
 import ReminderSettingsForm from "./ReminderSettingsForm";
 import SmtpSettingsForm from "./SmtpSettingsForm";
 import { getSystemSettings, requireModuleFullAccess } from "@/lib/server-utils";
@@ -190,12 +188,6 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                 <ReminderSettingsForm action={updateSettingsAction} settings={settings} readOnly={session.role !== "admin"} />
               </Card>
             ),
-          },
-          {
-            key: "general",
-            label: "About",
-            icon: Info,
-            content: <GeneralSettings />,
           },
         ]}
       />

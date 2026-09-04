@@ -82,6 +82,7 @@ export default async function RegistrationDetailPage({
     <div>
       <PageHeader
         title="Registration Detail"
+        subtitle={request.employeeId || request.email}
       />
 
       <SuccessBanner

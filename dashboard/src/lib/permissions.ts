@@ -14,7 +14,7 @@ export const MODULES = [
 export type ModuleName = (typeof MODULES)[number];
 
 export const MODULE_LABELS: Record<ModuleName, string> = {
-  dashboard: "Dashboard",
+  dashboard: "PrintOps",
   printers: "Printers",
   toner: "Toner Monitoring",
   contract: "Contract",

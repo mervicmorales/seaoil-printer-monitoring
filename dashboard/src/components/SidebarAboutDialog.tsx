@@ -15,7 +15,7 @@ type AboutContent = {
 
 const EMPLOYEE_CONTENT: AboutContent = {
   eyebrow: "Employee workspace",
-  title: "SEAOIL Printer Services",
+  title: "SEAOIL PrintOps",
   description:
     "A secure workspace for SEAOIL employees to print and scan using available workplace devices across company locations. It keeps everyday document services accessible wherever employees are assigned.",
   features: [

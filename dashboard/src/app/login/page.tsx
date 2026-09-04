@@ -40,7 +40,7 @@ export default async function LoginPage({
             )}
           </div>
           <div>
-            <p className="text-lg font-bold leading-tight tracking-[-0.01em]">SEAOIL</p>
+            <p className="text-lg font-bold leading-tight tracking-[-0.01em]">SEAOIL · PrintOps</p>
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9fbdda]">
               Philippines Inc.
             </p>
@@ -68,7 +68,7 @@ export default async function LoginPage({
 
         <div className="relative z-10 flex items-center justify-between gap-5 border-t border-white/15 pt-5 text-[11px] text-[#aac5dd]">
           <p>For internal use by SEAOIL Philippines Inc. only.</p>
-          <p className="font-semibold uppercase tracking-[0.12em]">Printer Monitoring System</p>
+          <p className="font-semibold uppercase tracking-[0.12em]">Printer Management System</p>
         </div>
       </section>
 
@@ -89,7 +89,7 @@ export default async function LoginPage({
               )}
             </div>
             <div>
-              <p className="font-bold leading-tight text-[#014171]">SEAOIL Printer Monitoring</p>
+              <p className="font-bold leading-tight text-[#014171]">SEAOIL PrintOps</p>
               <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Secure employee access</p>
             </div>
           </div>

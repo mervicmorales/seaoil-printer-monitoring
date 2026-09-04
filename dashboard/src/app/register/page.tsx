@@ -31,7 +31,7 @@ export default async function RegisterPage() {
             )}
           </div>
           <div>
-            <p className="font-bold leading-tight text-[#014171]">SEAOIL Printer Monitoring</p>
+            <p className="font-bold leading-tight text-[#014171]">SEAOIL PrintOps</p>
             <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Employee access</p>
           </div>
         </div>
@@ -47,7 +47,7 @@ export default async function RegisterPage() {
                 Secure employee registration
               </span>
               <h1 className="mt-6 text-3xl font-bold leading-tight tracking-[-0.025em] sm:text-4xl lg:text-[2.6rem]">
-                Request access to printer services.
+                Request access to printer monitoring.
               </h1>
               <p className="mt-4 max-w-md text-sm leading-6 text-[#cfe0f2]">
                 Create your employee profile, verify your SEAOIL email, and submit your account for administrator review.

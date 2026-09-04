@@ -167,8 +167,9 @@ export default function Sidebar({
       children: item.children?.filter((child) => !child.module || moduleAccess[child.module]),
     }));
   const items = employeeMode ? EMPLOYEE_NAV : permittedItems;
-  const brandSubtitle = employeeMode ? "Printer Services" : "Printer Management System";
-  const brandName = `SEAOIL ${brandSubtitle}`;
+  const brandTitle = "SEAOIL PrintOps";
+  const brandSubtitle = employeeMode ? null : "Printer Management System";
+  const brandName = brandSubtitle ? `${brandTitle} ${brandSubtitle}` : brandTitle;
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -513,8 +514,10 @@ export default function Sidebar({
               )}
             </div>
             <div className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-all duration-200 ${copyClass} ${collapsed ? "lg:hidden" : ""}`}>
-              <p className="text-sm font-bold leading-tight">SEAOIL</p>
-              <p className="mt-0.5 whitespace-normal text-[9px] font-semibold uppercase leading-3 tracking-[0.1em] text-[#9cc0df]">{brandSubtitle}</p>
+              <p className="text-sm font-bold leading-tight">{brandTitle}</p>
+              {brandSubtitle && (
+                <p className="mt-0.5 whitespace-normal text-[9px] font-semibold uppercase leading-3 tracking-[0.1em] text-[#9cc0df]">{brandSubtitle}</p>
+              )}
             </div>
           </button>
         </div>
@@ -609,6 +612,7 @@ export default function Sidebar({
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
         triggerRef={signOutButtonRef}
+        employeeMode={employeeMode}
       />
       <ChangePasswordDialog
         open={changePasswordOpen}
