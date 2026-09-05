@@ -19,6 +19,7 @@ services:
     volumes:
       - printdash-data:/data
       - printdash-scans:/opt/scans
+      - /var/run/cups/cups.sock:/var/run/cups/cups.sock
     healthcheck:
       test:
         - CMD

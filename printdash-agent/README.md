@@ -187,8 +187,10 @@ the Linux host or as its own managed component, not inside this container.
 ## Docker deployment
 
 The image runs as a non-root Node user, starts with `npm start`, and includes
-the CUPS client and SANE tools used by the existing PrintDash UI. Secrets are
-loaded at runtime from `.env` and are excluded from the image.
+the CUPS client and SANE tools used by the existing PrintDash UI. A restricted
+sudo rule permits that user to run only the CUPS queue-administration commands
+needed by PrintDash. Secrets are loaded at runtime from `.env` and are excluded
+from the image.
 
 ```bash
 cp .env.example .env
@@ -208,8 +210,10 @@ binds the dashboard to `127.0.0.1:3003` by default. Set
 `PRINTDASH_BIND_ADDRESS=0.0.0.0` only when LAN access is required and the host
 firewall restricts access to trusted office networks.
 
-For USB scanners or a host-managed CUPS service, additional device mounts or
-host-specific CUPS configuration may be required. SNMP monitoring itself only
+The Compose deployment mounts `/var/run/cups/cups.sock` from the host. Install
+and start CUPS on that host before launching the agent. If CUPS is restarted,
+recreate the agent container so the bind mount follows the new socket. For USB
+scanners, additional device mounts may be required. SNMP monitoring itself only
 requires outbound UDP access to printer IPs.
 
 ---

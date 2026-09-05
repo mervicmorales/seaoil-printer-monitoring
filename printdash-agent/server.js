@@ -1001,17 +1001,18 @@ function getCompletedJobs() {
 }
 function cancelJob(jobId) {
   return new Promise((resolve,reject) => {
-    execFile('cancel', [jobId], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
+    execFile('sudo', ['-n', '/usr/bin/cancel', jobId], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
   });
 }
 function setPrinterEnabled(name, enabled) {
   return new Promise((resolve,reject) => {
-    execFile(enabled?'cupsenable':'cupsdisable', [name], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
+    const command = enabled ? '/usr/sbin/cupsenable' : '/usr/sbin/cupsdisable';
+    execFile('sudo', ['-n', command, name], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
   });
 }
 function setDefaultPrinter(name) {
   return new Promise((resolve,reject) => {
-    execFile('lpadmin', ['-d', name], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
+    execFile('sudo', ['-n', '/usr/sbin/lpadmin', '-d', name], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
   });
 }
 function getCupsPrinterDetail() {
@@ -1046,7 +1047,7 @@ function lpinfoDiscover() {
 function lpadminAddPrinter(name, uri) {
   return new Promise((resolve,reject) => {
     const safe = name.replace(/[^a-zA-Z0-9_-]/g,'_');
-    execFile('lpadmin', ['-p', safe, '-E', '-v', uri, '-m', 'everywhere'], (err,stdout,stderr) => {
+    execFile('sudo', ['-n', '/usr/sbin/lpadmin', '-p', safe, '-E', '-v', uri, '-m', 'everywhere'], (err,stdout,stderr) => {
       if (err) return reject(new Error(stderr||err.message));
       resolve(safe);
     });
