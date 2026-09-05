@@ -27,6 +27,7 @@ type Printer = {
   id: number;
   assetTag: string | null;
   ipAddress: string | null;
+  macAddress: string | null;
   serialNumber: string;
   model: string | null;
   monthlyRate: string | null;
@@ -157,6 +158,14 @@ export default function PrinterForm({
           defaultValue={printer?.ipAddress ?? ""}
           required={monitoringEnabled}
           error={state.fieldErrors?.ipAddress}
+        />
+        <Input
+          label="MAC Address"
+          name="macAddress"
+          placeholder="00:1A:2B:3C:4D:5E"
+          maxLength={17}
+          defaultValue={printer?.macAddress ?? ""}
+          error={state.fieldErrors?.macAddress}
         />
         <Input
           label="Serial Number"

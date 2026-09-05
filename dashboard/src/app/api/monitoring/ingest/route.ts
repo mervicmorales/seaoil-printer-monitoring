@@ -255,6 +255,11 @@ export async function POST(request: Request) {
         }
 
         const checkedAt = new Date(observation.lastChecked ?? payload.sentAt);
+        if (observation.online && observation.macAddress) {
+          await tx.update(printers)
+            .set({ macAddress: observation.macAddress, updatedAt: receivedAt })
+            .where(and(eq(printers.id, printerId), isNull(printers.macAddress)));
+        }
         const [reading] = await tx
           .insert(printerMonitoringReadings)
           .values({

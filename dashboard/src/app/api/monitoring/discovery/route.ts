@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { printerDiscoveryScans } from "@/db/schema";
+import { normalizeMacAddress } from "@/lib/mac-address";
 import {
   authenticateMonitoringAgent,
   monitoringAgentKeySchema,
@@ -16,6 +17,7 @@ const discoveredPrinterSchema = z.object({
   description: z.string().trim().max(1_000).default(""),
   serialNumber: z.string().trim().max(255).nullable().default(null),
   model: z.string().trim().max(255).nullable().default(null),
+  macAddress: z.string().max(64).nullish().transform(normalizeMacAddress),
 });
 
 const completionSchema = z.object({

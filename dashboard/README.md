@@ -144,3 +144,22 @@ For offline alerts even when no administrator has the dashboard open, schedule
 a POST to `/api/monitoring/agent-status` at least once per minute with the
 `x-seaoil-cron-token` header matching `AGENT_STATUS_CRON_SECRET`. The existing
 signed-in dashboard polling remains supported.
+
+## Printer MAC addresses
+
+Before running this version against an existing database, run `npm run db:migrate:mac`
+from `dashboard/` (or `npm run db:migrate:mac:docker` for `.env.docker`). The additive,
+repeatable Drizzle migration creates the nullable `printers.mac_address` column and
+preserves existing printer records and monitoring history.
+
+MAC Address is optional in Add/Edit Printer and appears beside IP Address in the
+Assignment panel. Addresses are normalized to uppercase colon-separated notation.
+Updated office agents include MAC addresses in discovery and monitoring uploads.
+Discovery pre-fills Add Printer; authenticated, assigned agents fill missing MAC
+addresses on online readings without overwriting a saved value. Replacing a printer
+clears its old MAC address so the replacement can be detected.
+
+Restart the office agent after updating its files, or rebuild its Docker image.
+Automatic lookup uses the IP-associated SNMP interface where available, otherwise
+an unambiguous interface address. Unsupported, offline, or ambiguous devices can
+be entered manually; detection is not guaranteed for every printer.

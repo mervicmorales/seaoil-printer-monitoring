@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
+import { normalizeMacAddress } from "@/lib/mac-address";
 
 function num(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -63,6 +64,11 @@ async function validateMonitoringAssignment(
 ) {
   const enabled = formData.get("monitoringEnabled") === "on";
   const ipAddress = str(formData.get("ipAddress"));
+  const rawMacAddress = str(formData.get("macAddress"));
+  const macAddress = normalizeMacAddress(rawMacAddress);
+  if (rawMacAddress && !macAddress) {
+    fieldErrors.macAddress = "Enter a valid MAC address, such as 00:1A:2B:3C:4D:5E.";
+  }
   const agentId = num(formData.get("monitoringAgentId"));
 
   if (
@@ -75,7 +81,7 @@ async function validateMonitoringAssignment(
     fieldErrors.ipAddress = "Enter a valid IPv4 or IPv6 address.";
   }
 
-  if (!enabled) return { enabled, agentId: null, ipAddress };
+  if (!enabled) return { enabled, agentId: null, ipAddress, macAddress };
 
   if (!ipAddress) {
     fieldErrors.ipAddress = "IP Address is required when monitoring is enabled.";
@@ -100,7 +106,7 @@ async function validateMonitoringAssignment(
     }
   }
 
-  return { enabled, agentId, ipAddress };
+  return { enabled, agentId, ipAddress, macAddress };
 }
 
 export async function createPrinterAction(
@@ -133,6 +139,7 @@ export async function createPrinterAction(
         .values({
           assetTag: str(formData.get("assetTag")),
           ipAddress: monitoring.ipAddress,
+          macAddress: monitoring.macAddress,
           serialNumber: serialNumber!,
           model,
           monthlyRate: String(num(formData.get("monthlyRate")) ?? 0),
@@ -191,7 +198,7 @@ export async function updatePrinterAction(
       if (session.role === "support") {
         await tx
           .update(printers)
-          .set({ ipAddress: monitoring.ipAddress, updatedAt: new Date() })
+          .set({ ipAddress: monitoring.ipAddress, macAddress: monitoring.macAddress, updatedAt: new Date() })
           .where(eq(printers.id, id));
       } else {
         await tx
@@ -199,6 +206,7 @@ export async function updatePrinterAction(
           .set({
             assetTag: str(formData.get("assetTag")),
             ipAddress: monitoring.ipAddress,
+            macAddress: monitoring.macAddress,
             monthlyRate: String(num(formData.get("monthlyRate")) ?? 0),
             locationId: num(formData.get("locationId")),
             departmentId: num(formData.get("departmentId")),
@@ -287,7 +295,7 @@ export async function addReplacementAction(
 
     await db
       .update(printers)
-      .set({ serialNumber: newSerialNumber, model, updatedAt: new Date() })
+      .set({ serialNumber: newSerialNumber, model, macAddress: null, updatedAt: new Date() })
       .where(eq(printers.id, printerId));
   } catch (err) {
     console.error(err);

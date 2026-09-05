@@ -274,6 +274,7 @@ export default async function DiscoverPrintersPage({
 function buildAddPrinterHref(printer: DiscoveredPrinter, agentId: number) {
   const params = new URLSearchParams({
     ip: printer.ip,
+    macAddress: printer.macAddress ?? "",
     serial: printer.serialNumber ?? "",
     model: printer.model ?? "",
     monitoringAgentId: String(agentId),

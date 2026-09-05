@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test:print-options": "node --test print-options.test.js",
-    "test:snmp-safety": "node --test snmp-safety.test.js"
+    "test:snmp-safety": "node --test snmp-safety.test.js",
+    "test:mac": "node --test mac-address.test.js"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

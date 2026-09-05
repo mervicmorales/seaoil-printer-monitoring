@@ -7,6 +7,7 @@ const net = require("net");
 const fs = require("fs");
 const path = require("path");
 const { version } = require("./package.json");
+const { normalizeMacAddress } = require("./mac-address");
 
 const DEFAULT_API_URL = "http://localhost:3000/api/monitoring/ingest";
 const DEFAULT_POLL_INTERVAL_SECONDS = 60;
@@ -351,6 +352,7 @@ function safePrinterPayload(printer) {
     status: printer.status,
     model: printer.model,
     serial: printer.serial,
+    macAddress: normalizeMacAddress(printer.mac),
     pages: printer.pages,
     uptime: printer.uptime,
     uptimeSeconds: printer.uptimeSec,

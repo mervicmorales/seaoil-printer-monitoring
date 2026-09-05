@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { monitoringAgents } from "@/db/schema";
+import { normalizeMacAddress } from "@/lib/mac-address";
 
 const shortText = z.string().trim().min(1).max(255);
 const optionalShortText = shortText.nullish();
@@ -61,6 +62,7 @@ const printerObservationSchema = z.object({
     .max(255)
     .refine((value) => isIP(value) !== 0, "Invalid printer IP address"),
   serial: optionalShortText,
+  macAddress: z.string().max(64).nullish().transform(normalizeMacAddress),
   assetTag: optionalShortText,
   online: z.boolean(),
   status: optionalShortText,

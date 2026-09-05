@@ -70,6 +70,7 @@ export default async function NewPrinterPage({
             id: 0,
             assetTag: null,
             ipAddress: value("ip", 20) || null,
+            macAddress: value("macAddress", 17) || null,
             serialNumber: value("serial", 255),
             model: value("model", 255) || null,
             monthlyRate: "0",

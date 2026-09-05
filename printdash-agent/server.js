@@ -12,6 +12,7 @@ const os      = require('os');
 const { execFile, exec, spawn } = require('child_process');
 const crypto  = require('crypto');
 const { buildLpArgs } = require('./print-options');
+const { readPrinterMacAddress } = require('./mac-address');
 const app  = express();
 const configuredPort = Number(process.env.PORT || 3003);
 const PORT = Number.isInteger(configuredPort) && configuredPort > 0 && configuredPort <= 65535 ? configuredPort : 3003;
@@ -317,7 +318,7 @@ const pageHistory = {};
 const OID = {
   sysDescr:'1.3.6.1.2.1.1.1.0', sysUpTime:'1.3.6.1.2.1.1.3.0',
   sysContact:'1.3.6.1.2.1.1.4.0', sysName:'1.3.6.1.2.1.1.5.0', sysLocation:'1.3.6.1.2.1.1.6.0',
-  macAddress:'1.3.6.1.2.1.2.2.1.6.1', memSize:'1.3.6.1.2.1.25.2.2.0',
+  memSize:'1.3.6.1.2.1.25.2.2.0',
   deviceDesc:'1.3.6.1.2.1.25.3.2.1.3.1', deviceState:'1.3.6.1.2.1.25.3.2.1.5.1',
   deviceErrors:'1.3.6.1.2.1.25.3.2.1.6.1', printerStatus:'1.3.6.1.2.1.25.3.5.1.1.1',
   serialNumber:'1.3.6.1.2.1.43.5.1.1.17.1', pageCount:'1.3.6.1.2.1.43.10.2.1.4.1.1',
@@ -542,7 +543,7 @@ async function getPrinterData(printer) {
     const isCanon = baselineDescription.toLowerCase().includes('canon');
     const optionalOids = [
       OID.sysUpTime,OID.sysContact,OID.sysName,OID.sysLocation,
-      OID.macAddress,OID.memSize,OID.deviceDesc,OID.deviceState,OID.deviceErrors,
+      OID.memSize,OID.deviceDesc,OID.deviceState,OID.deviceErrors,
       OID.printerStatus,OID.serialNumber,OID.pageCount,OID.consoleDisplay,
     ];
     if (isBrother) optionalOids.push(OID.brotherMaintenanceInfo);
@@ -551,8 +552,9 @@ async function getPrinterData(printer) {
     basic[OID.sysDescr] = baseline.value;
 
     const uptimeSec = basic[OID.sysUpTime]!=null ? Math.floor(Number(basic[OID.sysUpTime])/100) : null;
-    let mac = basic[OID.macAddress];
-    if (Buffer.isBuffer(mac)) mac = Array.from(mac).map(b=>b.toString(16).padStart(2,'0')).join(':').toUpperCase();
+    const mac = await readPrinterMacAddress(ip,
+      oids => snmpGetOptional(ip, community, oids, printerIdentifier),
+      oid => snmpWalk(ip, community, oid, printerIdentifier));
     const status = PRINTER_STATUS[basic[OID.printerStatus]]||'Unknown';
     const pageValue = basic[OID.pageCount]!=null ? Number(basic[OID.pageCount]) : null;
     const pages = Number.isSafeInteger(pageValue) && pageValue >= 0 ? pageValue : null;
@@ -703,6 +705,7 @@ async function processCentralDiscoveryJob() {
       ip: device.ip,
       description: device.description || device.descr || '',
       serialNumber: device.serialNumber || null,
+      macAddress: device.macAddress || null,
       model: device.model || null,
     }));
     const uploaded = await completeDiscoveryJob(job.id, results);
@@ -1096,6 +1099,9 @@ function snmpProbe(ip, community) {
         OID.canonSerialNumber,
       ]);
       const model = bufToStr(details[OID.deviceDesc]) || description;
+      const macAddress = await readPrinterMacAddress(ip,
+        oids => snmpGetOptional(ip, community, oids),
+        oid => snmpWalk(ip, community, oid));
       resolve({
         ip,
         description,
@@ -1103,6 +1109,7 @@ function snmpProbe(ip, community) {
           || bufToStr(details[OID.canonSerialNumber])
           || null,
         model: model || null,
+        macAddress,
       });
     });
   });

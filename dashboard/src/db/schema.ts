@@ -144,6 +144,7 @@ export const printers = pgTable("printers", {
   id: serial("id").primaryKey(),
   assetTag: text("asset_tag"),
   ipAddress: text("ip_address"),
+  macAddress: text("mac_address"),
   serialNumber: text("serial_number").notNull().unique(),
   model: text("model"),
   monthlyRate: numeric("monthly_rate", { precision: 12, scale: 2 }).default(
@@ -327,6 +328,7 @@ export const printerAlerts = pgTable(
 
 export type DiscoveredPrinter = {
   ip: string;
+  macAddress?: string | null;
   description: string;
   serialNumber: string | null;
   model: string | null;

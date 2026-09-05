@@ -226,9 +226,8 @@ export default async function PrinterViewPage({
                   <dl className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
                     <Field label="Location" value={record.locationName || "—"} />
                     <Field label="Department" value={record.departmentName || "—"} />
-                    <div className="sm:col-span-2">
-                      <Field label="IP Address" value={p.ipAddress || "—"} mono />
-                    </div>
+                    <Field label="IP Address" value={p.ipAddress || "—"} mono />
+                    <Field label="MAC Address" value={p.macAddress || "—"} mono />
                   </dl>
                 </InfoSection>
 

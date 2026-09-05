@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY server.js seaoil-agent.js snmp-safety.js print-options.js ./
+COPY server.js seaoil-agent.js snmp-safety.js print-options.js mac-address.js ./
 
 RUN mkdir -p /data /opt/scans /tmp/printdash-uploads \
     && chown -R node:node /data /opt/scans /tmp/printdash-uploads \
