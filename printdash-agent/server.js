@@ -43,10 +43,15 @@ function verifyPassword(password, stored) {
 }
 function loadUsers() {
   try { if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE,'utf8')); } catch {}
-  // first-run defaults — CHANGE THESE PASSWORDS after first login
+  const production = process.env.NODE_ENV === 'production';
+  const adminPassword = process.env.PRINTDASH_ADMIN_PASSWORD || (production ? '' : 'admin123');
+  const userPassword = process.env.PRINTDASH_USER_PASSWORD || (production ? '' : 'user123');
+  if (adminPassword.length < 12 || userPassword.length < 12) {
+    throw new Error('PRINTDASH_ADMIN_PASSWORD and PRINTDASH_USER_PASSWORD must each contain at least 12 characters');
+  }
   const defaults = [
-    { username:'admin', role:'admin', password: hashPassword('admin123') },
-    { username:'user',  role:'user',  password: hashPassword('user123') },
+    { username:'admin', role:'admin', password: hashPassword(adminPassword) },
+    { username:'user',  role:'user',  password: hashPassword(userPassword) },
   ];
   try { fs.writeFileSync(USERS_FILE, JSON.stringify(defaults,null,2)); } catch {}
   return defaults;

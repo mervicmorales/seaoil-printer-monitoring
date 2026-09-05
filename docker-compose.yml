@@ -1,0 +1,129 @@
+name: seaoil-printer-monitoring
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: seaoil_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seaoil_app -d app_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  db-init:
+    build:
+      context: ./dashboard
+      target: migrator
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://seaoil_app:${POSTGRES_PASSWORD}@db:5432/app_db
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      SEED_SUPPORT_PASSWORD: ${SEED_SUPPORT_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - >-
+        npx drizzle-kit push --config=drizzle.docker.config.ts --force &&
+        node scripts/seed.mjs &&
+        node scripts/migrate-notifications-registration-smtp.mjs &&
+        node scripts/migrate-monitoring-assignments.mjs
+
+  dashboard:
+    build:
+      context: ./dashboard
+      target: runner
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://seaoil_app:${POSTGRES_PASSWORD}@db:5432/app_db
+      AUTH_SECRET: ${AUTH_SECRET}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      MONITORING_STALE_SECONDS: ${MONITORING_STALE_SECONDS:-180}
+      AGENT_STATUS_CRON_SECRET: ${AGENT_STATUS_CRON_SECRET}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-printer@seaoil.com.ph}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-SEAOIL Printer}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  printdash-agent:
+    build:
+      context: ./printdash-agent
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "3003"
+      USERS_FILE: /data/users.json
+      DATA_FILE: /data/printers.json
+      SETTINGS_FILE: /data/settings.json
+      SEAOIL_CONFIG_CACHE_FILE: /data/seaoil-config-cache.json
+      SCAN_DIR: /opt/scans
+      UPLOAD_DIR: /tmp/printdash-uploads
+      SEAOIL_API_URL: ${SEAOIL_API_URL:-http://dashboard:3000/api/monitoring/ingest}
+      SEAOIL_CONFIG_URL: ${SEAOIL_CONFIG_URL:-http://dashboard:3000/api/monitoring/config}
+      SEAOIL_AGENT_TOKEN: ${SEAOIL_AGENT_TOKEN:-}
+      SEAOIL_AGENT_KEY: ${SEAOIL_AGENT_KEY:-head-office-agent}
+      SEAOIL_AGENT_NAME: ${SEAOIL_AGENT_NAME:-Head Office Agent}
+      SEAOIL_AGENT_LOCATION: ${SEAOIL_AGENT_LOCATION:-Head Office}
+      SEAOIL_SNMP_COMMUNITY: ${SEAOIL_SNMP_COMMUNITY:-public}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-60}
+      SEAOIL_CONFIG_REFRESH_SECONDS: ${SEAOIL_CONFIG_REFRESH_SECONDS:-60}
+      PRINTDASH_ADMIN_PASSWORD: ${PRINTDASH_ADMIN_PASSWORD}
+      PRINTDASH_USER_PASSWORD: ${PRINTDASH_USER_PASSWORD}
+    ports:
+      - "127.0.0.1:${PRINTDASH_PORT:-3003}:3003"
+    volumes:
+      - printdash-data:/data
+      - printdash-scans:/opt/scans
+    depends_on:
+      dashboard:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3003/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  postgres-data:
+  printdash-data:
+  printdash-scans:

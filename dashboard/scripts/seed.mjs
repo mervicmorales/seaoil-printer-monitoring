@@ -7,6 +7,13 @@ import "dotenv/config";
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+function seedPassword(name, developmentDefault) {
+  const value = process.env[name]?.trim();
+  if (value && value.length >= 12) return value;
+  if (process.env.NODE_ENV !== "production") return developmentDefault;
+  throw new Error(`${name} is required in production and must contain at least 12 characters`);
+}
+
 const MODULES = [
   "dashboard",
   "printers",
@@ -32,7 +39,7 @@ async function upsertUser(fullName, email, username, password, role) {
       [fullName, email, username, hash, role],
     );
     userId = res.rows[0].id;
-    console.log(`Created ${role} user '${username}' / password '${password}'`);
+    console.log(`Created ${role} user '${username}'.`);
   }
   for (const mod of MODULES) {
     const full = role === "admin" ? true : mod === "toner";
@@ -49,8 +56,10 @@ async function upsertLookup(table, name) {
 }
 
 async function main() {
-  await upsertUser("System Administrator", "admin@seaoil.com.ph", "admin", "Admin@12345", "admin");
-  await upsertUser("Sample Support", "user@seaoil.com.ph", "user", "User@12345", "support");
+  const adminPassword = seedPassword("SEED_ADMIN_PASSWORD", "Admin@12345");
+  const supportPassword = seedPassword("SEED_SUPPORT_PASSWORD", "User@12345");
+  await upsertUser("System Administrator", "admin@seaoil.com.ph", "admin", adminPassword, "admin");
+  await upsertUser("Sample Support", "user@seaoil.com.ph", "user", supportPassword, "support");
 
   for (const name of ["Head Office", "Pasig Depot", "Cebu Depot", "Davao Station"]) {
     await upsertLookup("locations", name);
