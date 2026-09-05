@@ -1,7 +1,7 @@
 "use server";
 
 import { createHash, randomBytes } from "crypto";
-import { and, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { departments, emailVerificationTokens, locations, systemSettings, userRegistrationRequests, users } from "@/db/schema";
@@ -74,17 +74,41 @@ export async function registerAction(_previous: RegistrationState, formData: For
 
   const recentCutoff = new Date(Date.now() - 15 * 60_000);
   const [existingUser, existingRequest, recentRequest] = await Promise.all([
-    db.select({ id: users.id }).from(users).where(or(eq(users.email, email), eq(users.employeeId, employeeId), eq(users.username, username))).limit(1),
-    db.select({ id: userRegistrationRequests.id }).from(userRegistrationRequests).where(and(
-      or(eq(userRegistrationRequests.email, email), eq(userRegistrationRequests.employeeId, employeeId), eq(userRegistrationRequests.username, username)),
+    db.select({ email: users.email, employeeId: users.employeeId, username: users.username }).from(users).where(or(
+      sql`lower(${users.email}) = ${email}`,
+      sql`upper(${users.employeeId}) = ${employeeId}`,
+      sql`lower(${users.username}) = ${username}`,
+    )),
+    db.select({ email: userRegistrationRequests.email, employeeId: userRegistrationRequests.employeeId, username: userRegistrationRequests.username }).from(userRegistrationRequests).where(and(
+      or(
+        sql`lower(${userRegistrationRequests.email}) = ${email}`,
+        sql`upper(${userRegistrationRequests.employeeId}) = ${employeeId}`,
+        sql`lower(${userRegistrationRequests.username}) = ${username}`,
+      ),
       inArray(userRegistrationRequests.status, ["pending_email", "pending_admin", "approved"]),
-    )).limit(1),
+    )),
     db.select({ id: userRegistrationRequests.id }).from(userRegistrationRequests).where(and(
       eq(userRegistrationRequests.email, email),
       gt(userRegistrationRequests.createdAt, recentCutoff),
     )).limit(1),
   ]);
-  if (existingUser.length || existingRequest.length || recentRequest.length) return { success: genericSuccess };
+  if (existingUser.length || existingRequest.length) {
+    for (const record of [...existingRequest, ...existingUser]) {
+      if (record.employeeId?.toUpperCase() === employeeId) {
+        fieldErrors.employeeId = "An account or registration already exists with this Employee ID.";
+      }
+      if (record.email.toLowerCase() === email || record.username.toLowerCase() === username) {
+        fieldErrors.email = "An account or registration already exists with this email address.";
+      }
+    }
+    return {
+      error: existingUser.length
+        ? "An account already exists with this Employee ID or email address. Please sign in or contact IT support."
+        : "A registration already exists with this Employee ID or email address. Please check your verification email or contact IT support.",
+      fieldErrors,
+    };
+  }
+  if (recentRequest.length) return { error: "A registration was recently submitted with this email address. Please wait 15 minutes before trying again." };
 
   const tokenCreatedAt = new Date();
   const cooldownUntil = tokenCreatedAt.getTime() + RESEND_COOLDOWN_MS;

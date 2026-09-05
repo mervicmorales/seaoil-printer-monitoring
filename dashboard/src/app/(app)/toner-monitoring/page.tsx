@@ -8,10 +8,9 @@ import {
   departments,
   itsNames,
 } from "@/db/schema";
-import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { CalendarDays, Droplets, Filter, PackagePlus, Pencil, Send, X } from "lucide";
 import { PageHeader, Card, TableCard, Badge, statusBadgeColor, EmptyState, IconGlyph } from "@/components/ui";
-import { formatDate } from "@/lib/format";
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
 import { deleteTransactionAction } from "./actions";
@@ -25,6 +24,38 @@ export const dynamic = "force-dynamic";
 function toArray(v: string | string[] | undefined) {
   if (!v) return [];
   return Array.isArray(v) ? v : [v];
+}
+
+function todayInManila() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+function formatTonerDate(value: string | Date | null | undefined) {
+  if (!value) return "—";
+  const dateOnly = typeof value === "string" ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null;
+  const date = dateOnly
+    ? new Date(Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])))
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: dateOnly ? "UTC" : "Asia/Manila",
+  }).format(date);
+}
+
+function displayReference(value: string | null) {
+  const normalized = value?.trim().toUpperCase();
+  return !normalized || normalized === "NA" || normalized === "N/A" ? "—" : value!.trim();
 }
 
 export default async function TonerMonitoringPage({
@@ -42,8 +73,18 @@ export default async function TonerMonitoringPage({
   const departmentFilters = toArray(sp.department).map(Number);
   const itsNameFilters = toArray(sp.itsName).map(Number);
   const ticket = typeof sp.ticket === "string" ? sp.ticket.trim() : "";
-  const dateFrom = typeof sp.dateFrom === "string" ? sp.dateFrom : "";
-  const dateTo = typeof sp.dateTo === "string" ? sp.dateTo : "";
+  const today = todayInManila();
+  const currentYearStart = `${today.slice(0, 4)}-01-01`;
+  const dateFrom = typeof sp.dateFrom === "string"
+    ? sp.dateFrom
+    : sp.dateFrom === undefined
+      ? currentYearStart
+      : "";
+  const dateTo = typeof sp.dateTo === "string"
+    ? sp.dateTo
+    : sp.dateTo === undefined
+      ? today
+      : "";
   const activeFilterCount =
     [ticket, dateFrom, dateTo].filter(Boolean).length +
     statusFilters.length +
@@ -179,7 +220,7 @@ export default async function TonerMonitoringPage({
         })}
       </section>
 
-      <CollapsibleFilterPanel activeFilterCount={activeFilterCount}>
+      <CollapsibleFilterPanel activeFilterCount={activeFilterCount} defaultOpen={false}>
         <AutoSubmitFilterForm
           method="get"
           resetKey={[
@@ -268,14 +309,16 @@ export default async function TonerMonitoringPage({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-slate-800">{t.tonerTypeName}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">{formatDate(t.date)}</p>
+                    <time dateTime={t.date} className="mt-1 block text-xs font-medium tabular-nums text-slate-500">
+                      {formatTonerDate(t.date)}
+                    </time>
                   </div>
                   <Badge color={statusBadgeColor(t.type)}>{t.type}</Badge>
                 </div>
 
                 <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
                   <TransactionField label="Quantity" value={String(t.quantity)} />
-                  <TransactionField label="Ticket / P.O" value={t.ticketReference || "—"} mono />
+                  <TransactionField label="Ticket / P.O" value={displayReference(t.ticketReference)} mono />
                   <TransactionField label="Location" value={t.locationName || "—"} />
                   <TransactionField label="Department" value={t.departmentName || "—"} />
                   <TransactionField label="ITS Name" value={t.itsName || "—"} />
@@ -303,14 +346,26 @@ export default async function TonerMonitoringPage({
           </div>
 
           <div className="hidden lg:block">
-          <table className="w-full min-w-[1100px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-              <tr>
+          <table className="w-full min-w-[1360px] table-fixed text-left text-sm">
+            <caption className="sr-only">Toner delivery and request records</caption>
+            <colgroup>
+              <col className="w-[110px]" />
+              <col className="w-[130px]" />
+              <col className="w-[140px]" />
+              <col className="w-[150px]" />
+              <col className="w-[100px]" />
+              <col className="w-[210px]" />
+              <col className="w-[130px]" />
+              <col />
+              <col className="w-[170px]" />
+            </colgroup>
+            <thead className="border-b border-slate-200 bg-slate-50/95 text-[11px] uppercase tracking-[0.055em] text-slate-500 backdrop-blur-sm">
+              <tr className="whitespace-nowrap">
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Ticket &amp; P.O Reference</th>
-                <th className="px-4 py-3">Toner Type</th>
-                <th className="px-4 py-3">Quantity</th>
+                <th className="px-4 py-3">Ticket &amp; P.O</th>
+                <th className="px-4 py-3">Toner</th>
+                <th className="px-4 py-3 text-center">Quantity</th>
                 <th className="px-4 py-3">Location / Department</th>
                 <th className="px-4 py-3">ITS Name</th>
                 <th className="px-4 py-3">Remarks</th>
@@ -319,19 +374,43 @@ export default async function TonerMonitoringPage({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {txnRows.map((t) => (
-                <tr key={t.id}>
-                  <td className="px-4 py-3"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
-                  <td className="px-4 py-3">{formatDate(t.date)}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{t.ticketReference || "—"}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-800">{t.tonerTypeName}</td>
-                  <td className="px-4 py-3 font-bold text-slate-800">{t.quantity}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-slate-700">{t.locationName || "—"}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{t.departmentName || "—"}</p>
+                <tr key={t.id} className="align-top transition-colors even:bg-slate-50/25 hover:bg-sky-50/45">
+                  <td className="px-4 py-3.5"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
+                  <td className="px-4 py-3.5">
+                    <time dateTime={t.date} className="whitespace-nowrap font-semibold tabular-nums text-slate-700">
+                      {formatTonerDate(t.date)}
+                    </time>
                   </td>
-                  <td className="px-4 py-3">{t.itsName || "—"}</td>
-                  <td className="px-4 py-3 max-w-xs truncate" title={t.remarks || ""}>{t.remarks || "—"}</td>
-                  <td className="w-px whitespace-nowrap px-4 py-3">
+                  <td className="px-4 py-3.5">
+                    {displayReference(t.ticketReference) === "—" ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      <span className="inline-flex max-w-full rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-medium text-slate-600" title={t.ticketReference || ""}>
+                        <span className="truncate">{displayReference(t.ticketReference)}</span>
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3.5 font-semibold leading-5 text-slate-800">{t.tonerTypeName}</td>
+                  <td className="px-4 py-3.5 text-center">
+                    <span className="inline-flex min-w-9 justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold tabular-nums text-slate-700">
+                      {t.quantity}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <p className="line-clamp-2 font-medium leading-5 text-slate-700" title={t.locationName || t.departmentName || ""}>
+                      {t.locationName || t.departmentName || "—"}
+                    </p>
+                    {t.locationName && t.departmentName && (
+                      <p className="mt-0.5 line-clamp-1 text-xs leading-4 text-slate-400" title={t.departmentName}>{t.departmentName}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3.5 font-medium text-slate-700">{t.itsName || <span className="text-slate-300">—</span>}</td>
+                  <td className="px-4 py-3.5">
+                    <p className="line-clamp-2 break-words text-xs leading-5 text-slate-600" title={t.remarks || ""}>
+                      {t.remarks || <span className="text-slate-300">—</span>}
+                    </p>
+                  </td>
+                  <td className="w-px whitespace-nowrap px-4 py-3.5">
                     {access.toner && (
                       <div className="flex justify-end gap-2">
                         <Link href={`/toner-monitoring/${t.id}/edit`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">

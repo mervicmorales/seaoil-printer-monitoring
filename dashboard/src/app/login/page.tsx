@@ -50,7 +50,7 @@ export default async function LoginPage({
         <div className="relative z-10 my-12 max-w-xl">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#e5eff8]">
             <IconGlyph icon={ShieldCheck} size={14} />
-            Secure employee access
+            Secured
           </span>
           <h1 className="mt-6 text-4xl font-bold leading-[1.12] tracking-[-0.035em] xl:text-5xl">
             Print &amp; Scan Anywhere.
@@ -90,7 +90,7 @@ export default async function LoginPage({
             </div>
             <div>
               <p className="font-bold leading-tight text-[#014171]">SEAOIL PrintOps</p>
-              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Secure employee access</p>
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Secured</p>
             </div>
           </div>
 

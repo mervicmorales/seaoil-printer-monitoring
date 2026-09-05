@@ -44,10 +44,10 @@ export default async function RegisterPage() {
             <div className="relative">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#e4eef8]">
                 <IconGlyph icon={ShieldCheck} size={14} />
-                Secure employee registration
+                Secured
               </span>
               <h1 className="mt-6 text-3xl font-bold leading-tight tracking-[-0.025em] sm:text-4xl lg:text-[2.6rem]">
-                Request access to printer monitoring.
+                Request access to printer anywhere.
               </h1>
               <p className="mt-4 max-w-md text-sm leading-6 text-[#cfe0f2]">
                 Create your employee profile, verify your SEAOIL email, and submit your account for administrator review.

@@ -5,9 +5,34 @@ import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { AlertCircle, ArrowLeft, BadgeCheck, Building2, KeyRound, LoaderCircle, Mail, MailCheck, Send, UserRound } from "lucide";
 import { MorphIcon } from "morphicons/react";
+import { gooeyToast } from "goey-toast";
 import SearchableSelect from "@/components/SearchableSelect";
 import { Input, PrimaryButton } from "@/components/ui";
 import { registerAction, resendVerificationAction, type RegistrationState } from "./actions";
+
+async function submitRegistration(previous: RegistrationState, formData: FormData): Promise<RegistrationState> {
+  let result: RegistrationState;
+  try {
+    result = await registerAction(previous, formData);
+  } catch {
+    result = { error: "We could not confirm your registration. Please try again or contact IT support." };
+  }
+
+  const validationError = Object.values(result.fieldErrors ?? {}).find(Boolean);
+  if (result.error || validationError) {
+    gooeyToast.error("Registration could not be completed", {
+      id: "registration-result",
+      description: result.error || validationError,
+    });
+  } else if (result.success) {
+    gooeyToast.success("Registration request submitted", {
+      id: "registration-result",
+      description: result.success,
+    });
+  }
+
+  return result;
+}
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -62,7 +87,7 @@ function ResendSubmit({ remainingSeconds }: { remainingSeconds: number }) {
 }
 
 export default function RegisterForm({ locations, departments }: { locations: { id: number; name: string }[]; departments: { id: number; name: string }[] }) {
-  const [state, action] = useActionState<RegistrationState, FormData>(registerAction, {});
+  const [state, action] = useActionState<RegistrationState, FormData>(submitRegistration, {});
 
   useEffect(() => {
     if (state.cooldownUntil) publishResendCooldown(state.cooldownUntil);
