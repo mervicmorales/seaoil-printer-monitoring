@@ -12,10 +12,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
 RUN npm run build
 
-FROM dependencies AS migrator
-
-COPY . .
-
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app

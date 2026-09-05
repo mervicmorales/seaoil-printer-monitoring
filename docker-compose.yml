@@ -20,7 +20,7 @@ services:
   db-init:
     build:
       context: ./dashboard
-      target: migrator
+      dockerfile: Dockerfile.migrate
     restart: "no"
     environment:
       NODE_ENV: production
@@ -42,7 +42,6 @@ services:
   dashboard:
     build:
       context: ./dashboard
-      target: runner
     restart: unless-stopped
     environment:
       NODE_ENV: production
