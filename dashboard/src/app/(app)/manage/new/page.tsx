@@ -41,6 +41,7 @@ export default async function NewUserPage({
           returnTo={returnTo}
           employeeOnly={session.role === "support"}
           showActions={!embedded}
+          actorRole={session.role}
         />
       </Card>
     </div>

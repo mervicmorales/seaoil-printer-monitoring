@@ -31,7 +31,8 @@ import { formatDate, formatPHP } from "@/lib/format";
 import Tabs from "@/components/Tabs";
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
-import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
+import { hasAdminPrivileges } from "@/lib/roles";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 import { deletePrinterAction } from "../actions";
 
@@ -49,7 +50,7 @@ export default async function PrinterViewPage({
   const { id } = await params;
   const sp = await searchParams;
   const returnTo = normalizePrinterReturnTo(sp.returnTo);
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("printers");
   const access = await getModuleAccessMap(session.id, session.role);
   const printerId = Number(id);
   if (!Number.isInteger(printerId) || printerId <= 0) notFound();
@@ -178,7 +179,7 @@ export default async function PrinterViewPage({
                   <Link href={`/printers/${p.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
                     <SecondaryButton>Edit Printer</SecondaryButton>
                   </Link>
-                  {session.role === "admin" ? <DeleteButton
+                  {hasAdminPrivileges(session.role) ? <DeleteButton
                     action={deletePrinterAction}
                     id={p.id}
                     confirmText="Delete this printer? This cannot be undone."

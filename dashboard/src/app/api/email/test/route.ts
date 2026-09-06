@@ -7,6 +7,8 @@ import { isValidEmail } from "@/lib/validation";
 import { db } from "@/db";
 import { systemSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { hasAdminPrivileges } from "@/lib/roles";
+import { getModuleAccessMap } from "@/lib/server-utils";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,7 +48,8 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
-  if (session.role !== "admin") {
+  const access = await getModuleAccessMap(session.id, session.role);
+  if (!hasAdminPrivileges(session.role) || !access.system) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 

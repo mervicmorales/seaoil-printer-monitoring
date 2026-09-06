@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,6 +8,7 @@ import UserForm from "../../UserForm";
 import { updateUserAction } from "../../actions";
 import { requireAdmin } from "@/lib/server-utils";
 import { getDepartments, getLocations } from "@/lib/lookups";
+import { canManageRole } from "@/lib/roles";
 
 export default async function EditUserPage({
   params,
@@ -16,7 +17,7 @@ export default async function EditUserPage({
   params: Promise<{ id: string }>;
   embedded?: boolean;
 }) {
-  await requireAdmin();
+  const actor = await requireAdmin("manage_users");
   const { id } = await params;
   const [rows, locations, departments] = await Promise.all([
     db.select().from(users).where(eq(users.id, Number(id))).limit(1),
@@ -25,6 +26,7 @@ export default async function EditUserPage({
   ]);
   const user = rows[0];
   if (!user) notFound();
+  if (!canManageRole(actor.role, user.role)) redirect("/access-denied");
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -50,6 +52,7 @@ export default async function EditUserPage({
           locations={locations}
           departments={departments}
           showActions={!embedded}
+          actorRole={actor.role}
         />
       </Card>
     </div>

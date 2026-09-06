@@ -4,7 +4,7 @@ import { printers, locations, departments } from "@/db/schema";
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { Eye, Plus, Printer } from "lucide";
 import { Badge, PageHeader, TableCard, EmptyState, statusBadgeColor, IconGlyph } from "@/components/ui";
-import { requireSession, getModuleAccessMap } from "@/lib/server-utils";
+import { requireModuleFullAccess, getModuleAccessMap } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import SuccessBanner from "@/components/SuccessBanner";
 import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
@@ -49,7 +49,7 @@ export default async function PrintersPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; location?: string; success?: string }>;
 }) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("printers");
   const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
   const query = params.q?.trim() ?? "";

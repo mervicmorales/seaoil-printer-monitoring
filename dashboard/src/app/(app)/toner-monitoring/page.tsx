@@ -14,7 +14,7 @@ import { PageHeader, Card, TableCard, Badge, statusBadgeColor, EmptyState, IconG
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
 import { deleteTransactionAction } from "./actions";
-import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
 import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
 import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
 import SearchInput from "@/components/SearchInput";
@@ -63,7 +63,7 @@ export default async function TonerMonitoringPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("toner");
   const access = await getModuleAccessMap(session.id, session.role);
   const sp = await searchParams;
 

@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/server-utils";
 import TicketStatusSelect from "../../TicketStatusSelect";
 
 export default async function EditTicketPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requireAdmin("repair");
   const { id } = await params;
   const ticketId = Number(id);
   if (!Number.isInteger(ticketId) || ticketId <= 0) notFound();

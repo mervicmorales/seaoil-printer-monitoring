@@ -1,7 +1,13 @@
 import { and, asc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { departments, locations, printers, users } from "@/db/schema";
+import {
+  departments,
+  locations,
+  printers,
+  userPrinterPermissions,
+  users,
+} from "@/db/schema";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireSession } from "@/lib/server-utils";
 
@@ -27,7 +33,7 @@ export default async function PortalPage() {
 
   if (!employee) redirect("/login");
 
-  const availablePrinters = employee.primaryLocationId && employee.departmentId
+  const availablePrinters = employee.primaryLocationId
     ? await db.select({
         id: printers.id,
         assetTag: printers.assetTag,
@@ -35,9 +41,16 @@ export default async function PortalPage() {
         model: printers.model,
         assignedUser: printers.assignedUser,
         status: printers.status,
-      }).from(printers).where(and(
+      }).from(printers)
+        .innerJoin(
+          userPrinterPermissions,
+          and(
+            eq(userPrinterPermissions.printerId, printers.id),
+            eq(userPrinterPermissions.userId, session.id),
+          ),
+        )
+        .where(and(
         eq(printers.locationId, employee.primaryLocationId),
-        eq(printers.departmentId, employee.departmentId),
         eq(printers.status, "Active"),
       )).orderBy(asc(printers.model), asc(printers.serialNumber))
     : [];
@@ -72,12 +85,12 @@ export default async function PortalPage() {
           <div className="border-b border-slate-200 px-6 py-4">
             <h2 className="font-semibold text-[#014171]">Available Printers</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Active printers assigned to {employee.location || "your location"} and {employee.department || "your department"}.
+              Printers granted to your account at {employee.location || "your assigned location"}.
             </p>
           </div>
           {availablePrinters.length === 0 ? (
             <div className="p-6">
-              <EmptyState message="No active printers are available for your location and department." />
+              <EmptyState message="No printers have been granted to your account yet." />
             </div>
           ) : (
             <div className="overflow-x-auto">

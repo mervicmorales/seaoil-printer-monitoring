@@ -9,6 +9,7 @@ import { printerLabel } from "./print-target-state";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type PreviewKind = "pdf" | "image" | "text" | "unsupported";
+type PrinterOption = PrintOpsPrinterTarget & { agentId?: number };
 
 export default function PrintFilePreview({
   initialTarget,
@@ -17,7 +18,7 @@ export default function PrintFilePreview({
 }: {
   initialTarget: string;
   selectedAgentId: string;
-  printers: PrintOpsPrinterTarget[];
+  printers: PrinterOption[];
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -207,7 +208,10 @@ export default function PrintFilePreview({
                     >
                       {printers.length === 0 && <option value="">No available printers</option>}
                       {printers.map((printer) => (
-                        <option key={printer.printerId} value={`${selectedAgentId}|${printer.printerId}`}>
+                        <option
+                          key={`${printer.agentId ?? selectedAgentId}-${printer.printerId}`}
+                          value={`${printer.agentId ?? selectedAgentId}|${printer.printerId}`}
+                        >
                           {printerLabel(printer)}
                         </option>
                       ))}

@@ -41,14 +41,14 @@ function revalidateAll() {
 
 // ---------- LOCATIONS ----------
 export async function addLocationAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const name = str(formData.get("name"));
   if (name) await db.insert(locations).values({ name }).onConflictDoNothing();
   revalidateAll();
   redirect("/system?tab=locations&success=Location added.");
 }
 export async function updateLocationAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   const name = str(formData.get("name"));
   if (id && name) await db.update(locations).set({ name }).where(eq(locations.id, id));
@@ -56,7 +56,7 @@ export async function updateLocationAction(formData: FormData) {
   redirect("/system?tab=locations&success=Location updated.");
 }
 export async function deleteLocationAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(locations).where(eq(locations.id, id));
   revalidateAll();
@@ -65,14 +65,14 @@ export async function deleteLocationAction(formData: FormData) {
 
 // ---------- DEPARTMENTS ----------
 export async function addDepartmentAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const name = str(formData.get("name"));
   if (name) await db.insert(departments).values({ name }).onConflictDoNothing();
   revalidateAll();
   redirect("/system?tab=departments&success=Department added.");
 }
 export async function updateDepartmentAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   const name = str(formData.get("name"));
   if (id && name) await db.update(departments).set({ name }).where(eq(departments.id, id));
@@ -80,7 +80,7 @@ export async function updateDepartmentAction(formData: FormData) {
   redirect("/system?tab=departments&success=Department updated.");
 }
 export async function deleteDepartmentAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(departments).where(eq(departments.id, id));
   revalidateAll();
@@ -89,14 +89,14 @@ export async function deleteDepartmentAction(formData: FormData) {
 
 // ---------- ITS NAMES ----------
 export async function addItsNameAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const name = str(formData.get("name"));
   if (name) await db.insert(itsNames).values({ name }).onConflictDoNothing();
   revalidateAll();
   redirect("/system?tab=its&success=ITS Name added.");
 }
 export async function deleteItsNameAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(itsNames).where(eq(itsNames.id, id));
   revalidateAll();
@@ -105,7 +105,7 @@ export async function deleteItsNameAction(formData: FormData) {
 
 // ---------- TONER TYPES ----------
 export async function addTonerTypeAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const name = str(formData.get("name"));
   if (name) {
     const inserted = await db.insert(tonerTypes).values({ name }).onConflictDoNothing().returning();
@@ -117,7 +117,7 @@ export async function addTonerTypeAction(formData: FormData) {
   redirect("/system?tab=toner&success=Toner Type added. Dashboard alert card created.");
 }
 export async function updateTonerTypeAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   const name = str(formData.get("name"));
   if (id && name) await db.update(tonerTypes).set({ name }).where(eq(tonerTypes.id, id));
@@ -125,7 +125,7 @@ export async function updateTonerTypeAction(formData: FormData) {
   redirect("/system?tab=toner&success=Toner Type updated.");
 }
 export async function deleteTonerTypeAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(tonerTypes).where(eq(tonerTypes.id, id));
   revalidateAll();
@@ -151,7 +151,7 @@ export async function updateThresholdAction(formData: FormData) {
   redirect("/system?tab=toner&success=Inventory thresholds updated.");
 }
 export async function updateAlertCardVisibilityAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("tonerTypeId"));
   if (id) {
     await db
@@ -165,7 +165,7 @@ export async function updateAlertCardVisibilityAction(formData: FormData) {
 
 // ---------- VENDORS ----------
 export async function addVendorAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const name = str(formData.get("name"));
   if (name) {
     await db.insert(vendors).values({
@@ -179,7 +179,7 @@ export async function addVendorAction(formData: FormData) {
   redirect("/system?tab=vendors&success=Vendor added.");
 }
 export async function updateVendorAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) {
     await db
@@ -196,7 +196,7 @@ export async function updateVendorAction(formData: FormData) {
   redirect("/system?tab=vendors&success=Vendor updated.");
 }
 export async function deleteVendorAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(vendors).where(eq(vendors.id, id));
   revalidateAll();
@@ -205,7 +205,7 @@ export async function deleteVendorAction(formData: FormData) {
 
 // ---------- SETTINGS ----------
 export async function updateSettingsAction(formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("system");
   const rows = await db.select().from(systemSettings).limit(1);
   
   // Validate comma-separated emails
@@ -239,7 +239,7 @@ export async function updateSettingsAction(formData: FormData) {
 }
 
 export async function updateSmtpSettingsAction(formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("system");
   const [existing] = await db.select().from(systemSettings).limit(1);
   const enabled = formData.get("smtpEnabled") === "on";
   const host = str(formData.get("smtpHost"));

@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { PageHeader, TableCard, Badge, EmptyState } from "@/components/ui";
 import SuccessBanner from "@/components/SuccessBanner";
 import { requireModuleFullAccess } from "@/lib/server-utils";
+import { roleLabel } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -56,9 +57,9 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
                     <p className="font-medium text-slate-800">{u.fullName}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{u.employeeId || "—"}</p>
                   </td>
-                  <td className="px-4 py-3 align-top">{u.email}</td>
+                  <td className="px-4 py-3 align-top">{u.email || "—"}</td>
                   <td className="px-4 py-3 align-top">{[u.location, u.department].filter(Boolean).join(" / ") || "—"}</td>
-                  <td className="px-4 py-3 align-top"><Badge color={u.role === "admin" ? "blue" : "gray"}>{u.role}</Badge></td>
+                  <td className="px-4 py-3 align-top"><Badge color={u.role === "super_admin" ? "orange" : u.role === "admin" ? "blue" : "gray"}>{roleLabel(u.role)}</Badge></td>
                   <td className="px-4 py-3 align-top"><Badge color={u.accountStatus === "active" ? "green" : "red"}>{u.accountStatus}</Badge></td>
                   <td className="px-4 py-3 text-right align-top">
                     <Link href={`/manage/users/${u.id}`} className="inline-flex rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-[#014171] transition hover:bg-sky-100">View</Link>

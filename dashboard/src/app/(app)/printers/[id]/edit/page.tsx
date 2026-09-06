@@ -19,6 +19,7 @@ import { todayISO } from "@/lib/format";
 import ReplacementForm from "./ReplacementForm";
 import PrinterStatusSelect from "./PrinterStatusSelect";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
+import { hasAdminPrivileges } from "@/lib/roles";
 
 export default async function EditPrinterPage({
   params,
@@ -67,7 +68,7 @@ export default async function EditPrinterPage({
         subtitle={`Serial Number: ${printer.serialNumber}`}
         actions={embedded ? (
           <div className="flex flex-wrap items-end gap-2">
-            {session.role === "admin" && (
+            {hasAdminPrivileges(session.role) && (
               <PrinterStatusSelect
                 currentStatus={printer.status}
                 formId="printer-edit-form"
@@ -83,7 +84,7 @@ export default async function EditPrinterPage({
               Save Changes
             </PrimaryButton>
           </div>
-        ) : session.role === "admin" ? (
+        ) : hasAdminPrivileges(session.role) ? (
           <PrinterStatusSelect
             currentStatus={printer.status}
             formId="printer-edit-form"
@@ -123,7 +124,7 @@ export default async function EditPrinterPage({
                   </p>
                   </div>
                 </div>
-                {session.role === "admin" ? <ReplacementForm
+                {hasAdminPrivileges(session.role) ? <ReplacementForm
                   action={addReplacementAction}
                   printerId={printer.id}
                   oldSerialNumber={printer.serialNumber}

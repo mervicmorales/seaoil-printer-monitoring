@@ -36,7 +36,7 @@ export async function updatePrinterStatusAction(
   printerId: number,
   status: string,
 ): Promise<{ success: boolean }> {
-  await requireAdmin();
+  await requireAdmin("printers");
 
   if (!Number.isInteger(printerId) || !PRINTER_STATUSES.some((item) => item === status)) {
     return { success: false };
@@ -255,7 +255,7 @@ export async function updatePrinterAction(
 }
 
 export async function deletePrinterAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("printers");
   const id = num(formData.get("id"));
   if (!id) return;
   await db.delete(printers).where(eq(printers.id, id));
@@ -268,7 +268,7 @@ export async function addReplacementAction(
   _prev: PrinterFormState,
   formData: FormData,
 ): Promise<PrinterFormState> {
-  await requireAdmin();
+  await requireAdmin("printers");
 
   const printerId = num(formData.get("printerId"));
   const newSerialNumber = str(formData.get("newSerialNumber"));

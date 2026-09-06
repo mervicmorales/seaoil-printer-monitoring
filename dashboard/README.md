@@ -4,7 +4,9 @@
 
 The dashboard uses PostgreSQL 17 in Docker on local port 5433. Credentials are
 stored in the gitignored `.env.docker` file. Copy `.env.docker.example` when
-setting up another machine and replace its placeholder password.
+setting up another machine and replace its placeholder passwords. The
+`SEED_SUPER_ADMIN_PASSWORD` value is required when seeding and must be kept in
+the local environment only.
 
 On the first run, initialize the database with:
 

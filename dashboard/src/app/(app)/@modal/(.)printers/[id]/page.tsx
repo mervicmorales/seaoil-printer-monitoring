@@ -8,7 +8,7 @@ import DeleteButton from "@/components/DeleteButton";
 import { db } from "@/db";
 import { departments, locations, printers } from "@/db/schema";
 import { deletePrinterAction } from "@/app/(app)/printers/actions";
-import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 import { IconGlyph } from "@/components/ui";
 
@@ -21,7 +21,7 @@ export default async function PrinterViewModal({
 }) {
   const resolvedSearchParams = await searchParams;
   const returnTo = normalizePrinterReturnTo(resolvedSearchParams.returnTo);
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("printers");
   const access = await getModuleAccessMap(session.id, session.role);
   const { id } = await params;
   const printerId = Number(id);

@@ -33,8 +33,6 @@ export default async function EmployeePortalLayout({ children }: { children: Rea
     >
       <div className="flex min-h-screen bg-[#f4f6f9]">
         <Sidebar
-          isAdmin={false}
-          canManageSpot={false}
           logoUrl={settingsRows[0]?.logoUrl ?? null}
           accountName={accountName || "SEAOIL Employee"}
           initialCollapsed={collapsedCookie === undefined ? null : collapsedCookie === "true"}

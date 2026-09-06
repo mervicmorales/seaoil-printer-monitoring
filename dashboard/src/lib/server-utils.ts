@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { emptyModuleAccess, MODULES, type ModuleName } from "@/lib/permissions";
+import { hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
 
 export async function requireSession() {
   const session = await getSession();
@@ -12,8 +13,8 @@ export async function requireSession() {
   return session;
 }
 
-export async function getModuleAccessMap(userId: number, role: "admin" | "support" | "employee") {
-  if (role === "admin") {
+export async function getModuleAccessMap(userId: number, role: UserRole) {
+  if (isSuperAdmin(role)) {
     return Object.fromEntries(MODULES.map((module) => [module, true])) as Record<
       ModuleName,
       boolean
@@ -39,9 +40,13 @@ export async function requireModuleFullAccess(module: ModuleName) {
   return session;
 }
 
-export async function requireAdmin() {
+export async function requireAdmin(module: ModuleName) {
   const session = await requireSession();
-  if (session.role !== "admin") {
+  if (!hasAdminPrivileges(session.role)) {
+    redirect("/access-denied");
+  }
+  const map = await getModuleAccessMap(session.id, session.role);
+  if (!map[module]) {
     redirect("/access-denied");
   }
   return session;

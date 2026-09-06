@@ -19,6 +19,7 @@ import TonerTypeManager from "./TonerTypeManager";
 import ReminderSettingsForm from "./ReminderSettingsForm";
 import SmtpSettingsForm from "./SmtpSettingsForm";
 import { getSystemSettings, requireModuleFullAccess } from "@/lib/server-utils";
+import { hasAdminPrivileges } from "@/lib/roles";
 import {
   addLocationAction,
   updateLocationAction,
@@ -81,8 +82,11 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
   return (
     <div className="flex h-[calc(100dvh-7rem)] min-h-[36rem] flex-col">
       <PageHeader title="System Settings" subtitle="Manage reference data, notifications, integrations, and monitoring preferences." />
-      <SuccessBanner message={sp.success} />
-      {sp.error && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{sp.error}</p>}
+      <SuccessBanner
+        message={sp.success}
+        errorMessage={sp.error}
+        showInline={false}
+      />
 
       <Tabs
         fillHeight
@@ -92,7 +96,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
             key: "email",
             label: "Email / SMTP",
             icon: Mail,
-            content: <Card className="h-full overflow-auto p-5 sm:p-6">{session.role === "admin" ? <SmtpSettingsForm action={updateSmtpSettingsAction} settings={publicSmtpSettings} /> : <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">Administrator access is required.</p>}</Card>,
+            content: <Card className="h-full overflow-auto p-5 sm:p-6">{hasAdminPrivileges(session.role) ? <SmtpSettingsForm action={updateSmtpSettingsAction} settings={publicSmtpSettings} /> : <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">Administrator access is required.</p>}</Card>,
           },
           {
             key: "locations",
@@ -106,7 +110,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   updateAction={updateLocationAction}
                   deleteAction={deleteLocationAction}
                   placeholder="e.g. Head Office"
-                  readOnly={session.role !== "admin"}
+                  readOnly={!hasAdminPrivileges(session.role)}
                   fillHeight
                   title="Office locations"
                   description="Locations used for printer, user, and monitoring assignments."
@@ -126,7 +130,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   updateAction={updateDepartmentAction}
                   deleteAction={deleteDepartmentAction}
                   placeholder="e.g. IT Services"
-                  readOnly={session.role !== "admin"}
+                  readOnly={!hasAdminPrivileges(session.role)}
                   fillHeight
                   title="Departments"
                   description="Departments used to organize users and printer assignments."
@@ -154,7 +158,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   deleteAction={deleteTonerTypeAction}
                   thresholdAction={updateThresholdAction}
                   visibilityAction={updateAlertCardVisibilityAction}
-                  isAdmin={session.role === "admin"}
+                  isAdmin={hasAdminPrivileges(session.role)}
                 />
               </Card>
             ),
@@ -165,7 +169,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
             icon: Truck,
             content: (
               <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
-                <VendorManager vendors={allVendors} addAction={addVendorAction} updateAction={updateVendorAction} deleteAction={deleteVendorAction} readOnly={session.role !== "admin"} />
+                <VendorManager vendors={allVendors} addAction={addVendorAction} updateAction={updateVendorAction} deleteAction={deleteVendorAction} readOnly={!hasAdminPrivileges(session.role)} />
               </Card>
             ),
           },
@@ -175,7 +179,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
             icon: UserRound,
             content: (
               <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
-                <LookupTable items={allItsNames} addAction={addItsNameAction} deleteAction={deleteItsNameAction} editable={false} readOnly={session.role !== "admin"} placeholder="e.g. Patrick" fillHeight title="ITS names" description="Support names available in printer and service records." />
+                <LookupTable items={allItsNames} addAction={addItsNameAction} deleteAction={deleteItsNameAction} editable={false} readOnly={!hasAdminPrivileges(session.role)} placeholder="e.g. Patrick" fillHeight title="ITS names" description="Support names available in printer and service records." />
               </Card>
             ),
           },
@@ -185,7 +189,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
             icon: BellRing,
             content: (
               <Card className="h-full overflow-auto p-5 sm:p-6">
-                <ReminderSettingsForm action={updateSettingsAction} settings={settings} readOnly={session.role !== "admin"} />
+                <ReminderSettingsForm action={updateSettingsAction} settings={settings} readOnly={!hasAdminPrivileges(session.role)} />
               </Card>
             ),
           },

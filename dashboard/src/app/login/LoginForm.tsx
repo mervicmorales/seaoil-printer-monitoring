@@ -3,8 +3,9 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { AlertCircle, AtSign, Eye, EyeOff, LoaderCircle, LockKeyhole, LogIn } from "lucide";
+import { AtSign, Eye, EyeOff, LoaderCircle, LockKeyhole, LogIn } from "lucide";
 import { MorphIcon } from "morphicons/react";
+import { gooeyToast } from "goey-toast";
 import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
@@ -27,13 +28,6 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
   return (
     <>
       <input type="hidden" name="next" value={nextPath} />
-
-      {state.error ? (
-        <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
-          <MorphIcon icon={AlertCircle} size={18} strokeWidth={2} reducedMotion="user" className="mt-0.5 shrink-0" />
-          <span>{state.error}</span>
-        </div>
-      ) : null}
 
       <div className="space-y-5">
         <div>
@@ -138,6 +132,14 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
 
 export default function LoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
   const [state, formAction] = useActionState(loginAction, initialState);
+
+  useEffect(() => {
+    if (!state.error) return;
+    gooeyToast.error("Sign in failed", {
+      id: "login-result",
+      description: state.error,
+    });
+  }, [state]);
 
   return (
     <form action={formAction} className="mt-6 space-y-5" noValidate>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AlertCircle, ArrowLeft, BadgeCheck, Building2, KeyRound, LoaderCircle, Mail, MailCheck, Send, UserRound } from "lucide";
+import { ArrowLeft, Building2, KeyRound, LoaderCircle, Mail, MailCheck, Send, UserRound } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { gooeyToast } from "goey-toast";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -95,19 +95,6 @@ export default function RegisterForm({ locations, departments }: { locations: { 
 
   return (
     <form action={action} className="space-y-7">
-      {state.success && (
-        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-700">
-          <MorphIcon icon={BadgeCheck} size={18} strokeWidth={2} reducedMotion="user" className="mt-0.5 shrink-0" />
-          <span>{state.success}</span>
-        </div>
-      )}
-      {state.error && (
-        <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
-          <MorphIcon icon={AlertCircle} size={18} strokeWidth={2} reducedMotion="user" className="mt-0.5 shrink-0" />
-          <span>{state.error}</span>
-        </div>
-      )}
-
       <FormSection icon={UserRound} title="Employee information" description="Enter the details shown on your company records.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Input id="registration-full-name" label="Full Name" name="fullName" autoComplete="name" required error={state.fieldErrors?.fullName} />
@@ -185,6 +172,20 @@ export function ResendVerificationForm() {
   }, []);
 
   useEffect(() => {
+    if (state.error) {
+      gooeyToast.error("Verification email could not be sent", {
+        id: "registration-resend-result",
+        description: state.error,
+      });
+    } else if (state.success) {
+      gooeyToast.success("Verification email requested", {
+        id: "registration-resend-result",
+        description: state.success,
+      });
+    }
+  }, [state]);
+
+  useEffect(() => {
     if (!state.cooldownUntil) return;
     const timer = window.setTimeout(() => {
       publishResendCooldown(state.cooldownUntil!);
@@ -232,7 +233,6 @@ export function ResendVerificationForm() {
         />
         <ResendSubmit remainingSeconds={remainingSeconds} />
       </div>
-      {state.success && <p className="mt-3 text-xs font-medium text-emerald-700">{state.success}</p>}
       {remainingSeconds > 0 && (
         <p aria-live="polite" className="mt-3 text-xs font-medium text-amber-700">
           You can request another verification email in {formatCountdown(remainingSeconds)}.

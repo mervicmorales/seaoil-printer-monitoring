@@ -48,7 +48,7 @@ type NavItem = {
   icon: IconNode;
   module?: ModuleName;
   separated?: boolean;
-  children?: Array<{ href: string; label: string; icon: IconNode; module?: ModuleName; adminOnly?: boolean; disabled?: boolean }>;
+  children?: Array<{ href: string; label: string; icon: IconNode; module?: ModuleName; disabled?: boolean }>;
 };
 
 const NAV: NavItem[] = [
@@ -60,8 +60,8 @@ const NAV: NavItem[] = [
     module: "printers",
     children: [
       { href: "/printers", label: "Printer Records", icon: Printer, module: "printers" },
-      { href: "/printdash/alerts", label: "Monitoring Alert", icon: Bell, module: "spot" },
-      { href: "/printdash/discover", label: "Discover Printers", icon: Radar, module: "spot", adminOnly: true },
+      { href: "/printdash/alerts", label: "Monitoring Alerts", icon: Bell, module: "printers" },
+      { href: "/printdash/discover", label: "Discover Printers", icon: Radar, module: "printers" },
     ],
   },
   { href: "/toner-monitoring", label: MODULE_LABELS.toner, icon: Droplets, module: "toner", separated: true },
@@ -76,7 +76,6 @@ const NAV: NavItem[] = [
     children: [
       { href: "/printops/print", label: "Print", icon: Printer },
       { href: "/printops/scan", label: "Scan", icon: Radar },
-      { href: "/printops/jobs", label: "Print Jobs", icon: FileText },
     ],
   },
   { href: "/manage/registrations", label: MODULE_LABELS.registrations, icon: KeyRound, separated: true, module: "registrations" },
@@ -87,14 +86,13 @@ const NAV: NavItem[] = [
 const EMPLOYEE_NAV: NavItem[] = [
   { href: "/portal", label: "Employee Portal", icon: LayoutDashboard },
   {
-    href: "/portal#print-services",
-    label: "Print Services",
+    href: "/portal/printer-services",
+    label: "Printer Services",
     icon: Printer,
     separated: true,
     children: [
-      { href: "#employee-print", label: "Print", icon: Printer, disabled: true },
-      { href: "#employee-scan", label: "Scan", icon: Radar, disabled: true },
-      { href: "#employee-print-jobs", label: "PrintJobs", icon: FileText, disabled: true },
+      { href: "/portal/print", label: "Print", icon: Printer },
+      { href: "/portal/scan", label: "Scan", icon: Radar },
     ],
   },
 ];
@@ -120,16 +118,12 @@ function StaticIcon({ icon, size = 19 }: { icon: IconNode; size?: number }) {
 }
 
 export default function Sidebar({
-  isAdmin,
-  canManageSpot,
   logoUrl,
   accountName,
   initialCollapsed,
   moduleAccess,
   employeeMode = false,
 }: {
-  isAdmin: boolean;
-  canManageSpot: boolean;
   logoUrl: string | null;
   accountName: string;
   initialCollapsed: boolean | null;
@@ -354,7 +348,7 @@ export default function Sidebar({
             const sectionActive = active || childRouteActive || directDescendantActive;
             const isPrinters = item.href === "/printers";
             const isPrintOps = item.href === "/printops";
-            const isEmployeeServices = item.href === "/portal#print-services";
+            const isEmployeeServices = item.href === "/portal/printer-services";
             const isDropdown = isPrinters || isPrintOps || isEmployeeServices;
             const submenuOpen = isPrinters
               ? printersOpen
@@ -447,7 +441,7 @@ export default function Sidebar({
                   >
                     <div className="min-h-0 overflow-hidden">
                       <div className="space-y-1 pl-8 lg:pl-0">
-                        {item.children.filter((child) => !child.adminOnly || isAdmin || canManageSpot).map((child) => {
+                        {item.children.map((child) => {
                           const childActive = pathname === child.href || pathname.startsWith(`${child.href}/`);
                           return (
                             <div key={child.href} className="group/child relative">

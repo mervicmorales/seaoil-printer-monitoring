@@ -5,11 +5,12 @@ import { eq } from "drizzle-orm";
 import { ClipboardList } from "lucide";
 import { PageHeader, Card, Badge, statusBadgeColor, IconGlyph } from "@/components/ui";
 import { formatDate } from "@/lib/format";
-import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
 import DeleteButton from "@/components/DeleteButton";
 import { deleteTicketAction, updateTicketDetailsAction } from "../actions";
 import TicketStatusSelect from "../TicketStatusSelect";
 import TicketDetailsForm from "./TicketDetailsForm";
+import { hasAdminPrivileges } from "@/lib/roles";
 
 export default async function ViewTicketPage({
   params,
@@ -18,7 +19,7 @@ export default async function ViewTicketPage({
   params: Promise<{ id: string }>;
   embedded?: boolean;
 }) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("repair");
   const access = await getModuleAccessMap(session.id, session.role);
   const { id } = await params;
   const ticketId = Number(id);
@@ -55,7 +56,7 @@ export default async function ViewTicketPage({
                   currentStatus={t.status}
                   formId="repair-ticket-details-form"
                 />
-                {session.role === "admin" && <div className="pt-5">
+                {hasAdminPrivileges(session.role) && <div className="pt-5">
                   <DeleteButton
                     action={deleteTicketAction}
                     id={t.id}

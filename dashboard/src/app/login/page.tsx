@@ -1,8 +1,9 @@
 import { db } from "@/db";
 import { systemSettings } from "@/db/schema";
-import { AlertCircle, BarChart3, CheckCircle2, LockKeyhole, Printer, ShieldCheck, type IconNode } from "lucide";
+import { BarChart3, LockKeyhole, Printer, ShieldCheck, type IconNode } from "lucide";
 import { IconGlyph } from "@/components/ui";
 import LoginForm from "./LoginForm";
+import LoginStatusToasts, { type LoginStatusNotice } from "./LoginStatusToasts";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export default async function LoginPage({
     .from(systemSettings)
     .limit(1);
   const logoUrl = settings?.logoUrl ?? null;
+  const statusNotice = getLoginStatusNotice(params);
 
   return (
     <main className="relative grid min-h-screen grid-cols-1 overflow-hidden bg-[#f4f7fa] lg:grid-cols-[minmax(0,1.05fr)_minmax(28rem,0.95fr)]">
@@ -103,26 +105,7 @@ export default async function LoginPage({
               </p>
             </div>
 
-            {params.verified === "account-activated" && (
-              <StatusNotice tone="success" icon={CheckCircle2}>
-                Your email has been verified and your account is now active. You can sign in.
-              </StatusNotice>
-            )}
-            {params.reset === "success" && (
-              <StatusNotice tone="success" icon={CheckCircle2}>
-                Your password has been updated. Sign in with your new password.
-              </StatusNotice>
-            )}
-            {params.verified === "1" && (
-              <StatusNotice tone="info" icon={CheckCircle2}>
-                Your email has been verified. Your registration is now awaiting administrator approval.
-              </StatusNotice>
-            )}
-            {(params.verified === "0" || params.verified === "invalid") && (
-              <StatusNotice tone="error" icon={AlertCircle} alert>
-                This verification link is invalid, expired, or has already been used.
-              </StatusNotice>
-            )}
+            <LoginStatusToasts notice={statusNotice} />
 
             <LoginForm nextPath={params.next ?? "/dashboard"} />
 
@@ -155,27 +138,37 @@ function FeatureItem({ icon, label }: { icon: IconNode; label: string }) {
   );
 }
 
-function StatusNotice({
-  tone,
-  icon,
-  alert = false,
-  children,
-}: {
-  tone: "success" | "info" | "error";
-  icon: IconNode;
-  alert?: boolean;
-  children: React.ReactNode;
-}) {
-  const styles = {
-    success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    info: "border-sky-200 bg-sky-50 text-sky-700",
-    error: "border-red-200 bg-red-50 text-red-700",
-  }[tone];
-
-  return (
-    <div role={alert ? "alert" : "status"} className={`mt-5 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-5 ${styles}`}>
-      <span className="mt-0.5 shrink-0"><IconGlyph icon={icon} size={17} /></span>
-      <span>{children}</span>
-    </div>
-  );
+function getLoginStatusNotice(params: {
+  verified?: string;
+  reset?: string;
+}): LoginStatusNotice | null {
+  if (params.verified === "account-activated") {
+    return {
+      tone: "success",
+      title: "Account activated",
+      message: "Your email has been verified and your account is now active. You can sign in.",
+    };
+  }
+  if (params.reset === "success") {
+    return {
+      tone: "success",
+      title: "Password updated",
+      message: "Sign in with your new password.",
+    };
+  }
+  if (params.verified === "1") {
+    return {
+      tone: "info",
+      title: "Email verified",
+      message: "Your registration is now awaiting administrator approval.",
+    };
+  }
+  if (params.verified === "0" || params.verified === "invalid") {
+    return {
+      tone: "error",
+      title: "Verification link invalid",
+      message: "This verification link is invalid, expired, or has already been used.",
+    };
+  }
+  return null;
 }

@@ -14,24 +14,39 @@ function seedPassword(name, developmentDefault) {
   throw new Error(`${name} is required in production and must contain at least 12 characters`);
 }
 
+function requiredSeedPassword(name) {
+  const value = process.env[name]?.trim();
+  if (value && value.length >= 12) return value;
+  throw new Error(`${name} is required and must contain at least 12 characters`);
+}
+
 const MODULES = [
   "dashboard",
   "printers",
   "toner",
   "contract",
   "repair",
-  "spot",
   "printops",
   "system",
   "manage_users",
   "registrations",
 ];
 
-async function upsertUser(fullName, email, username, password, role) {
+async function upsertUser(fullName, email, username, password, role, syncAccount = false) {
   const existing = await pool.query("select id from users where username = $1", [username]);
   let userId;
   if (existing.rows.length) {
     userId = existing.rows[0].id;
+    if (syncAccount) {
+      const hash = await bcrypt.hash(password, 10);
+      await pool.query(
+        `update users
+         set full_name = $1, email = $2, password_hash = $3, role = $4, account_status = 'active'
+         where id = $5`,
+        [fullName, email, hash, role, userId],
+      );
+      console.log(`Updated ${role} user '${username}'.`);
+    }
   } else {
     const hash = await bcrypt.hash(password, 10);
     const res = await pool.query(
@@ -42,12 +57,20 @@ async function upsertUser(fullName, email, username, password, role) {
     console.log(`Created ${role} user '${username}'.`);
   }
   for (const mod of MODULES) {
-    const full = role === "admin" ? true : mod === "toner";
-    await pool.query(
-      `insert into user_module_access (user_id, module, full_access) values ($1,$2,$3)
-       on conflict (user_id, module) do nothing`,
-      [userId, mod, full],
-    );
+    const full = role === "super_admin" || role === "admin" ? true : mod === "toner";
+    if (syncAccount) {
+      await pool.query(
+        `insert into user_module_access (user_id, module, full_access) values ($1,$2,$3)
+         on conflict (user_id, module) do update set full_access = excluded.full_access`,
+        [userId, mod, full],
+      );
+    } else {
+      await pool.query(
+        `insert into user_module_access (user_id, module, full_access) values ($1,$2,$3)
+         on conflict (user_id, module) do nothing`,
+        [userId, mod, full],
+      );
+    }
   }
 }
 
@@ -56,8 +79,11 @@ async function upsertLookup(table, name) {
 }
 
 async function main() {
+  const superAdminPassword = requiredSeedPassword("SEED_SUPER_ADMIN_PASSWORD");
   const adminPassword = seedPassword("SEED_ADMIN_PASSWORD", "Admin@12345");
   const supportPassword = seedPassword("SEED_SUPPORT_PASSWORD", "User@12345");
+  await pool.query("delete from user_module_access where module = 'spot'");
+  await upsertUser("Super Admin", "", "super_admin", superAdminPassword, "super_admin", true);
   await upsertUser("System Administrator", "admin@seaoil.com.ph", "admin", adminPassword, "admin");
   await upsertUser("Sample Support", "user@seaoil.com.ph", "user", supportPassword, "support");
 

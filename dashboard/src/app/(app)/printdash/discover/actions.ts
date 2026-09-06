@@ -8,7 +8,7 @@ import { monitoringAgents, printerDiscoveryScans } from "@/db/schema";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export async function queueDiscoveryScanAction(formData: FormData) {
-  const session = await requireModuleFullAccess("spot");
+  const session = await requireModuleFullAccess("printers");
   const agentId = Number(String(formData.get("agentId") ?? ""));
   const subnet = String(formData.get("subnet") ?? "").trim();
 

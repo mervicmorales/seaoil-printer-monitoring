@@ -58,10 +58,6 @@ export function normalizePrintOpsSnapshot(value: unknown): PrintOpsSnapshot {
   };
 }
 
-export function printOpsJobId(job: string) {
-  return job.trim().split(/\s+/)[0] ?? "";
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

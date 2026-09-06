@@ -2,14 +2,24 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { departments, locations, userModuleAccess, users } from "@/db/schema";
-import { Card, PageHeader, SecondaryButton } from "@/components/ui";
+import { departments, locations, userModuleAccess, userPrinterPermissions, users } from "@/db/schema";
+import { Card, IconGlyph, PageHeader, SecondaryButton } from "@/components/ui";
 import DeleteButton from "@/components/DeleteButton";
 import SuccessBanner from "@/components/SuccessBanner";
 import { emptyModuleAccess } from "@/lib/permissions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 import PermissionsPanel from "../PermissionsPanel";
-import { deleteUserAction, sendEmployeePasswordResetAction, updatePermissionsAction } from "../actions";
+import PrinterPermissionsPanel from "../PrinterPermissionsPanel";
+import {
+  deleteUserAction,
+  refreshPrinterPermissionAgentAction,
+  sendEmployeePasswordResetAction,
+  updatePermissionsAction,
+  updatePrinterPermissionsAction,
+} from "../actions";
+import { canManageRole, hasAdminPrivileges, roleLabel } from "@/lib/roles";
+import { getPrintOpsAgents } from "../../printops/data";
+import { KeyRound, Printer, UserRound, type IconNode } from "lucide";
 
 function Detail({ label, value }: { label: string; value: string | null }) {
   return (
@@ -53,6 +63,26 @@ export default async function ViewUserPage({
   const access = emptyModuleAccess();
   for (const row of accessRows) access[row.module as keyof typeof access] = row.fullAccess;
   const user = record.user;
+  const canManageUser = canManageRole(session.role, user.role);
+  const canConfigurePrinterPermissions = user.role === "employee" && (
+    session.role === "support" || hasAdminPrivileges(session.role)
+  );
+  const canViewPagePermissions = (
+    hasAdminPrivileges(session.role) && canManageUser
+  ) || (
+    session.role === "support" && user.role === "employee"
+  );
+  const [permissionAgents, printerPermissionRows] = canConfigurePrinterPermissions
+    ? await Promise.all([
+        user.primaryLocationId
+          ? getPrintOpsAgents({ locationId: user.primaryLocationId })
+          : [],
+        db
+          .select({ printerId: userPrinterPermissions.printerId })
+          .from(userPrinterPermissions)
+          .where(eq(userPrinterPermissions.userId, user.id)),
+      ])
+    : [[], []];
 
   return (
     <div>
@@ -68,31 +98,81 @@ export default async function ViewUserPage({
         errorMessage={messages.error}
         showInline={false}
       />
-      <Card className="p-6">
-        <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <Detail label="Full Name" value={user.fullName} />
-          <Detail label="Employee ID" value={user.employeeId} />
-          <Detail label="Email Address" value={user.email} />
-          <Detail label="Username" value={user.username} />
-          <Detail label="Location" value={record.location} />
-          <Detail label="Department" value={record.department} />
-          <Detail label="Role" value={user.role} />
-          <Detail label="Status" value={user.accountStatus} />
-        </dl>
+      <div className="space-y-5">
+        <Card className="overflow-hidden">
+          <PanelHeader
+            icon={UserRound}
+            title="Account Details"
+            description="Identity, role, status, and organizational assignment"
+          />
+          <div className="p-5 sm:p-6">
+            <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <Detail label="Full Name" value={user.fullName} />
+              <Detail label="Employee ID" value={user.employeeId} />
+              <Detail label="Email Address" value={user.email} />
+              <Detail label="Username" value={user.username} />
+              <Detail label="Location" value={record.location} />
+              <Detail label="Department" value={record.department} />
+              <Detail label="Role" value={roleLabel(user.role)} />
+              <Detail label="Status" value={user.accountStatus} />
+            </dl>
+          </div>
+        </Card>
 
-        {session.role === "admin" && <div className="mt-8 border-t pt-6">
-          <h2 className="mb-3 text-sm font-semibold text-[#014171]">Page Permissions</h2>
+        {canViewPagePermissions && <Card className="overflow-hidden">
+          <PanelHeader
+            icon={KeyRound}
+            title="Page Permissions"
+            description="Control which management pages and actions this account can access"
+          />
+          <div className="p-5 sm:p-6">
           <PermissionsPanel
             userId={user.id}
             role={user.role}
             access={access}
             action={updatePermissionsAction}
+            actorRole={session.role}
           />
-        </div>}
+          </div>
+        </Card>}
+
+        {canConfigurePrinterPermissions && <Card className="overflow-hidden">
+          <PanelHeader
+            icon={Printer}
+            title="Printer Permissions"
+            description="Select an office agent and grant access to specific printers at this employee's location"
+          />
+          <div className="p-5 sm:p-6">
+            <PrinterPermissionsPanel
+              userId={user.id}
+              locationName={record.location}
+              agents={permissionAgents.map((agent) => ({
+                id: agent.id,
+                name: agent.name,
+                status: agent.status,
+                snapshotAt: agent.snapshotAt?.toISOString() ?? null,
+                printers: agent.physicalPrinters.filter(
+                  (printer) => printer.catalogStatus === "Active",
+                ).map((printer) => ({
+                  id: printer.id,
+                  name: printer.name,
+                  model: printer.model,
+                  serialNumber: printer.serialNumber,
+                  department: printer.department,
+                  online: printer.online,
+                  status: printer.status,
+                })),
+              }))}
+              permissionIds={printerPermissionRows.map((permission) => permission.printerId)}
+              refreshAction={refreshPrinterPermissionAgentAction}
+              saveAction={updatePrinterPermissionsAction}
+            />
+          </div>
+        </Card>}
 
         {!embedded && (
-          <div className="mt-8 flex flex-wrap gap-3 border-t pt-6">
-            {session.role === "admin" && <>
+          <div className="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            {hasAdminPrivileges(session.role) && canManageUser && <>
             {user.role === "employee" && user.accountStatus === "active" && (
               <form action={sendEmployeePasswordResetAction}>
                 <input type="hidden" name="id" value={user.id} />
@@ -124,7 +204,29 @@ export default async function ViewUserPage({
             </>}
           </div>
         )}
-      </Card>
+      </div>
+    </div>
+  );
+}
+
+function PanelHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+        <IconGlyph icon={icon} size={18} />
+      </span>
+      <div>
+        <h2 className="font-bold text-[#014171]">{title}</h2>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+      </div>
     </div>
   );
 }

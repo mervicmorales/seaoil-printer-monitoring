@@ -6,6 +6,7 @@ import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { setSessionCookie, verifyPassword } from "@/lib/auth";
 import { expireRegistrationRequests } from "@/lib/registration-requests";
+import { isUserRole } from "@/lib/roles";
 
 export type LoginState = {
   error?: string;
@@ -88,13 +89,16 @@ export async function loginAction(
   if (user.accountStatus !== "active") {
     return { error: "This account is not active. Please contact IT support." };
   }
+  if (!isUserRole(user.role)) {
+    return { error: "This account has an invalid role. Please contact IT support." };
+  }
 
   await setSessionCookie({
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     username: user.username,
-    role: user.role as "admin" | "support" | "employee",
+    role: user.role,
   });
 
   const redirectTo = user.role === "employee"

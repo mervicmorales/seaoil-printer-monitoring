@@ -2,7 +2,12 @@ import "server-only";
 
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { monitoringAgents, printOpsCommands } from "@/db/schema";
+import {
+  monitoringAgents,
+  printOpsCommands,
+  userPrinterPermissions,
+  users,
+} from "@/db/schema";
 import { normalizePrintOpsSnapshot, type PrintOpsSnapshot } from "@/lib/printops";
 
 export type PrintOpsAgent = {
@@ -16,9 +21,42 @@ export type PrintOpsAgent = {
   physicalPrinters: PrintOpsPhysicalPrinter[];
 };
 
+export type PrintOpsLocationScope = {
+  locationId: number;
+  departmentId?: number;
+};
+
+export async function getPrintOpsLocationScope(
+  userId: number,
+): Promise<PrintOpsLocationScope | null> {
+  const [employee] = await db
+    .select({
+      locationId: users.primaryLocationId,
+      departmentId: users.departmentId,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!employee?.locationId || !employee.departmentId) return null;
+  return {
+    locationId: employee.locationId,
+    departmentId: employee.departmentId,
+  };
+}
+
+export async function getUserPrinterPermissionIds(userId: number) {
+  const rows = await db
+    .select({ printerId: userPrinterPermissions.printerId })
+    .from(userPrinterPermissions)
+    .where(eq(userPrinterPermissions.userId, userId));
+  return new Set(rows.map((row) => row.printerId));
+}
+
 export type PrintOpsPhysicalPrinter = {
   id: number;
   name: string;
+  catalogStatus: string;
   department: string | null;
   model: string | null;
   serialNumber: string;
@@ -32,20 +70,27 @@ type MonitoredPrinterRow = {
   printer_id: number;
   name: string;
   ip: string | null;
+  location_id: number | null;
+  department_id: number | null;
   department: string | null;
   model: string | null;
   serial_number: string;
   online: boolean;
   printer_status: string | null;
+  catalog_status: string;
   checked_at: Date;
 };
 
-export async function getPrintOpsAgents(): Promise<PrintOpsAgent[]> {
+export async function getPrintOpsAgents(
+  locationScope?: PrintOpsLocationScope,
+  allowedPrinterIds?: ReadonlySet<number>,
+): Promise<PrintOpsAgent[]> {
   const [agents, syncCommands, assignedPrinterResult] = await Promise.all([
     db
       .select({
         id: monitoringAgents.id,
         name: monitoringAgents.name,
+        locationId: monitoringAgents.locationId,
         hostname: monitoringAgents.hostname,
         status: monitoringAgents.status,
         lastSeen: monitoringAgents.lastSeen,
@@ -85,11 +130,14 @@ export async function getPrintOpsAgents(): Promise<PrintOpsAgent[]> {
         printers.id as printer_id,
         coalesce(printers.asset_tag, printers.serial_number) as name,
         printers.ip_address as ip,
+        printers.location_id,
+        printers.department_id,
         departments.name as department,
         printers.model,
         printers.serial_number,
         latest_readings.online,
         latest_readings.printer_status,
+        printers.status as catalog_status,
         latest_readings.checked_at
       from printer_monitoring_assignments assignments
       inner join printers on printers.id = assignments.printer_id
@@ -112,15 +160,24 @@ export async function getPrintOpsAgents(): Promise<PrintOpsAgent[]> {
     monitoredPrintersByAgent.set(printer.agent_id, existing);
   }
 
-  return agents.map((agent) => {
+  return agents.filter((agent) => (
+    !locationScope || agent.locationId === locationScope.locationId
+  )).map((agent) => {
     const command = latestByAgent.get(agent.id);
     const snapshot = normalizePrintOpsSnapshot(command?.result);
-    const monitoredPrinters = monitoredPrintersByAgent.get(agent.id) ?? [];
+    const monitoredPrinters = (monitoredPrintersByAgent.get(agent.id) ?? []).filter(
+      (printer) => !locationScope || (
+        printer.location_id === locationScope.locationId &&
+        (locationScope.departmentId === undefined ||
+          printer.department_id === locationScope.departmentId)
+      ),
+    ).filter((printer) => !allowedPrinterIds || allowedPrinterIds.has(printer.printer_id));
     return {
       ...agent,
       physicalPrinters: monitoredPrinters.map((printer) => ({
         id: printer.printer_id,
         name: printer.name,
+        catalogStatus: printer.catalog_status,
         department: printer.department,
         model: printer.model,
         serialNumber: printer.serial_number,

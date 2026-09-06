@@ -77,7 +77,9 @@ sudo apt update
 sudo apt install -y cups cups-client sane-utils samba printer-driver-all
 ```
 
-The user running the Node.js process needs permission to run CUPS admin commands:
+The user running the Node.js process needs CUPS administrator access. PrintDash
+first runs CUPS commands as that account and only uses its restricted,
+non-interactive `sudo` fallback when direct access is rejected:
 
 ```bash
 sudo usermod -aG lpadmin $USER

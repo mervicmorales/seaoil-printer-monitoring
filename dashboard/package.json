@@ -25,7 +25,9 @@
     "db:migrate:remove-brand": "node --env-file=.env.local scripts/remove-printer-brand.mjs",
     "db:migrate:remove-brand:docker": "node --env-file=.env.docker scripts/remove-printer-brand.mjs",
     "db:migrate:mac": "node --env-file=.env.local scripts/add-printer-mac-address.mjs",
-    "db:migrate:mac:docker": "node --env-file=.env.docker scripts/add-printer-mac-address.mjs"
+    "db:migrate:mac:docker": "node --env-file=.env.docker scripts/add-printer-mac-address.mjs",
+    "db:migrate:printer-permissions": "node --env-file=.env.local scripts/add-user-printer-permissions.mjs",
+    "db:migrate:printer-permissions:docker": "node --env-file=.env.docker scripts/add-user-printer-permissions.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -35,7 +35,7 @@ async function saveDocument(file: File | null) {
 export type ContractFormState = { error?: string; fieldErrors?: Record<string, string> };
 
 export async function createContractAction(_prev: ContractFormState, formData: FormData): Promise<ContractFormState> {
-  await requireAdmin();
+  await requireAdmin("contract");
 
   const contractNumber = str(formData.get("contractNumber"));
   const fieldErrors: Record<string, string> = {};
@@ -63,7 +63,7 @@ export async function createContractAction(_prev: ContractFormState, formData: F
 }
 
 export async function updateContractAction(_prev: ContractFormState, formData: FormData): Promise<ContractFormState> {
-  await requireAdmin();
+  await requireAdmin("contract");
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid contract." };
 
@@ -90,7 +90,7 @@ export async function updateContractAction(_prev: ContractFormState, formData: F
 }
 
 export async function deleteContractAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("contract");
   const id = num(formData.get("id"));
   if (!id) return;
   await db.delete(contracts).where(eq(contracts.id, id));

@@ -12,6 +12,7 @@ const os      = require('os');
 const { execFile, exec, spawn } = require('child_process');
 const crypto  = require('crypto');
 const { buildLpArgs } = require('./print-options');
+const { runCupsAdminCommand } = require('./cups-admin');
 const { readPrinterMacAddress } = require('./mac-address');
 const app  = express();
 const configuredPort = Number(process.env.PORT || 3003);
@@ -1003,20 +1004,14 @@ function getCompletedJobs() {
   });
 }
 function cancelJob(jobId) {
-  return new Promise((resolve,reject) => {
-    execFile('sudo', ['-n', '/usr/bin/cancel', jobId], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
-  });
+  return runCupsAdminCommand('/usr/bin/cancel', [jobId]).then(() => true);
 }
 function setPrinterEnabled(name, enabled) {
-  return new Promise((resolve,reject) => {
-    const command = enabled ? '/usr/sbin/cupsenable' : '/usr/sbin/cupsdisable';
-    execFile('sudo', ['-n', command, name], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
-  });
+  const command = enabled ? '/usr/sbin/cupsenable' : '/usr/sbin/cupsdisable';
+  return runCupsAdminCommand(command, [name]).then(() => true);
 }
 function setDefaultPrinter(name) {
-  return new Promise((resolve,reject) => {
-    execFile('sudo', ['-n', '/usr/sbin/lpadmin', '-d', name], (err,stdout,stderr) => err ? reject(new Error(stderr||err.message)) : resolve(true));
-  });
+  return runCupsAdminCommand('/usr/sbin/lpadmin', ['-d', name]).then(() => true);
 }
 function getCupsPrinterDetail() {
   return new Promise(resolve => {
@@ -1048,13 +1043,11 @@ function lpinfoDiscover() {
   });
 }
 function lpadminAddPrinter(name, uri) {
-  return new Promise((resolve,reject) => {
-    const safe = name.replace(/[^a-zA-Z0-9_-]/g,'_');
-    execFile('sudo', ['-n', '/usr/sbin/lpadmin', '-p', safe, '-E', '-v', uri, '-m', 'everywhere'], (err,stdout,stderr) => {
-      if (err) return reject(new Error(stderr||err.message));
-      resolve(safe);
-    });
-  });
+  const safe = name.replace(/[^a-zA-Z0-9_-]/g,'_');
+  return runCupsAdminCommand(
+    '/usr/sbin/lpadmin',
+    ['-p', safe, '-E', '-v', uri, '-m', 'everywhere'],
+  ).then(() => safe);
 }
 
 // ── SNMP subnet discovery ──────────────────────────────────────────────────────

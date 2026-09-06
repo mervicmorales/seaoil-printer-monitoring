@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { SESSION_COOKIE } from "@/lib/validation";
+import { isUserRole, type UserRole } from "@/lib/roles";
 
 export { SESSION_COOKIE };
 const SECRET = process.env.AUTH_SECRET || "seaoil-printer-monitoring-dev-secret";
@@ -14,7 +15,7 @@ export type SessionPayload = {
   fullName: string;
   email: string;
   username: string;
-  role: "admin" | "support" | "employee";
+  role: UserRole;
 };
 
 export async function hashPassword(password: string) {
@@ -56,7 +57,7 @@ export async function getSession(): Promise<SessionPayload | null> {
     .from(users)
     .where(eq(users.id, session.id))
     .limit(1);
-  if (!account || (account.role !== "admin" && account.role !== "support" && account.role !== "employee") || account.accountStatus !== "active") return null;
+  if (!account || !isUserRole(account.role) || account.accountStatus !== "active") return null;
 
   return {
     ...account,

@@ -33,7 +33,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: text("role").notNull().default("support"), // 'admin' | 'support' | 'employee'
+  role: text("role").notNull().default("support"), // 'super_admin' | 'admin' | 'support' | 'employee'
   employeeId: text("employee_id").unique(),
   primaryLocationId: integer("primary_location_id").references(() => locations.id, {
     onDelete: "set null",
@@ -231,6 +231,34 @@ export const printerMonitoringAssignments = pgTable(
       .defaultNow(),
   },
   (t) => [index("printer_monitoring_assignments_agent_idx").on(t.agentId)],
+);
+
+// Explicit per-user printing access. The agent is stored with the printer so
+// permissions remain auditable when a printer is reassigned later.
+export const userPrinterPermissions = pgTable(
+  "user_printer_permissions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id, { onDelete: "cascade" }),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("user_printer_permissions_user_printer_unique").on(
+      t.userId,
+      t.printerId,
+    ),
+    index("user_printer_permissions_agent_idx").on(t.agentId),
+  ],
 );
 
 export const printerMonitoringReadings = pgTable(

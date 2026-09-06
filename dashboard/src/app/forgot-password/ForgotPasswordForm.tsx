@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { LoaderCircle, Mail } from "lucide";
 import { MorphIcon } from "morphicons/react";
+import { gooeyToast } from "goey-toast";
 import {
   requestPasswordResetAction,
   type ForgotPasswordState,
@@ -34,14 +35,16 @@ function SubmitButton() {
 export default function ForgotPasswordForm() {
   const [state, action] = useActionState(requestPasswordResetAction, initialState);
 
+  useEffect(() => {
+    if (!state.success) return;
+    gooeyToast.success("Reset link requested", {
+      id: "forgot-password-result",
+      description: state.success,
+    });
+  }, [state]);
+
   return (
     <form action={action} className="mt-6 space-y-5" noValidate>
-      {state.success ? (
-        <p role="status" className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {state.success}
-        </p>
-      ) : null}
-
       <div>
         <label htmlFor="reset-email" className="mb-1.5 block text-sm font-medium text-slate-700">
           Email address <span className="text-red-500">*</span>

@@ -21,6 +21,7 @@ import { PASSWORD_RULE_TEXT } from "@/lib/validation";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { UserFormState } from "./actions";
 import Link from "next/link";
+import { isSuperAdmin, type UserRole } from "@/lib/roles";
 
 type Lookup = { id: number; name: string };
 type UserRecord = {
@@ -59,6 +60,7 @@ export default function UserForm({
   returnTo = "/manage",
   employeeOnly = false,
   showActions = true,
+  actorRole,
 }: {
   mode: "create" | "edit";
   action: (prev: UserFormState, formData: FormData) => Promise<UserFormState>;
@@ -68,11 +70,13 @@ export default function UserForm({
   returnTo?: "/manage" | "/manage/registrations";
   employeeOnly?: boolean;
   showActions?: boolean;
+  actorRole: UserRole;
 }) {
   const [state, formAction] = useActionState(action, {});
   const [role, setRole] = useState(employeeOnly ? "employee" : (user?.role === "user" ? "support" : (user?.role ?? "support")));
   const [showPassword, setShowPassword] = useState(false);
   const employeeRequired = role === "employee";
+  const assignmentRequired = employeeRequired || role === "support";
 
   return (
     <form
@@ -102,7 +106,8 @@ export default function UserForm({
             <Select label="Role" name="role" value={role} onChange={(event) => setRole(event.target.value)} required>
               <option value="employee">Employee</option>
               {!employeeOnly && <option value="support">Support</option>}
-              {!employeeOnly && <option value="admin">Admin</option>}
+              {!employeeOnly && isSuperAdmin(actorRole) && <option value="admin">Admin</option>}
+              {!employeeOnly && isSuperAdmin(actorRole) && <option value="super_admin">Super Admin</option>}
             </Select>
           </div>
           {state.fieldErrors?.role && <p className="mt-1 text-xs text-red-600">{state.fieldErrors.role}</p>}
@@ -128,7 +133,7 @@ export default function UserForm({
               name="primaryLocationId"
               options={locations}
               placeholder="Search location..."
-              required={employeeRequired}
+              required={assignmentRequired}
               defaultValue={user?.primaryLocationId}
               error={state.fieldErrors?.primaryLocationId}
             />
@@ -137,7 +142,7 @@ export default function UserForm({
               name="departmentId"
               options={departments}
               placeholder="Search department..."
-              required={employeeRequired}
+              required={assignmentRequired}
               defaultValue={user?.departmentId}
               error={state.fieldErrors?.departmentId}
             />
@@ -148,8 +153,10 @@ export default function UserForm({
               {role === "employee"
                 ? "Employees only see active printers assigned to their selected location and department."
                 : role === "support"
-                  ? "Support access is controlled through module permissions in User Management."
-                  : "Administrators always have full system access."}
+                  ? "Support users only see available printers assigned to their selected location and department."
+                  : role === "admin"
+                    ? "Admin module access is configured by a Super Admin."
+                    : "Super Admins have full system access and authority over all roles."}
             </span>
           </div>
         </section>

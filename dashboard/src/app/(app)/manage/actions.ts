@@ -3,14 +3,28 @@
 import { createHash, randomBytes } from "crypto";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { auditLogs, manualUserVerificationTokens, passwordResetTokens, userRegistrationRequests, users, userModuleAccess } from "@/db/schema";
-import { eq, and, isNull, or } from "drizzle-orm";
+import {
+  auditLogs,
+  manualUserVerificationTokens,
+  monitoringAgents,
+  passwordResetTokens,
+  printerMonitoringAssignments,
+  printers,
+  printOpsCommands,
+  userPrinterPermissions,
+  userRegistrationRequests,
+  users,
+  userModuleAccess,
+} from "@/db/schema";
+import { eq, and, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/auth";
 import { MODULES, defaultAccessForRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
+import { canManageRole, hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
+import type { PrinterPermissionState } from "./PrinterPermissionsPanel";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -22,9 +36,9 @@ function num(v: FormDataEntryValue | null) {
   const n = Number(s);
   return Number.isNaN(n) ? null : n;
 }
-function roleValue(value: FormDataEntryValue | null): "admin" | "support" | "employee" {
+function roleValue(value: FormDataEntryValue | null): UserRole {
   const role = str(value);
-  return role === "admin" || role === "employee" ? role : "support";
+  return role === "super_admin" || role === "admin" || role === "employee" ? role : "support";
 }
 
 async function applicationOrigin() {
@@ -98,14 +112,17 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
   if (creator.role === "support" && role !== "employee") {
     fieldErrors.role = "Support users can only create Employee accounts.";
   }
+  if (!isSuperAdmin(creator.role) && (role === "super_admin" || role === "admin")) {
+    fieldErrors.role = "Only a Super Admin can create Admin or Super Admin accounts.";
+  }
   if (!fullName) fieldErrors.fullName = "Full Name is required.";
   if (!email) fieldErrors.email = "Email Address is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email address.";
   if (!username) fieldErrors.username = "Username is required.";
   if (employeeId && !/^SPI[0-9]{5}$/.test(employeeId)) fieldErrors.employeeId = "Use the format SPI followed by five digits.";
   if (role === "employee" && !employeeId) fieldErrors.employeeId = "Employee ID is required for employees.";
-  if (role === "employee" && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for employees.";
-  if (role === "employee" && !departmentId) fieldErrors.departmentId = "Department is required for employees.";
+  if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for Employee and Support accounts.";
+  if ((role === "employee" || role === "support") && !departmentId) fieldErrors.departmentId = "Department is required for Employee and Support accounts.";
   if (!password) fieldErrors.password = "Password is required.";
   else if (!isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
   if (Object.keys(fieldErrors).length) return { fieldErrors };
@@ -179,7 +196,7 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
 }
 
 export async function updateUserAction(_prev: UserFormState, formData: FormData): Promise<UserFormState> {
-  await requireAdmin();
+  const actor = await requireAdmin("manage_users");
 
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid user." };
@@ -193,6 +210,15 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   const password = String(formData.get("password") || "");
   const role = roleValue(formData.get("role"));
 
+  const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, id)).limit(1);
+  if (!target) return { error: "User not found." };
+  if (!canManageRole(actor.role, target.role)) {
+    return { error: "You cannot modify an account at or above your role level." };
+  }
+  if (!isSuperAdmin(actor.role) && (role === "super_admin" || role === "admin")) {
+    return { error: "Only a Super Admin can assign Admin or Super Admin roles." };
+  }
+
   const fieldErrors: Record<string, string> = {};
   if (!fullName) fieldErrors.fullName = "Full Name is required.";
   if (!email) fieldErrors.email = "Email Address is required.";
@@ -200,8 +226,8 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   if (!username) fieldErrors.username = "Username is required.";
   if (employeeId && !/^SPI[0-9]{5}$/.test(employeeId)) fieldErrors.employeeId = "Use the format SPI followed by five digits.";
   if (role === "employee" && !employeeId) fieldErrors.employeeId = "Employee ID is required for employees.";
-  if (role === "employee" && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for employees.";
-  if (role === "employee" && !departmentId) fieldErrors.departmentId = "Department is required for employees.";
+  if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for Employee and Support accounts.";
+  if ((role === "employee" || role === "support") && !departmentId) fieldErrors.departmentId = "Department is required for Employee and Support accounts.";
   if (password && !isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
@@ -227,7 +253,7 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
 }
 
 export async function deleteUserAction(formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("manage_users");
   const id = num(formData.get("id"));
   if (!id || id === admin.id) {
     redirect("/manage?success=Cannot delete this account.");
@@ -243,8 +269,10 @@ export async function deleteUserAction(formData: FormData) {
         employeeId: users.employeeId,
         email: users.email,
         username: users.username,
+        role: users.role,
       }).from(users).where(eq(users.id, id!)).limit(1);
       if (!target) throw new Error("UserNotFound");
+      if (!canManageRole(admin.role, target.role)) throw new Error("InsufficientRoleHierarchy");
 
       await tx.update(userRegistrationRequests).set({
         status: "account_deleted",
@@ -279,7 +307,7 @@ export async function deleteUserAction(formData: FormData) {
 
 export async function sendEmployeePasswordResetAction(formData: FormData) {
   const actor = await requireModuleFullAccess("manage_users");
-  if (actor.role !== "support" && actor.role !== "admin") redirect("/access-denied");
+  if (actor.role !== "support" && !hasAdminPrivileges(actor.role)) redirect("/access-denied");
 
   const userId = num(formData.get("id"));
   if (!userId) redirect("/manage?error=Invalid user account.");
@@ -344,9 +372,13 @@ export async function sendEmployeePasswordResetAction(formData: FormData) {
 }
 
 export async function updatePermissionsAction(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin("manage_users");
   const userId = num(formData.get("userId"));
   if (!userId) return;
+
+  const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!target) return;
+  if (!canManageRole(actor.role, target.role)) redirect("/access-denied");
 
   for (const mod of MODULES) {
     const fullAccess = formData.get(`module_${mod}`) === "on";
@@ -358,4 +390,154 @@ export async function updatePermissionsAction(formData: FormData) {
 
   revalidatePath("/manage");
   redirect("/manage?success=Permissions updated.");
+}
+
+async function requirePrinterPermissionActor() {
+  const actor = await requireModuleFullAccess("manage_users");
+  if (actor.role !== "support" && !hasAdminPrivileges(actor.role)) {
+    redirect("/access-denied");
+  }
+  return actor;
+}
+
+async function getPrinterPermissionEmployee(userId: number) {
+  const [employee] = await db
+    .select({
+      id: users.id,
+      role: users.role,
+      locationId: users.primaryLocationId,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!employee || employee.role !== "employee") {
+    throw new Error("Printer permissions can only be configured for Employee accounts.");
+  }
+  if (!employee.locationId) {
+    throw new Error("Assign a location to this employee before configuring printer permissions.");
+  }
+  return employee;
+}
+
+async function validatePermissionAgent(agentId: number, locationId: number) {
+  const [agent] = await db
+    .select({ id: monitoringAgents.id })
+    .from(monitoringAgents)
+    .where(and(
+      eq(monitoringAgents.id, agentId),
+      eq(monitoringAgents.locationId, locationId),
+      isNotNull(monitoringAgents.tokenHash),
+      isNull(monitoringAgents.tokenRevokedAt),
+    ))
+    .limit(1);
+  if (!agent) throw new Error("The selected agent is not available at this employee's location.");
+  return agent;
+}
+
+export async function refreshPrinterPermissionAgentAction(
+  _state: PrinterPermissionState,
+  formData: FormData,
+): Promise<PrinterPermissionState> {
+  const userId = num(formData.get("userId"));
+  const agentId = num(formData.get("agentId"));
+  if (!userId || !agentId) return { error: "Select an available agent." };
+  const actor = await requirePrinterPermissionActor();
+
+  try {
+    const employee = await getPrinterPermissionEmployee(userId);
+    await validatePermissionAgent(agentId, employee.locationId!);
+    const [active] = await db
+      .select({ id: printOpsCommands.id })
+      .from(printOpsCommands)
+      .where(and(
+        eq(printOpsCommands.agentId, agentId),
+        eq(printOpsCommands.type, "sync"),
+        inArray(printOpsCommands.status, ["queued", "running"]),
+      ))
+      .limit(1);
+    if (!active) {
+      await db.insert(printOpsCommands).values({
+        agentId,
+        requestedBy: actor.id,
+        type: "sync",
+      });
+    }
+    revalidatePath(`/manage/${userId}`);
+    return {
+      success: active ? "Agent refresh is already in progress." : "Agent refresh queued. Printer data will update automatically.",
+      refreshQueuedAt: Date.now(),
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not refresh the agent." };
+  }
+}
+
+export async function updatePrinterPermissionsAction(
+  _state: PrinterPermissionState,
+  formData: FormData,
+): Promise<PrinterPermissionState> {
+  const userId = num(formData.get("userId"));
+  const agentId = num(formData.get("agentId"));
+  if (!userId || !agentId) return { error: "Select an available agent." };
+  const requestedPrinterIds = Array.from(new Set(
+    formData.getAll("printerId")
+      .map((value) => Number(String(value)))
+      .filter((value) => Number.isSafeInteger(value) && value > 0),
+  ));
+  const actor = await requirePrinterPermissionActor();
+
+  try {
+    const employee = await getPrinterPermissionEmployee(userId);
+    await validatePermissionAgent(agentId, employee.locationId!);
+    const validPrinters = requestedPrinterIds.length === 0
+      ? []
+      : await db
+          .select({ id: printers.id })
+          .from(printers)
+          .innerJoin(
+            printerMonitoringAssignments,
+            eq(printerMonitoringAssignments.printerId, printers.id),
+          )
+          .where(and(
+            inArray(printers.id, requestedPrinterIds),
+            eq(printers.locationId, employee.locationId!),
+            eq(printers.status, "Active"),
+            eq(printerMonitoringAssignments.agentId, agentId),
+          ));
+    if (validPrinters.length !== requestedPrinterIds.length) {
+      return { error: "One or more selected printers are no longer available for this employee." };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(userPrinterPermissions)
+        .where(and(
+          eq(userPrinterPermissions.userId, userId),
+          eq(userPrinterPermissions.agentId, agentId),
+        ));
+      if (validPrinters.length > 0) {
+        for (const printer of validPrinters) {
+          await tx
+            .insert(userPrinterPermissions)
+            .values({ userId, agentId, printerId: printer.id })
+            .onConflictDoUpdate({
+              target: [userPrinterPermissions.userId, userPrinterPermissions.printerId],
+              set: { agentId },
+            });
+        }
+      }
+      await tx.insert(auditLogs).values({
+        actorUserId: actor.id,
+        action: "user.printer_permissions_updated",
+        targetType: "user",
+        targetId: String(userId),
+        metadata: { agentId, printerIds: validPrinters.map((printer) => printer.id) },
+      });
+    });
+    revalidatePath(`/manage/${userId}`);
+    revalidatePath("/portal/print");
+    return { success: "Printer permissions updated." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not update printer permissions." };
+  }
 }

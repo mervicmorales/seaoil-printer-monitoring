@@ -9,7 +9,7 @@ import { updateContractAction } from "../../actions";
 import { requireAdmin } from "@/lib/server-utils";
 
 export default async function EditContractPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requireAdmin("contract");
   const { id } = await params;
   const rows = await db.select().from(contracts).where(eq(contracts.id, Number(id))).limit(1);
   const contract = rows[0];

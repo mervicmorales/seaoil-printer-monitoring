@@ -5,7 +5,7 @@ import { createContractAction } from "../actions";
 import { requireAdmin } from "@/lib/server-utils";
 
 export default async function NewContractPage() {
-  await requireAdmin();
+  await requireAdmin("contract");
   const vendors = await getVendors();
   return (
     <div>

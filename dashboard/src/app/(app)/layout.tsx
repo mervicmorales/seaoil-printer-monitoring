@@ -53,8 +53,6 @@ export default async function AppLayout({
       <div className="flex min-h-screen bg-transparent">
         <AgentStatusNotifications />
         <Sidebar
-          isAdmin={session.role === "admin"}
-          canManageSpot={access.spot}
           logoUrl={settingsRows[0]?.logoUrl ?? null}
           accountName={accountName || "SEAOIL User"}
           initialCollapsed={

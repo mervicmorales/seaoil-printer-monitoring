@@ -10,7 +10,7 @@ export default function AgentSyncPanel({
   canManage,
 }: {
   agents: PrintOpsAgent[];
-  returnTo: "/printops/print" | "/printops/scan" | "/printops/jobs";
+  returnTo: "/printops/print" | "/printops/scan";
   canManage: boolean;
 }) {
   return (

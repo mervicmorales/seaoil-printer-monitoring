@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { printOpsCommands } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { getModuleAccessMap } from "@/lib/server-utils";
+import { isSuperAdmin } from "@/lib/roles";
 
 export async function GET(
   _request: Request,
@@ -14,7 +15,8 @@ export async function GET(
     return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
   }
   const access = await getModuleAccessMap(session.id, session.role);
-  if (!access.printops) {
+  const employeeMode = session.role === "employee";
+  if (!employeeMode && !access.printops) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
   const id = Number((await params).id);
@@ -27,6 +29,9 @@ export async function GET(
     eq(printOpsCommands.type, "scan"),
     eq(printOpsCommands.status, "completed"),
   ];
+  if (!isSuperAdmin(session.role)) {
+    conditions.push(eq(printOpsCommands.requestedBy, session.id));
+  }
   const [scan] = await db
     .select({
       name: printOpsCommands.outputFileName,

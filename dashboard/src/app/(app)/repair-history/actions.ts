@@ -10,6 +10,7 @@ import { REPAIR_STATUSES } from "@/lib/constants";
 import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+import { hasAdminPrivileges } from "@/lib/roles";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -82,8 +83,8 @@ export async function updateTicketDetailsAction(
   if (!status || !REPAIR_STATUSES.some((item) => item === status)) {
     fieldErrors.status = "Select a valid status.";
   }
-  if (session.role === "admin" && !problem) fieldErrors.problem = "Concern description is required.";
-  if (session.role === "admin" && status === "Closed" && !resolution) {
+  if (hasAdminPrivileges(session.role) && !problem) fieldErrors.problem = "Concern description is required.";
+  if (hasAdminPrivileges(session.role) && status === "Closed" && !resolution) {
     fieldErrors.resolution = "Resolution is required when closing a ticket.";
   }
   if (Object.keys(fieldErrors).length) return { fieldErrors };
@@ -196,7 +197,7 @@ export async function createReportAction(_prev: RepairFormState, formData: FormD
 }
 
 export async function updateTicketAction(_prev: RepairFormState, formData: FormData): Promise<RepairFormState> {
-  await requireAdmin();
+  await requireAdmin("repair");
 
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid ticket." };
@@ -252,7 +253,7 @@ export async function updateTicketAction(_prev: RepairFormState, formData: FormD
 }
 
 export async function deleteTicketAction(formData: FormData) {
-  await requireAdmin();
+  await requireAdmin("repair");
   const id = num(formData.get("id"));
   if (!id) return;
   const [ticket] = await db

@@ -32,7 +32,7 @@ export default async function DiscoverPrintersPage({
 }: {
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
-  await requireModuleFullAccess("spot");
+  await requireModuleFullAccess("printers");
   const params = await searchParams;
   const renderedAt = new Date();
   const [agents, scans, registeredPrinters] = await Promise.all([

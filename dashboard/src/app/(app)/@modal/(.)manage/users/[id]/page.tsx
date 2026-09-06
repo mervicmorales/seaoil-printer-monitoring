@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { deleteUserAction, sendEmployeePasswordResetAction } from "@/app/(app)/manage/actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
+import { canManageRole, hasAdminPrivileges } from "@/lib/roles";
 
 export default async function ViewUserModal({
   params,
@@ -25,6 +26,7 @@ export default async function ViewUserModal({
     accountStatus: users.accountStatus,
   }).from(users).where(eq(users.id, userId)).limit(1);
   if (!user) notFound();
+  const canManageUser = canManageRole(session.role, user.role);
 
   return (
     <ModalShell
@@ -32,14 +34,14 @@ export default async function ViewUserModal({
       closeHref="/manage"
       headerActions={
         <>
-          {session.role === "admin" && user.role === "employee" && user.accountStatus === "active" && (
+          {hasAdminPrivileges(session.role) && canManageUser && user.role === "employee" && user.accountStatus === "active" && (
             <form action={sendEmployeePasswordResetAction}>
               <input type="hidden" name="id" value={user.id} />
               <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
             </form>
           )}
-          {session.role === "admin" && <Link href={`/manage/${user.id}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Edit</Link>}
-          {session.role === "admin" && user.id !== session.id && (
+          {hasAdminPrivileges(session.role) && canManageUser && <Link href={`/manage/${user.id}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Edit</Link>}
+          {hasAdminPrivileges(session.role) && canManageUser && user.id !== session.id && (
             <DeleteButton
               action={deleteUserAction}
               id={user.id}

@@ -7,7 +7,7 @@ import { PageHeader, TableCard, Badge, statusBadgeColor, EmptyState, IconGlyph }
 import { formatDate } from "@/lib/format";
 import SuccessBanner from "@/components/SuccessBanner";
 import { REPAIR_STATUSES } from "@/lib/constants";
-import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
 import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
 import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
 import SearchInput from "@/components/SearchInput";
@@ -19,7 +19,7 @@ export default async function RepairHistoryPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("repair");
   const access = await getModuleAccessMap(session.id, session.role);
   const sp = await searchParams;
 

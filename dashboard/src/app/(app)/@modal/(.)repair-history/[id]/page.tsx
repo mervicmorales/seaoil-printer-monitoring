@@ -9,14 +9,15 @@ import ModalShell from "@/components/ModalShell";
 import { IconGlyph, PrimaryButton } from "@/components/ui";
 import { db } from "@/db";
 import { repairTickets } from "@/db/schema";
-import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
+import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
+import { hasAdminPrivileges } from "@/lib/roles";
 
 export default async function RepairTicketViewModal({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("repair");
   const access = await getModuleAccessMap(session.id, session.role);
   const { id } = await params;
   const ticketId = Number(id);
@@ -43,7 +44,7 @@ export default async function RepairTicketViewModal({
             formId="repair-ticket-details-form"
             compact
           />
-          {session.role === "admin" && (
+          {hasAdminPrivileges(session.role) && (
             <DeleteButton
               action={deleteTicketAction}
               id={ticket.id}

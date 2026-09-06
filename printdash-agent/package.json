@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test:cups-admin": "node --test cups-admin.test.js",
     "test:print-options": "node --test print-options.test.js",
     "test:snmp-safety": "node --test snmp-safety.test.js",
     "test:mac": "node --test mac-address.test.js"

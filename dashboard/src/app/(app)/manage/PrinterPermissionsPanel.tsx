@@ -1,0 +1,253 @@
+"use client";
+
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
+import { Check, LoaderCircle, Printer, RefreshCw } from "lucide";
+import { MorphIcon } from "morphicons/react";
+import { gooeyToast } from "goey-toast";
+import { Badge, SecondaryButton } from "@/components/ui";
+
+export type PrinterPermissionState = {
+  error?: string;
+  success?: string;
+  refreshQueuedAt?: number;
+};
+
+type PrinterOption = {
+  id: number;
+  name: string;
+  model: string | null;
+  serialNumber: string | null;
+  department: string | null;
+  online: boolean;
+  status: string;
+};
+
+type AgentOption = {
+  id: number;
+  name: string;
+  status: string;
+  snapshotAt: string | null;
+  printers: PrinterOption[];
+};
+
+export default function PrinterPermissionsPanel({
+  userId,
+  locationName,
+  agents,
+  permissionIds,
+  refreshAction,
+  saveAction,
+}: {
+  userId: number;
+  locationName: string | null;
+  agents: AgentOption[];
+  permissionIds: number[];
+  refreshAction: (
+    state: PrinterPermissionState,
+    formData: FormData,
+  ) => Promise<PrinterPermissionState>;
+  saveAction: (
+    state: PrinterPermissionState,
+    formData: FormData,
+  ) => Promise<PrinterPermissionState>;
+}) {
+  const router = useRouter();
+  const [selectedAgentId, setSelectedAgentId] = useState(String(agents[0]?.id ?? ""));
+  const [selectedPrinterIds, setSelectedPrinterIds] = useState(() => new Set(permissionIds));
+  const [refreshState, refreshFormAction] = useActionState(refreshAction, {});
+  const [saveState, saveFormAction] = useActionState(saveAction, {});
+  const selectedAgent = agents.find((agent) => String(agent.id) === selectedAgentId);
+  const selectedCount = useMemo(
+    () => selectedAgent?.printers.filter((printer) => selectedPrinterIds.has(printer.id)).length ?? 0,
+    [selectedAgent, selectedPrinterIds],
+  );
+
+  useEffect(() => {
+    if (refreshState.error) {
+      gooeyToast.error("Agent refresh could not be queued", {
+        id: "printer-permissions-refresh",
+        description: refreshState.error,
+      });
+    } else if (refreshState.success) {
+      gooeyToast.success("Agent refresh queued", {
+        id: "printer-permissions-refresh",
+        description: refreshState.success,
+      });
+    }
+
+    if (!refreshState.refreshQueuedAt) return;
+    const firstRefresh = window.setTimeout(() => router.refresh(), 3_500);
+    const secondRefresh = window.setTimeout(() => router.refresh(), 7_000);
+    return () => {
+      window.clearTimeout(firstRefresh);
+      window.clearTimeout(secondRefresh);
+    };
+  }, [refreshState, router]);
+
+  useEffect(() => {
+    if (saveState.error) {
+      gooeyToast.error("Printer permissions not updated", {
+        id: "printer-permissions-save",
+        description: saveState.error,
+      });
+    } else if (saveState.success) {
+      gooeyToast.success("Printer permissions updated", {
+        id: "printer-permissions-save",
+        description: saveState.success,
+      });
+    }
+  }, [saveState]);
+
+  if (!locationName) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Assign a location to this employee before configuring printer permissions.
+      </div>
+    );
+  }
+
+  if (agents.length === 0) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        No active office agent is assigned to {locationName}.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Available Agent</span>
+          <select
+            value={selectedAgentId}
+            onChange={(event) => setSelectedAgentId(event.target.value)}
+            className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
+          >
+            {agents.map((agent) => (
+              <option key={agent.id} value={agent.id}>{agent.name}</option>
+            ))}
+          </select>
+          <span className="mt-1.5 block text-xs text-slate-500">
+            Agents assigned to {locationName}.
+          </span>
+        </label>
+        <form action={refreshFormAction}>
+          <input type="hidden" name="userId" value={userId} />
+          <input type="hidden" name="agentId" value={selectedAgentId} />
+          <RefreshButton />
+        </form>
+      </div>
+
+      {selectedAgent && (
+        <form action={saveFormAction} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <input type="hidden" name="userId" value={userId} />
+          <input type="hidden" name="agentId" value={selectedAgent.id} />
+          <div className="flex flex-col justify-between gap-2 border-b border-slate-200 bg-slate-50/60 px-4 py-3 sm:flex-row sm:items-center">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-bold text-[#014171]">Available Printers</p>
+                <Badge color={selectedAgent.status === "online" ? "green" : "gray"}>{selectedAgent.status}</Badge>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {selectedAgent.snapshotAt
+                  ? `Agent data refreshed ${formatDateTime(selectedAgent.snapshotAt)}`
+                  : "Refresh agent data to retrieve its current printers."}
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-slate-500">
+              {selectedCount} selected
+            </span>
+          </div>
+
+          {selectedAgent.printers.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                <MorphIcon icon={Printer} size={20} strokeWidth={2} reducedMotion="user" />
+              </span>
+              <p className="mt-3 text-sm font-semibold text-slate-700">No available printers</p>
+              <p className="mt-1 text-xs text-slate-500">Refresh the agent to retrieve its latest printer data.</p>
+            </div>
+          ) : (
+            <div className="grid max-h-80 gap-2 overflow-y-auto p-3 sm:grid-cols-2">
+              {selectedAgent.printers.map((printer) => {
+                const checked = selectedPrinterIds.has(printer.id);
+                return (
+                  <label
+                    key={printer.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition ${checked
+                      ? "border-sky-300 bg-sky-50/70 shadow-sm"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="printerId"
+                      value={printer.id}
+                      checked={checked}
+                      onChange={(event) => {
+                        setSelectedPrinterIds((current) => {
+                          const next = new Set(current);
+                          if (event.target.checked) next.add(printer.id);
+                          else next.delete(printer.id);
+                          return next;
+                        });
+                      }}
+                      className="mt-0.5 size-4 rounded border-slate-300 text-[#014171] focus:ring-[#7DA8D0]"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-start justify-between gap-2">
+                        <span className="truncate text-sm font-semibold text-slate-800">{printer.name}</span>
+                        <Badge color={printer.online ? "green" : "gray"}>{printer.online ? printer.status : "Offline"}</Badge>
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">
+                        {[printer.department, printer.model, printer.serialNumber].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex justify-end border-t border-slate-200 bg-slate-50/40 px-4 py-3">
+            <SaveButton disabled={selectedAgent.printers.length === 0} />
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function RefreshButton() {
+  const { pending } = useFormStatus();
+  return (
+    <SecondaryButton type="submit" disabled={pending} className="h-11 w-full px-4 sm:w-auto">
+      <MorphIcon icon={pending ? LoaderCircle : RefreshCw} size={15} strokeWidth={2} reducedMotion="user" className={pending ? "animate-spin" : ""} />
+      {pending ? "Queueing…" : "Refresh Agent Data"}
+    </SecondaryButton>
+  );
+}
+
+function SaveButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending || disabled}
+      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012f52] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <MorphIcon icon={pending ? LoaderCircle : Check} size={15} strokeWidth={2} reducedMotion="user" className={pending ? "animate-spin" : ""} />
+      {pending ? "Saving…" : "Save Printer Permissions"}
+    </button>
+  );
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
+  }).format(new Date(value));
+}

@@ -7,12 +7,13 @@ import { formatDate } from "@/lib/format";
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
 import { deleteContractAction } from "./actions";
-import { requireSession } from "@/lib/server-utils";
+import { requireModuleFullAccess } from "@/lib/server-utils";
+import { hasAdminPrivileges } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
 export default async function ContractsPage({ searchParams }: { searchParams: Promise<{ success?: string }> }) {
-  const session = await requireSession();
+  const session = await requireModuleFullAccess("contract");
   const sp = await searchParams;
 
   const rows = await db
@@ -33,7 +34,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Contract"
         subtitle="Centralized repository for printer service contracts."
-        actions={session.role === "admin" ? <Link href="/contracts/new"><PrimaryButton>+ Upload Contract</PrimaryButton></Link> : undefined}
+        actions={hasAdminPrivileges(session.role) ? <Link href="/contracts/new"><PrimaryButton>+ Upload Contract</PrimaryButton></Link> : undefined}
       />
       <SuccessBanner message={sp.success} showInline={false} />
 
@@ -63,7 +64,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
                   <td className="w-px whitespace-nowrap px-4 py-3">
                     <div className="flex justify-end gap-2">
                       <Link href={`/contracts/${c.id}`} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">View</Link>
-                      {session.role === "admin" && (
+                      {hasAdminPrivileges(session.role) && (
                         <DeleteButton action={deleteContractAction} id={c.id} confirmText="Delete this contract?" />
                       )}
                     </div>

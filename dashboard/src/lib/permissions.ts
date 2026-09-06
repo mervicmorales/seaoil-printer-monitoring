@@ -1,10 +1,11 @@
+import { isSuperAdmin, type UserRole } from "@/lib/roles";
+
 export const MODULES = [
   "dashboard",
   "printers",
   "toner",
   "contract",
   "repair",
-  "spot",
   "printops",
   "system",
   "manage_users",
@@ -19,7 +20,6 @@ export const MODULE_LABELS: Record<ModuleName, string> = {
   toner: "Toner Monitoring",
   contract: "Contract",
   repair: "Printer Repair History",
-  spot: "SPOT",
   printops: "Printer Services",
   system: "System",
   manage_users: "Manage Users",
@@ -32,7 +32,6 @@ export const MODULE_PATHS: Record<ModuleName, string> = {
   toner: "/toner-monitoring",
   contract: "/contracts",
   repair: "/repair-history",
-  spot: "/printdash",
   printops: "/printops/print",
   system: "/system",
   manage_users: "/manage",
@@ -53,15 +52,14 @@ export const DEFAULT_SUPPORT_ACCESS: Record<ModuleName, boolean> = {
   toner: true,
   contract: false,
   repair: false,
-  spot: false,
   printops: false,
   system: false,
   manage_users: false,
   registrations: false,
 };
 
-export function defaultAccessForRole(role: "admin" | "support" | "employee") {
-  if (role === "admin") {
+export function defaultAccessForRole(role: UserRole) {
+  if (isSuperAdmin(role) || role === "admin") {
     return MODULES.reduce(
       (acc, m) => ({ ...acc, [m]: true }),
       {} as Record<ModuleName, boolean>,
