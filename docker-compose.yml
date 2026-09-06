@@ -37,7 +37,8 @@ services:
         npx drizzle-kit push --config=drizzle.docker.config.ts --force &&
         node scripts/seed.mjs &&
         node scripts/migrate-notifications-registration-smtp.mjs &&
-        node scripts/migrate-monitoring-assignments.mjs
+        node scripts/migrate-monitoring-assignments.mjs &&
+        node scripts/add-printer-mac-address.mjs
 
   dashboard:
     build:
