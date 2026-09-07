@@ -2,18 +2,18 @@ import { asc } from "drizzle-orm";
 import { Building2, CheckCircle2, MailCheck, ShieldCheck, type IconNode } from "lucide";
 import { IconGlyph } from "@/components/ui";
 import { db } from "@/db";
-import { departments, locations, systemSettings } from "@/db/schema";
+import { departments, locations } from "@/db/schema";
+import { SYSTEM_LOGO_URL } from "@/lib/branding";
 import RegisterForm, { ResendVerificationForm } from "./RegisterForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
-  const [locationRows, departmentRows, settingsRows] = await Promise.all([
+  const [locationRows, departmentRows] = await Promise.all([
     db.select().from(locations).orderBy(asc(locations.name)),
     db.select().from(departments).orderBy(asc(departments.name)),
-    db.select({ logoUrl: systemSettings.logoUrl }).from(systemSettings).limit(1),
   ]);
-  const logoUrl = settingsRows[0]?.logoUrl ?? null;
+  const logoUrl = SYSTEM_LOGO_URL;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f4f7fa] px-4 py-6 sm:px-6 sm:py-10 lg:px-8">

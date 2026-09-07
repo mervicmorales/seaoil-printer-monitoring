@@ -1,7 +1,6 @@
-import { db } from "@/db";
-import { systemSettings } from "@/db/schema";
 import { BarChart3, LockKeyhole, Printer, ShieldCheck, type IconNode } from "lucide";
 import { IconGlyph } from "@/components/ui";
+import { SYSTEM_LOGO_URL } from "@/lib/branding";
 import LoginForm from "./LoginForm";
 import LoginStatusToasts, { type LoginStatusNotice } from "./LoginStatusToasts";
 import Link from "next/link";
@@ -14,11 +13,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; verified?: string; reset?: string }>;
 }) {
   const params = await searchParams;
-  const [settings] = await db
-    .select({ logoUrl: systemSettings.logoUrl })
-    .from(systemSettings)
-    .limit(1);
-  const logoUrl = settings?.logoUrl ?? null;
+  const logoUrl = SYSTEM_LOGO_URL;
   const statusNotice = getLoginStatusNotice(params);
 
   return (

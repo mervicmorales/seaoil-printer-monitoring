@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import { db } from "@/db";
-import { notifications, systemSettings, users } from "@/db/schema";
+import { notifications, users } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import Sidebar from "@/components/Sidebar";
 import AppHeader from "@/components/AppHeader";
@@ -10,6 +10,7 @@ import AgentStatusNotifications from "@/components/AgentStatusNotifications";
 import { PageHeaderPlacement } from "@/components/PageHeaderPortal";
 import { getBlobSkinCookieName, isBlobSkin } from "@/lib/blob-skins";
 import { BlobSkinProvider } from "@/components/BlobSkinProvider";
+import { SYSTEM_LOGO_URL } from "@/lib/branding";
 import { redirect } from "next/navigation";
 
 export default async function AppLayout({
@@ -25,16 +26,12 @@ export default async function AppLayout({
   const cookieStore = await cookies();
   const collapsedCookie = cookieStore.get("seaoil-sidebar-collapsed")?.value;
   const blobSkinCookie = cookieStore.get(getBlobSkinCookieName(String(session.id)))?.value;
-  const [recentNotifications, settingsRows, userRows] = await Promise.all([
+  const [recentNotifications, userRows] = await Promise.all([
     db
       .select()
       .from(notifications)
       .orderBy(desc(notifications.createdAt))
       .limit(20),
-    db
-      .select({ logoUrl: systemSettings.logoUrl })
-      .from(systemSettings)
-      .limit(1),
     db
       .select({ fullName: users.fullName })
       .from(users)
@@ -53,7 +50,7 @@ export default async function AppLayout({
       <div className="flex min-h-screen bg-transparent">
         <AgentStatusNotifications />
         <Sidebar
-          logoUrl={settingsRows[0]?.logoUrl ?? null}
+          logoUrl={SYSTEM_LOGO_URL}
           accountName={accountName || "SEAOIL User"}
           initialCollapsed={
             collapsedCookie === undefined ? null : collapsedCookie === "true"
