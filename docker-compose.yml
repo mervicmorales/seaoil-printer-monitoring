@@ -65,7 +65,7 @@ services:
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-SEAOIL Printer}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
     ports:
-      - "127.0.0.1:${DASHBOARD_PORT:-3000}:3000"
+      - "0.0.0.0:${DASHBOARD_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
