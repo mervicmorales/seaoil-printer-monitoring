@@ -1,18 +1,22 @@
-import { Clock3, Download, FileText, Radar, TriangleAlert } from "lucide";
+import { Clock3, FileText, Radar, TriangleAlert } from "lucide";
 import { redirect } from "next/navigation";
 import { Badge, Card, IconGlyph, PageHeader, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
 import { getModuleAccessMap, requireModuleFullAccess, requireSession } from "@/lib/server-utils";
 import { isSuperAdmin } from "@/lib/roles";
+import { scanExpiresAt, SCAN_RETENTION_HOURS } from "@/lib/scan-retention";
 import AgentSyncPanel from "../AgentSyncPanel";
 import {
   getPrintOpsAgents,
   getPrintOpsLocationScope,
   getRecentPrintOpsCommands,
+  getUserPrinterPermissionIds,
 } from "../data";
 import PrintOpsFeedback from "../PrintOpsFeedback";
 import PrintOpsSubmitButton from "../PrintOpsSubmitButton";
 import { queueScanAction } from "../actions";
+import ScanFileActions, { LatestScanAutoPreview } from "./ScanFileActions";
+import ScanTargetFields from "./ScanTargetFields";
 
 type ScanRequest = Awaited<ReturnType<typeof getRecentPrintOpsCommands>>[number];
 
@@ -35,10 +39,19 @@ export async function PrintOpsScanPageContent({
     ? await getPrintOpsLocationScope(session.id)
     : undefined;
   const showAgentControls = isSuperAdmin(session.role);
+  const assignedPrinterIds = session.role === "employee" || session.role === "support"
+    ? await getUserPrinterPermissionIds(session.id)
+    : undefined;
   const [agents, scans] = await Promise.all([
     locationScoped && !locationScope
       ? []
-      : getPrintOpsAgents(locationScope ?? undefined),
+      : getPrintOpsAgents(
+          locationScope ? { locationId: locationScope.locationId } : undefined,
+          assignedPrinterIds,
+          session.role === "support" || session.role === "employee"
+            ? locationScope?.departmentId
+            : undefined,
+        ),
     getRecentPrintOpsCommands(
       "scan",
       30,
@@ -49,6 +62,18 @@ export async function PrintOpsScanPageContent({
     agent.snapshot.scanDevices.map((device) => ({ agent, device })),
   );
   const renderedAt = new Date();
+  const latestScan = scans[0];
+  const recentCompletedScan = latestScan?.status === "completed"
+    && latestScan.outputFileName
+    && latestScan.hasOutputFile
+    && latestScan.completedAt
+    && renderedAt.getTime() - latestScan.completedAt.getTime() < 10 * 60 * 1_000
+    ? {
+        id: latestScan.id,
+        name: latestScan.outputFileName,
+        mimeType: latestScan.outputMimeType,
+      }
+    : null;
 
   return (
     <div>
@@ -58,6 +83,7 @@ export async function PrintOpsScanPageContent({
         actions={<RefreshControl refreshedAtLabel={formatTime(renderedAt)} intervalSeconds={5} />}
       />
       <PrintOpsFeedback success={params.success} error={params.error} />
+      <LatestScanAutoPreview scan={recentCompletedScan} />
       {showAgentControls && (
         <AgentSyncPanel agents={agents} returnTo="/printops/scan" canManage={access.printops} />
       )}
@@ -89,33 +115,20 @@ export async function PrintOpsScanPageContent({
               <p className="font-semibold">No scanner available</p>
               <p className="mt-0.5 text-xs leading-5 text-amber-700">
                 {locationScoped
-                  ? "No scanner is currently available at your assigned location."
+                  ? "No scanner is currently available for your assigned location and printer permissions."
                   : showAgentControls
-                    ? "No SANE-compatible scanners are available yet. Refresh an online office agent above."
-                    : "No SANE-compatible scanners are currently available."}
+                    ? "No compatible scanners are available yet. Refresh an online office agent above."
+                    : "No compatible scanners are currently available."}
               </p>
             </div>
           </div>
         ) : (
           <form action={queueScanAction} className="grid gap-4 p-5 sm:p-6 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Scanner</span>
-              <select name="target" required className={selectClassName}>
-                {scannerTargets.map(({ agent, device }) => (
-                  <option key={`${agent.id}-${device.id}`} value={`${agent.id}|${device.id}`}>
-                    {agent.name} · {device.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Document source</span>
-              <select name="source" defaultValue="Flatbed" className={selectClassName}>
-                <option value="Flatbed">Flatbed · glass</option>
-                <option value="ADF">ADF · simplex</option>
-                <option value="ADF Duplex">ADF · duplex</option>
-              </select>
-            </label>
+            <ScanTargetFields targets={scannerTargets.map(({ agent, device }) => ({
+              value: `${agent.id}|${device.id}`,
+              label: scannerDisplayLabel(agent, device),
+              sources: device.sources,
+            }))} />
             <div className="flex border-t border-slate-200 pt-5 md:col-span-2 md:justify-end">
               <PrintOpsSubmitButton idleLabel="Scan Now" pendingLabel="Queueing…" />
             </div>
@@ -131,6 +144,15 @@ export async function PrintOpsScanPageContent({
         <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
           {scans.length} records
         </span>
+      </div>
+      <div className="mb-3 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+        <span className="mt-0.5 shrink-0 text-amber-600"><IconGlyph icon={Clock3} size={16} /></span>
+        <div>
+          <p className="text-xs font-bold">Save completed scans within {SCAN_RETENTION_HOURS} hours</p>
+          <p className="mt-0.5 text-[11px] leading-5 text-amber-700">
+            Scan files are permanently removed after {SCAN_RETENTION_HOURS} hours to protect sensitive documents and control storage. The activity record remains for reference.
+          </p>
+        </div>
       </div>
       <TableCard className="h-[28rem]">
         {scans.length === 0 ? (
@@ -159,10 +181,12 @@ export async function PrintOpsScanPageContent({
                       <td className="px-4 py-4 text-slate-600">{payloadText(scan.payload, "source") || "—"}</td>
                       <td className="px-4 py-4 text-xs font-medium text-slate-500">{formatDateTime(scan.requestedAt)}</td>
                       <td className="px-4 py-4">
-                        <Badge color={statusColor(scan.status)}>{scan.status}</Badge>
+                        <Badge color={statusColor(displayStatus(scan))}>{displayStatus(scan)}</Badge>
+                        <ScanProgress status={scan.status} />
                         {scan.errorMessage && <p className="mt-1.5 max-w-xs text-xs leading-5 text-red-600">{scan.errorMessage}</p>}
+                        <ScanRetentionReminder scan={scan} />
                       </td>
-                      <td className="px-4 py-4 text-right"><ScanDownloadAction scan={scan} /></td>
+                      <td className="px-4 py-4 text-right"><ScanResultActions scan={scan} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -188,7 +212,7 @@ function ScanRequestCard({ scan }: { scan: ScanRequest }) {
             <p className="mt-1 text-xs text-slate-500">{scan.agentName}</p>
           </div>
         </div>
-        <Badge color={statusColor(scan.status)}>{scan.status}</Badge>
+        <Badge color={statusColor(displayStatus(scan))}>{displayStatus(scan)}</Badge>
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
         <div>
@@ -201,28 +225,72 @@ function ScanRequestCard({ scan }: { scan: ScanRequest }) {
         </div>
       </dl>
       {scan.errorMessage && <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">{scan.errorMessage}</p>}
+      <ScanProgress status={scan.status} />
+      <ScanRetentionReminder scan={scan} />
       {scan.status === "completed" && scan.outputFileName && (
-        <div className="mt-4"><ScanDownloadAction scan={scan} fullWidth /></div>
+        <div className="mt-4"><ScanResultActions scan={scan} fullWidth /></div>
       )}
     </article>
   );
 }
 
-function ScanDownloadAction({ scan, fullWidth = false }: { scan: ScanRequest; fullWidth?: boolean }) {
+function ScanResultActions({ scan, fullWidth = false }: { scan: ScanRequest; fullWidth?: boolean }) {
   if (scan.status !== "completed" || !scan.outputFileName) return <span className="text-slate-400">—</span>;
+  if (!scan.hasOutputFile) return <span className="text-xs font-semibold text-slate-400">File expired</span>;
   return (
-    <a
-      href={`/api/printops/scans/${scan.id}`}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md ${fullWidth ? "w-full" : ""}`}
-    >
-      <IconGlyph icon={Download} size={14} />
-      Download
-    </a>
+    <ScanFileActions
+      scan={{ id: scan.id, name: scan.outputFileName, mimeType: scan.outputMimeType }}
+      fullWidth={fullWidth}
+    />
   );
 }
 
-const selectClassName = "h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15";
+function ScanRetentionReminder({ scan }: { scan: ScanRequest }) {
+  if (scan.status !== "completed" || !scan.completedAt) return null;
+  return scan.hasOutputFile ? (
+    <p className="mt-1.5 text-[11px] font-medium leading-4 text-amber-700">
+      Auto-deletes {formatDateTime(scanExpiresAt(scan.completedAt))}
+    </p>
+  ) : (
+    <p className="mt-1.5 text-[11px] font-medium leading-4 text-slate-500">
+      File automatically deleted after {SCAN_RETENTION_HOURS} hours
+    </p>
+  );
+}
+
+function ScanProgress({ status }: { status: string }) {
+  if (status !== "queued" && status !== "running") return null;
+  const running = status === "running";
+  const label = running ? "Scanning document…" : "Waiting for office agent…";
+  return (
+    <div className="mt-2.5 w-full max-w-52" aria-live="polite">
+      <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold text-[#014171]">
+        <span className={`size-1.5 shrink-0 rounded-full ${running ? "bg-emerald-500" : "bg-sky-500"} scan-progress-glow`} />
+        <span>{label}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label={label}
+        aria-valuetext={label}
+        className="h-1.5 overflow-hidden rounded-full bg-slate-200 shadow-inner"
+      >
+        <span className={`scan-progress-indicator block h-full w-2/5 rounded-full bg-gradient-to-r ${running ? "from-emerald-400 via-emerald-500 to-teal-500" : "from-sky-400 via-[#1477b8] to-[#014171]"}`} />
+      </div>
+      {running && <p className="mt-1.5 text-[10px] leading-4 text-slate-500">Keep the document in place until scanning finishes.</p>}
+    </div>
+  );
+}
+
+function scannerDisplayLabel(
+  agent: Awaited<ReturnType<typeof getPrintOpsAgents>>[number],
+  device: Awaited<ReturnType<typeof getPrintOpsAgents>>[number]["snapshot"]["scanDevices"][number],
+) {
+  const printer = agent.physicalPrinters.find((candidate) => candidate.id === device.printerId);
+  return `${printer?.department || "No Department"} | ${printer?.model || "Unknown Model"} | SN: ${printer?.serialNumber || "Unknown"}`;
+}
+
 function payloadText(payload: Record<string, unknown>, key: string) { return typeof payload[key] === "string" ? payload[key] : ""; }
+function displayStatus(scan: ScanRequest) { return scan.status === "completed" && !scan.hasOutputFile ? "expired" : scan.status; }
 function statusColor(status: string): "green" | "yellow" | "red" | "gray" { if (status === "completed") return "green"; if (status === "failed") return "red"; if (status === "queued" || status === "running") return "yellow"; return "gray"; }
 function formatTime(value: Date) { return value.toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit", second: "2-digit" }); }
 function formatDateTime(value: Date) { return value.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }); }

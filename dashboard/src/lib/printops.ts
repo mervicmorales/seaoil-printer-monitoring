@@ -8,7 +8,12 @@ export type PrintOpsPrinterTarget = {
   model: string | null;
   serialNumber: string | null;
 };
-export type PrintOpsScanDevice = { id: string; label: string };
+export type PrintOpsScanDevice = {
+  id: string;
+  label: string;
+  printerId: number | null;
+  sources: string[];
+};
 export type PrintOpsScanFile = { name: string; size: number; mtime: string };
 
 export type PrintOpsSnapshot = {
@@ -45,7 +50,12 @@ export function normalizePrintOpsSnapshot(value: unknown): PrintOpsSnapshot {
     activeJobs: stringArray(source.activeJobs),
     completedJobs: stringArray(source.completedJobs),
     scanDevices: objectArray(source.scanDevices)
-      .map((item) => ({ id: text(item.id), label: text(item.label) }))
+      .map((item) => ({
+        id: text(item.id),
+        label: text(item.label),
+        printerId: number(item.printerId) || null,
+        sources: stringArray(item.sources),
+      }))
       .filter((item) => item.id),
     scans: objectArray(source.scans)
       .map((item) => ({

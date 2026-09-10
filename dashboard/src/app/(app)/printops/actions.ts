@@ -198,7 +198,19 @@ export async function queueScanAction(formData: FormData) {
   if (!new Set(["Flatbed", "ADF", "ADF Duplex"]).has(source)) {
     redirectWith(returnTo, "error", "Select a valid scan source.");
   }
-  await validateScanDevice(agentId, device, returnTo);
+  await validateScanDevice(
+    agentId,
+    device,
+    source,
+    returnTo,
+    locationScope
+      ? {
+          userId: session.id,
+          locationId: locationScope.locationId,
+          departmentId: locationScope.departmentId,
+        }
+      : undefined,
+  );
   await db.insert(printOpsCommands).values({
     agentId,
     requestedBy: session.id,
@@ -281,7 +293,9 @@ async function validateAgent(
 async function validateScanDevice(
   agentId: number,
   deviceId: string,
+  source: string,
   returnTo: string,
+  accountScope?: { userId: number; locationId: number; departmentId?: number },
 ) {
   const [latestSync] = await db
     .select({ result: printOpsCommands.result })
@@ -293,10 +307,41 @@ async function validateScanDevice(
     ))
     .orderBy(desc(printOpsCommands.completedAt), desc(printOpsCommands.id))
     .limit(1);
-  const available = normalizePrintOpsSnapshot(latestSync?.result)
-    .scanDevices.some((device) => device.id === deviceId);
-  if (!available) {
+  const device = normalizePrintOpsSnapshot(latestSync?.result)
+    .scanDevices.find((candidate) => candidate.id === deviceId);
+  if (!device) {
     redirectWith(returnTo, "error", "The selected scanner is no longer available.");
+  }
+  if (device.sources.length > 0 && !device.sources.includes(source)) {
+    redirectWith(returnTo, "error", "The selected document source is not supported by this scanner.");
+  }
+  if (!accountScope) return;
+  if (!device.printerId) {
+    redirectWith(returnTo, "error", "This scanner is not linked to a printer available for your account.");
+  }
+  const permitted = await db.execute<{ id: number }>(sql`
+    select printer.id
+    from printer_monitoring_assignments assignment
+    inner join printers printer on printer.id = assignment.printer_id
+    where assignment.agent_id = ${agentId}
+      and printer.id = ${device.printerId}
+      and printer.status = 'Active'
+      and (
+        (
+          printer.location_id = ${accountScope.locationId}
+          and printer.department_id = ${accountScope.departmentId ?? null}
+        )
+        or exists (
+          select 1
+          from user_printer_permissions permission
+          where permission.user_id = ${accountScope.userId}
+            and permission.printer_id = printer.id
+        )
+      )
+    limit 1
+  `);
+  if (!permitted.rows[0]) {
+    redirectWith(returnTo, "error", "This scanner is not available for your account.");
   }
 }
 

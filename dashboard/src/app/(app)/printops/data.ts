@@ -10,6 +10,7 @@ import {
   users,
 } from "@/db/schema";
 import { normalizePrintOpsSnapshot, type PrintOpsSnapshot } from "@/lib/printops";
+import { purgeExpiredScanFiles } from "@/lib/scan-retention";
 
 export type PrintOpsAgent = {
   id: number;
@@ -197,6 +198,13 @@ export async function getPrintOpsAgents(
         printer.department_id === automaticallyAllowedDepartmentId;
       return explicitlyAllowed || (atAssignedLocation && inAutomaticDepartment);
     });
+    const visiblePrinterIds = new Set(monitoredPrinters.map((printer) => printer.printer_id));
+    const onlinePrinterIds = new Set(
+      monitoredPrinters.filter((printer) => printer.online).map((printer) => printer.printer_id),
+    );
+    const onlineScanDevices = snapshot.scanDevices.filter((device) => (
+      device.printerId === null || onlinePrinterIds.has(device.printerId)
+    ));
     return {
       ...agent,
       physicalPrinters: monitoredPrinters.map((printer) => ({
@@ -224,6 +232,11 @@ export async function getPrintOpsAgents(
           model: printer.model,
           serialNumber: printer.serial_number,
         })),
+        scanDevices: locationScope
+          ? onlineScanDevices.filter((device) => (
+              device.printerId !== null && visiblePrinterIds.has(device.printerId)
+            ))
+          : onlineScanDevices,
       },
       snapshotAt: command?.completedAt ?? null,
     };
@@ -235,6 +248,7 @@ export async function getRecentPrintOpsCommands(
   limit = 20,
   requestedBy?: number,
 ) {
+  if (type === "scan") await purgeExpiredScanFiles();
   return db
     .select({
       id: printOpsCommands.id,
@@ -248,6 +262,7 @@ export async function getRecentPrintOpsCommands(
       inputFileName: printOpsCommands.inputFileName,
       outputFileName: printOpsCommands.outputFileName,
       outputMimeType: printOpsCommands.outputMimeType,
+      hasOutputFile: sql<boolean>`${printOpsCommands.outputFileData} is not null`,
       errorMessage: printOpsCommands.errorMessage,
       requestedAt: printOpsCommands.requestedAt,
       completedAt: printOpsCommands.completedAt,

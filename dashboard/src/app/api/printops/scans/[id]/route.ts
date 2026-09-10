@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { printOpsCommands } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { getModuleAccessMap } from "@/lib/server-utils";
 import { isSuperAdmin } from "@/lib/roles";
+import { purgeExpiredScanFiles, SCAN_RETENTION_MS } from "@/lib/scan-retention";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
@@ -23,11 +24,13 @@ export async function GET(
   if (!Number.isSafeInteger(id) || id < 1) {
     return NextResponse.json({ message: "Invalid scan ID" }, { status: 400 });
   }
+  await purgeExpiredScanFiles();
 
   const conditions = [
     eq(printOpsCommands.id, id),
     eq(printOpsCommands.type, "scan"),
     eq(printOpsCommands.status, "completed"),
+    gt(printOpsCommands.completedAt, new Date(Date.now() - SCAN_RETENTION_MS)),
   ];
   if (!isSuperAdmin(session.role)) {
     conditions.push(eq(printOpsCommands.requestedBy, session.id));
@@ -47,11 +50,14 @@ export async function GET(
   }
   const file = Buffer.from(scan.data, "base64");
   const safeName = scan.name.replace(/["\\\r\n]/g, "_");
+  const disposition = new URL(request.url).searchParams.get("view") === "1"
+    ? "inline"
+    : "attachment";
   return new NextResponse(new Uint8Array(file), {
     headers: {
       "Content-Type": scan.mimeType || "application/pdf",
       "Content-Length": String(file.length),
-      "Content-Disposition": `attachment; filename="${safeName}"`,
+      "Content-Disposition": `${disposition}; filename="${safeName}"`,
       "Cache-Control": "private, no-store",
     },
   });

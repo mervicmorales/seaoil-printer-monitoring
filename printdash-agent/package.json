@@ -8,7 +8,8 @@
     "test:cups-admin": "node --test cups-admin.test.js",
     "test:print-options": "node --test print-options.test.js",
     "test:snmp-safety": "node --test snmp-safety.test.js",
-    "test:mac": "node --test mac-address.test.js"
+    "test:mac": "node --test mac-address.test.js",
+    "test:scanner": "node --test escl-scanner.test.js"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

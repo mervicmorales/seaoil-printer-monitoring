@@ -8,8 +8,14 @@ import {
   monitoringAgentKeySchema,
 } from "@/lib/monitoring";
 import { claimPrintFile } from "@/lib/printops-file-transfer";
+import { purgeExpiredScanFiles } from "@/lib/scan-retention";
 
 export const dynamic = "force-dynamic";
+
+const AUTOMATIC_SYNC_INTERVAL_MINUTES = 2;
+const AUTOMATIC_SYNC_CHECK_INTERVAL_MS = 30_000;
+const SYNC_HISTORY_LIMIT_PER_AGENT = 12;
+const lastAutomaticSyncCheck = new Map<number, number>();
 
 const outputSchema = z.object({
   name: z.string().trim().min(1).max(255),
@@ -34,6 +40,8 @@ export async function GET(request: Request) {
   if (authentication.status === "unauthorized") return unauthorized();
 
   const agentId = authentication.principal.id;
+  await purgeExpiredScanFiles();
+  await ensureAutomaticSync(agentId);
   await db.execute(sql`
     update print_ops_commands
     set status = 'failed', completed_at = now(),
@@ -58,7 +66,7 @@ export async function GET(request: Request) {
       select id
       from print_ops_commands
       where agent_id = ${agentId} and status = 'queued'
-      order by requested_at, id
+      order by case when type = 'sync' then 1 else 0 end, requested_at, id
       for update skip locked
       limit 1
     )
@@ -142,7 +150,11 @@ export async function POST(request: Request) {
         eq(printOpsCommands.status, "running"),
       ),
     )
-    .returning({ id: printOpsCommands.id });
+    .returning({
+      id: printOpsCommands.id,
+      type: printOpsCommands.type,
+      agentId: printOpsCommands.agentId,
+    });
 
   if (updated.length === 0) {
     return NextResponse.json(
@@ -150,7 +162,51 @@ export async function POST(request: Request) {
       { status: 409 },
     );
   }
+  if (updated[0].type === "sync") {
+    await pruneAgentSyncHistory(updated[0].agentId).catch(() => {
+      console.error("Could not prune old automatic PrintOps sync records.");
+    });
+  }
   return NextResponse.json({ success: true });
+}
+
+async function ensureAutomaticSync(agentId: number) {
+  const now = Date.now();
+  if (now - (lastAutomaticSyncCheck.get(agentId) ?? 0) < AUTOMATIC_SYNC_CHECK_INTERVAL_MS) return;
+  lastAutomaticSyncCheck.set(agentId, now);
+
+  await db.execute(sql`
+    insert into print_ops_commands (agent_id, type, status, payload, requested_at)
+    select ${agentId}, 'sync', 'queued', '{}'::jsonb, now()
+    where not exists (
+      select 1
+      from print_ops_commands
+      where agent_id = ${agentId}
+        and type = 'sync'
+        and (
+          status in ('queued', 'running')
+          or (
+            status = 'completed'
+            and completed_at >= now() - (${AUTOMATIC_SYNC_INTERVAL_MINUTES} * interval '1 minute')
+          )
+        )
+    )
+  `);
+}
+
+async function pruneAgentSyncHistory(agentId: number) {
+  await db.execute(sql`
+    delete from print_ops_commands
+    where id in (
+      select id
+      from print_ops_commands
+      where agent_id = ${agentId}
+        and type = 'sync'
+        and status in ('completed', 'failed')
+      order by completed_at desc nulls last, id desc
+      offset ${SYNC_HISTORY_LIMIT_PER_AGENT}
+    )
+  `);
 }
 
 async function authenticate(request: Request) {

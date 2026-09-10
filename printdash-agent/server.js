@@ -14,6 +14,7 @@ const crypto  = require('crypto');
 const { buildLpArgs } = require('./print-options');
 const { runCupsAdminCommand } = require('./cups-admin');
 const { readPrinterMacAddress } = require('./mac-address');
+const { discoverEsclDevices, runEsclScan } = require('./escl-scanner');
 const app  = express();
 const configuredPort = Number(process.env.PORT || 3003);
 const PORT = Number.isInteger(configuredPort) && configuredPort > 0 && configuredPort <= 65535 ? configuredPort : 3003;
@@ -184,10 +185,32 @@ async function doLogin(){
 </script></body></html>`;
 
 const DATA_FILE  = process.env.DATA_FILE  || './printers.json';
-const SCAN_DIR   = process.env.SCAN_DIR   || '/opt/scans';
-const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/printdash-uploads';
+const SCAN_RETENTION_MS = 72 * 60 * 60 * 1000;
+const SCAN_DIR = writableDirectory(
+  process.env.SCAN_DIR || path.join(os.tmpdir(), 'printdash-scans'),
+  path.join(os.tmpdir(), 'printdash-scans'),
+  'scan',
+);
+const UPLOAD_DIR = writableDirectory(
+  process.env.UPLOAD_DIR || path.join(os.tmpdir(), 'printdash-uploads'),
+  path.join(os.tmpdir(), 'printdash-uploads'),
+  'upload',
+);
 
-[SCAN_DIR, UPLOAD_DIR].forEach(d => { try { fs.mkdirSync(d, { recursive: true }); } catch {} });
+function writableDirectory(preferred, fallback, label) {
+  try {
+    fs.mkdirSync(preferred, { recursive: true });
+    fs.accessSync(preferred, fs.constants.W_OK);
+    return preferred;
+  } catch {
+    if (preferred !== fallback) {
+      console.warn(`[SEAOIL Agent] Cannot use ${label} folder ${preferred}; using ${fallback}.`);
+    }
+    fs.mkdirSync(fallback, { recursive: true });
+    fs.accessSync(fallback, fs.constants.W_OK);
+    return fallback;
+  }
+}
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 function loadPrinters() {
@@ -786,17 +809,16 @@ async function executePrintOpsCommand(command) {
   }
 
   if (command.type === 'scan') {
-    const devices = await listScanDevices();
     const device = String(payload.device || '');
-    if (!devices.some(item => item.id === device)) throw new Error('The selected scanner is not available');
+    const selectedDevice = await resolveSelectedScanDevice(device);
     const source = ['Flatbed', 'ADF', 'ADF Duplex'].includes(payload.source) ? payload.source : 'Flatbed';
-    const name = await triggerScan(device, source);
-    const fullPath = path.join(SCAN_DIR, path.basename(name));
+    const scanned = await triggerScan(selectedDevice, source);
+    const fullPath = path.join(SCAN_DIR, path.basename(scanned.name));
     const fileBuffer = fs.readFileSync(fullPath);
     if (fileBuffer.length > 24 * 1024 * 1024) throw new Error('The scan is too large to upload to PrintOps');
     return {
-      result: { name, size: fileBuffer.length, source, device },
-      output: { name, mimeType: 'application/pdf', data: fileBuffer.toString('base64') },
+      result: { name: scanned.name, size: fileBuffer.length, source, device },
+      output: { name: scanned.name, mimeType: scanned.mimeType, data: fileBuffer.toString('base64') },
     };
   }
 
@@ -823,6 +845,9 @@ async function processCentralPrintOpsCommand() {
       completion.result || {},
       completion.output || null,
     );
+    if (uploaded && command.type === 'scan' && completion.output?.name) {
+      deleteLocalScan(completion.output.name);
+    }
     console.log(`[SEAOIL Agent] PrintOps command ${command.id} ${uploaded ? 'completed.' : 'finished, but the result upload failed.'}`);
   } catch (error) {
     await completePrintOpsCommand(
@@ -837,6 +862,7 @@ async function processCentralPrintOpsCommand() {
 }
 
 async function startMonitoringLoops() {
+  purgeExpiredLocalScans();
   await syncCentralPrinterConfig();
   await refreshAll();
   void processCentralDiscoveryJob();
@@ -844,6 +870,7 @@ async function startMonitoringLoops() {
   setInterval(() => { void refreshAll(); }, agentConfig.pollIntervalMs);
   setInterval(() => { void processCentralDiscoveryJob(); }, 10_000);
   setInterval(() => { void processCentralPrintOpsCommand(); }, 3_000);
+  setInterval(purgeExpiredLocalScans, 60 * 60 * 1000);
   setInterval(() => {
     void syncCentralPrinterConfig().then(changed => {
       if (changed) void refreshAll();
@@ -1137,28 +1164,116 @@ function listScans() {
   } catch { return []; }
 }
 
-// ── eSCL scan trigger (scanimage / sane-airscan) ───────────────────────────────
-function listScanDevices() {
+function deleteLocalScan(name) {
+  try {
+    fs.unlinkSync(path.join(SCAN_DIR, path.basename(name)));
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      console.warn(`[SEAOIL Agent] Could not remove temporary scan ${path.basename(name)}.`);
+    }
+  }
+}
+
+function purgeExpiredLocalScans() {
+  try {
+    const cutoff = Date.now() - SCAN_RETENTION_MS;
+    for (const scan of listScans()) {
+      if (new Date(scan.mtime).getTime() < cutoff) deleteLocalScan(scan.name);
+    }
+  } catch {
+    console.warn('[SEAOIL Agent] Could not complete temporary scan cleanup.');
+  }
+}
+
+// ── Scanner discovery and capture (native eSCL plus SANE fallback) ─────────────
+function listSaneScanDevices() {
   return new Promise(resolve => {
     exec('scanimage -L 2>/dev/null', (err, stdout) => {
       const devices = [];
       (stdout || '').split('\n').forEach(line => {
         const m = line.match(/device `([^']+)' is a (.+)/);
-        if (m) devices.push({ id: m[1], label: m[2] });
+        if (m) devices.push({
+          id: m[1],
+          label: m[2],
+          kind: 'sane',
+          printerId: assignedPrinterIdForScanner(m[1], m[2]),
+          sources: ['Flatbed', 'ADF', 'ADF Duplex'],
+        });
       });
       resolve(devices);
     });
   });
 }
-function triggerScan(deviceId, source) {
+
+async function listScanDevices() {
+  const [saneDevices, esclDevices] = await Promise.all([
+    listSaneScanDevices(),
+    discoverEsclDevices(PRINTERS),
+  ]);
+  const devices = [];
+  const printerIds = new Set();
+  for (const device of esclDevices) {
+    devices.push(device);
+    if (device.printerId) printerIds.add(device.printerId);
+  }
+  for (const device of saneDevices) {
+    if (device.printerId && printerIds.has(device.printerId)) continue;
+    devices.push(device);
+  }
+  return devices;
+}
+
+async function resolveSelectedScanDevice(deviceId) {
+  const esclMatch = String(deviceId).match(/^escl:(\d+)$/);
+  if (esclMatch) {
+    const printerId = Number(esclMatch[1]);
+    const printer = PRINTERS.find(item => Number(item.id) === printerId);
+    if (!printer) throw new Error('The selected scanner is no longer assigned to this agent');
+    const [device] = await discoverEsclDevices([printer], { timeoutMs: 12_000 });
+    if (!device) {
+      throw new Error('The scanner did not respond in time. Wake the printer, confirm it is online, and try again.');
+    }
+    return device;
+  }
+
+  const saneDevices = await listSaneScanDevices();
+  const device = saneDevices.find(item => item.id === deviceId);
+  if (!device) throw new Error('The selected scanner is no longer available');
+  return device;
+}
+
+function assignedPrinterIdForScanner(deviceId, label) {
+  const text = `${deviceId} ${label}`.toLowerCase();
+  const match = PRINTERS.find(printer => {
+    const ip = String(printer.ip || '').trim().toLowerCase();
+    if (ip && text.includes(ip)) return true;
+    const name = normalizedPrinterName(printer.name);
+    return name && normalizedPrinterName(text).includes(name);
+  });
+  return match ? Number(match.id) : null;
+}
+
+async function triggerScan(deviceOrId, source) {
+  const device = typeof deviceOrId === 'string'
+    ? (await listScanDevices()).find(item => item.id === deviceOrId)
+    : deviceOrId;
+  if (!device) throw new Error('The selected scanner is not available');
+  if (device.kind === 'escl') {
+    const scan = await runEsclScan(device, source);
+    const name = `scan-${Date.now()}.${scan.extension}`;
+    fs.writeFileSync(path.join(SCAN_DIR, name), scan.buffer);
+    return { name, mimeType: scan.mimeType };
+  }
+
   return new Promise((resolve, reject) => {
+    const deviceId = device.id;
     if (!deviceId) return reject(new Error('No scanner device specified'));
     const file = path.join(SCAN_DIR, `scan-${Date.now()}.pdf`);
     const args = ['-d', deviceId, '--format=pdf', '-o', file];
     if (source && source !== 'Flatbed') args.push('--source', source);
     execFile('scanimage', args, { timeout: 120000 }, (err, stdout, stderr) => {
       if (err) return reject(new Error(stderr || err.message));
-      resolve(path.basename(file));
+      resolve({ name: path.basename(file), mimeType: 'application/pdf' });
     });
   });
 }
@@ -1238,7 +1353,7 @@ app.get('/api/scans/devices', async (_req,res) => {
 });
 app.post('/api/scans/trigger', async (req,res) => {
   const { device, source } = req.body || {};
-  try { const name = await triggerScan(device, source); res.json({ok:true, name}); }
+  try { const scan = await triggerScan(device, source); res.json({ok:true, ...scan}); }
   catch(e) { res.status(500).json({error:e.message}); }
 });
 

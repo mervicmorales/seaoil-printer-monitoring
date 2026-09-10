@@ -204,6 +204,33 @@ button:disabled {
   animation: monitoring-stale-pulse 2s ease-in-out infinite;
 }
 
+@keyframes scan-progress-indeterminate {
+  0% {
+    transform: translateX(-120%) scaleX(0.45);
+  }
+  55% {
+    transform: translateX(75%) scaleX(0.7);
+  }
+  100% {
+    transform: translateX(270%) scaleX(0.45);
+  }
+}
+
+@keyframes scan-progress-glow {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+
+.scan-progress-indicator {
+  animation: scan-progress-indeterminate 1.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.scan-progress-glow {
+  animation: scan-progress-glow 1.3s ease-in-out infinite;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
