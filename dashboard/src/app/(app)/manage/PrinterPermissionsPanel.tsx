@@ -12,6 +12,7 @@ export type PrinterPermissionState = {
   error?: string;
   success?: string;
   refreshQueuedAt?: number;
+  savedPrinterIds?: number[];
 };
 
 type PrinterOption = {
@@ -20,6 +21,7 @@ type PrinterOption = {
   model: string | null;
   serialNumber: string | null;
   department: string | null;
+  location: string | null;
   online: boolean;
   status: string;
 };
@@ -37,6 +39,8 @@ export default function PrinterPermissionsPanel({
   locationName,
   agents,
   permissionIds,
+  automaticPrinterIds,
+  pendingRequestIds,
   refreshAction,
   saveAction,
 }: {
@@ -44,6 +48,8 @@ export default function PrinterPermissionsPanel({
   locationName: string | null;
   agents: AgentOption[];
   permissionIds: number[];
+  automaticPrinterIds: number[];
+  pendingRequestIds: number[];
   refreshAction: (
     state: PrinterPermissionState,
     formData: FormData,
@@ -55,7 +61,11 @@ export default function PrinterPermissionsPanel({
 }) {
   const router = useRouter();
   const [selectedAgentId, setSelectedAgentId] = useState(String(agents[0]?.id ?? ""));
-  const [selectedPrinterIds, setSelectedPrinterIds] = useState(() => new Set(permissionIds));
+  const automaticIds = useMemo(() => new Set(automaticPrinterIds), [automaticPrinterIds]);
+  const pendingIds = useMemo(() => new Set(pendingRequestIds), [pendingRequestIds]);
+  const [selectedPrinterIds, setSelectedPrinterIds] = useState(
+    () => new Set([...permissionIds, ...automaticPrinterIds]),
+  );
   const [refreshState, refreshFormAction] = useActionState(refreshAction, {});
   const [saveState, saveFormAction] = useActionState(saveAction, {});
   const selectedAgent = agents.find((agent) => String(agent.id) === selectedAgentId);
@@ -97,13 +107,14 @@ export default function PrinterPermissionsPanel({
         id: "printer-permissions-save",
         description: saveState.success,
       });
+      router.refresh();
     }
-  }, [saveState]);
+  }, [saveState, router]);
 
   if (!locationName) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Assign a location to this employee before configuring printer permissions.
+        Assign a location to this account before configuring printer permissions.
       </div>
     );
   }
@@ -118,7 +129,7 @@ export default function PrinterPermissionsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Available Agent</span>
           <select
@@ -134,7 +145,7 @@ export default function PrinterPermissionsPanel({
             Agents assigned to {locationName}.
           </span>
         </label>
-        <form action={refreshFormAction}>
+        <form action={refreshFormAction} className="sm:pt-[1.625rem]">
           <input type="hidden" name="userId" value={userId} />
           <input type="hidden" name="agentId" value={selectedAgentId} />
           <RefreshButton />
@@ -156,6 +167,16 @@ export default function PrinterPermissionsPanel({
                   ? `Agent data refreshed ${formatDateTime(selectedAgent.snapshotAt)}`
                   : "Refresh agent data to retrieve its current printers."}
               </p>
+              {automaticPrinterIds.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Printers in the account&apos;s assigned department are included automatically. Select any additional printers to save permanent access on the profile.
+                </p>
+              )}
+              {pendingRequestIds.length > 0 && (
+                <p className="mt-1 text-xs font-semibold text-amber-700">
+                  {pendingRequestIds.length} printer access request{pendingRequestIds.length === 1 ? " is" : "s are"} awaiting review.
+                </p>
+              )}
             </div>
             <span className="text-xs font-semibold text-slate-500">
               {selectedCount} selected
@@ -173,11 +194,13 @@ export default function PrinterPermissionsPanel({
           ) : (
             <div className="grid max-h-80 gap-2 overflow-y-auto p-3 sm:grid-cols-2">
               {selectedAgent.printers.map((printer) => {
-                const checked = selectedPrinterIds.has(printer.id);
+                const automatic = automaticIds.has(printer.id);
+                const requested = pendingIds.has(printer.id);
+                const checked = automatic || selectedPrinterIds.has(printer.id);
                 return (
                   <label
                     key={printer.id}
-                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition ${checked
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 transition ${automatic ? "cursor-default" : "cursor-pointer"} ${checked
                       ? "border-sky-300 bg-sky-50/70 shadow-sm"
                       : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}
                   >
@@ -186,6 +209,7 @@ export default function PrinterPermissionsPanel({
                       name="printerId"
                       value={printer.id}
                       checked={checked}
+                      disabled={automatic}
                       onChange={(event) => {
                         setSelectedPrinterIds((current) => {
                           const next = new Set(current);
@@ -199,10 +223,14 @@ export default function PrinterPermissionsPanel({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-start justify-between gap-2">
                         <span className="truncate text-sm font-semibold text-slate-800">{printer.name}</span>
-                        <Badge color={printer.online ? "green" : "gray"}>{printer.online ? printer.status : "Offline"}</Badge>
+                        <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                          {automatic && <Badge color="blue">Automatic</Badge>}
+                          {requested && <Badge color="yellow">Requested</Badge>}
+                          <Badge color={printer.online ? "green" : "gray"}>{printer.online ? printer.status : "Offline"}</Badge>
+                        </span>
                       </span>
                       <span className="mt-1 block text-xs leading-5 text-slate-500">
-                        {[printer.department, printer.model, printer.serialNumber].filter(Boolean).join(" · ")}
+                        {[printer.location, printer.department, printer.model, printer.serialNumber].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                   </label>

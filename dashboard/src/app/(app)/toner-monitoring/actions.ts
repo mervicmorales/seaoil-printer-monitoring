@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { tonerInventory, tonerTransactions, tonerTypes } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -39,6 +39,19 @@ async function adjustStock(tonerTypeId: number, delta: number) {
   await db.update(tonerInventory).set({ stock: newStock }).where(eq(tonerInventory.tonerTypeId, tonerTypeId));
 }
 
+async function allTonerTypesAreVisible(tonerTypeIds: number[]) {
+  const rows = await db
+    .select({ id: tonerTypes.id })
+    .from(tonerTypes)
+    .where(
+      and(
+        inArray(tonerTypes.id, tonerTypeIds),
+        eq(tonerTypes.showAlertCard, true),
+      ),
+    );
+  return rows.length === tonerTypeIds.length;
+}
+
 export async function createDeliveryAction(_prev: TonerFormState, formData: FormData): Promise<TonerFormState> {
   await requireModuleFullAccess("toner");
 
@@ -55,6 +68,9 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
   if (!quantity || quantity <= 0) fieldErrors.quantity = "Quantity must be greater than zero.";
   if (!tonerTypeIds.length) fieldErrors.tonerTypeIds = "Select at least one toner type.";
   if (Object.keys(fieldErrors).length) return { fieldErrors };
+  if (!(await allTonerTypesAreVisible(tonerTypeIds))) {
+    return { fieldErrors: { tonerTypeIds: "One or more selected toner types are hidden. Refresh and select a visible toner type." } };
+  }
 
   const groupId = randomUUID();
   const remarks = str(formData.get("remarks"));
@@ -100,6 +116,9 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
   if (!departmentId) fieldErrors.departmentId = "Department is required.";
   if (!itsNameId) fieldErrors.itsNameId = "ITS Name is required.";
   if (Object.keys(fieldErrors).length) return { fieldErrors };
+  if (!(await allTonerTypesAreVisible(tonerTypeIds))) {
+    return { fieldErrors: { tonerTypeIds: "One or more selected toner types are hidden. Refresh and select a visible toner type." } };
+  }
 
   const groupId = randomUUID();
   const remarks = str(formData.get("remarks"));

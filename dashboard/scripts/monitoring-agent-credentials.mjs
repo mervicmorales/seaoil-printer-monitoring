@@ -62,7 +62,7 @@ async function resolveLocationId(client, locationName) {
 async function provision(client, command, options) {
   validateKey(options.key);
   const existingResult = await client.query(
-    "select id, name, token_hash, token_revoked_at from monitoring_agents where agent_key = $1 for update",
+    "select id, name, location_id, token_hash, token_revoked_at from monitoring_agents where agent_key = $1 for update",
     [options.key],
   );
   const existing = existingResult.rows[0] ?? null;
@@ -85,6 +85,7 @@ async function provision(client, command, options) {
   const token = generateToken();
   const tokenHash = await bcrypt.hash(token, BCRYPT_COST);
 
+  let agentId;
   if (existing) {
     await client.query(
       `update monitoring_agents
@@ -98,12 +99,25 @@ async function provision(client, command, options) {
        where id = $1`,
       [existing.id, options.name || null, Boolean(options.location), locationId, tokenHash],
     );
+    agentId = existing.id;
   } else {
-    await client.query(
+    const inserted = await client.query(
       `insert into monitoring_agents
         (agent_key, name, location_id, status, token_hash, token_created_at, last_seen)
-       values ($1, $2, $3, 'inactive', $4, now(), null)`,
+       values ($1, $2, $3, 'inactive', $4, now(), null)
+       returning id`,
       [options.key, options.name, locationId, tokenHash],
+    );
+    agentId = inserted.rows[0].id;
+  }
+
+  const effectiveLocationId = options.location ? locationId : existing?.location_id;
+  if (effectiveLocationId) {
+    await client.query(
+      `insert into monitoring_agent_locations (agent_id, location_id)
+       values ($1, $2)
+       on conflict (agent_id, location_id) do nothing`,
+      [agentId, effectiveLocationId],
     );
   }
 

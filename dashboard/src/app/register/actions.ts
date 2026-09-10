@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { departments, emailVerificationTokens, locations, systemSettings, userRegistrationRequests, users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { buildEmailVerificationEmail } from "@/lib/email-templates";
 import { isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/validation";
 import { expireRegistrationRequests } from "@/lib/registration-requests";
 
@@ -36,9 +37,11 @@ async function sendVerificationEmail(request: { fullName: string; employeeId: st
   const verificationUrl = `${await verificationOrigin()}/verify-email?token=${encodeURIComponent(rawToken)}`;
   await sendEmail({
     to: request.email,
-    subject: "SEAOIL Printer - Verify Your Email",
-    text: [`Hello ${request.fullName},`, `Employee ID: ${request.employeeId}`, "Verify your email using this link:", verificationUrl, "This single-use link expires in 24 hours."].join("\n\n"),
-    html: `<p>Hello ${escapeHtml(request.fullName)},</p><p>Employee ID: ${escapeHtml(request.employeeId)}</p><p><a href="${escapeHtml(verificationUrl)}">Verify your email</a></p><p>This single-use link expires in 24 hours.</p>`,
+    ...buildEmailVerificationEmail({
+      fullName: request.fullName,
+      employeeId: request.employeeId,
+      verificationUrl,
+    }),
   });
 }
 
@@ -197,8 +200,4 @@ export async function resendVerificationAction(_previous: RegistrationState, for
     console.error("Registration verification resend failed:", error instanceof Error ? error.name : "UnknownError");
   }
   return genericCooldownSuccess(cooldownUntil);
-}
-
-function escapeHtml(input: string) {
-  return input.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
 }

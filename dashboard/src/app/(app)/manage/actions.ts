@@ -6,8 +6,10 @@ import { db } from "@/db";
 import {
   auditLogs,
   manualUserVerificationTokens,
+  monitoringAgentLocations,
   monitoringAgents,
   passwordResetTokens,
+  printerAccessRequests,
   printerMonitoringAssignments,
   printers,
   printOpsCommands,
@@ -23,6 +25,7 @@ import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/auth";
 import { MODULES, defaultAccessForRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
+import { buildPasswordResetEmail, buildUserAccountVerificationEmail } from "@/lib/email-templates";
 import { canManageRole, hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
 import type { PrinterPermissionState } from "./PrinterPermissionsPanel";
 
@@ -48,29 +51,14 @@ async function applicationOrigin() {
     || "http://localhost:3000";
 }
 
-function escapeHtml(input: string) {
-  return input.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[character]!);
-}
-
 async function sendManualUserVerificationEmail(user: { fullName: string; email: string }, rawToken: string) {
   const verificationUrl = `${await applicationOrigin()}/verify-user-email?token=${encodeURIComponent(rawToken)}`;
   await sendEmail({
     to: user.email,
-    subject: "SEAOIL Printer - Verify Your User Account",
-    text: [
-      `Hello ${user.fullName},`,
-      "A user account was created for you in SEAOIL Printer Monitoring.",
-      "Verify your email using the link below to activate your account:",
+    ...buildUserAccountVerificationEmail({
+      fullName: user.fullName,
       verificationUrl,
-      "This single-use link expires in 24 hours. No additional administrator approval is required after verification.",
-    ].join("\n\n"),
-    html: `<p>Hello ${escapeHtml(user.fullName)},</p><p>A user account was created for you in SEAOIL Printer Monitoring.</p><p><a href="${escapeHtml(verificationUrl)}">Verify and activate your account</a></p><p>This single-use link expires in 24 hours. No additional administrator approval is required after verification.</p>`,
+    }),
   });
 }
 
@@ -78,16 +66,11 @@ async function sendManagedPasswordResetEmail(user: { fullName: string; email: st
   const resetUrl = `${await applicationOrigin()}/reset-password?token=${encodeURIComponent(rawToken)}`;
   await sendEmail({
     to: user.email,
-    subject: "SEAOIL Printer - Reset Your Password",
-    text: [
-      `Hello ${user.fullName},`,
-      "SEAOIL IT requested a password reset for your account.",
-      "Use the link below to set a new password:",
+    ...buildPasswordResetEmail({
+      fullName: user.fullName,
       resetUrl,
-      "This single-use link expires in 1 hour.",
-      "If you were not expecting this email, please contact IT Support.",
-    ].join("\n\n"),
-    html: `<p>Hello ${escapeHtml(user.fullName)},</p><p>SEAOIL IT requested a password reset for your account.</p><p><a href="${escapeHtml(resetUrl)}">Reset password</a></p><p>This single-use link expires in 1 hour.</p><p>If you were not expecting this email, please contact IT Support.</p>`,
+      requestedByIt: true,
+    }),
   });
 }
 
@@ -210,7 +193,11 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   const password = String(formData.get("password") || "");
   const role = roleValue(formData.get("role"));
 
-  const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, id)).limit(1);
+  const [target] = await db.select({
+    role: users.role,
+    primaryLocationId: users.primaryLocationId,
+    departmentId: users.departmentId,
+  }).from(users).where(eq(users.id, id)).limit(1);
   if (!target) return { error: "User not found." };
   if (!canManageRole(actor.role, target.role)) {
     return { error: "You cannot modify an account at or above your role level." };
@@ -231,6 +218,11 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   if (password && !isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
+  const assignmentChanged = (
+    target.primaryLocationId !== primaryLocationId ||
+    target.departmentId !== departmentId
+  );
+
   try {
     const updateValues: Record<string, unknown> = {
       fullName,
@@ -242,14 +234,64 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
       departmentId,
     };
     if (password) updateValues.passwordHash = await hashPassword(password);
-    await db.update(users).set(updateValues).where(eq(users.id, id));
+    await db.transaction(async (tx) => {
+      await tx.update(users).set(updateValues).where(eq(users.id, id));
+
+      if (role !== "employee" && role !== "support") {
+        await tx
+          .delete(userPrinterPermissions)
+          .where(eq(userPrinterPermissions.userId, id));
+        await tx
+          .delete(printerAccessRequests)
+          .where(eq(printerAccessRequests.userId, id));
+        return;
+      }
+      if (!assignmentChanged) return;
+
+      if (target.primaryLocationId !== primaryLocationId) {
+        await tx
+          .delete(userPrinterPermissions)
+          .where(eq(userPrinterPermissions.userId, id));
+        await tx
+          .delete(printerAccessRequests)
+          .where(eq(printerAccessRequests.userId, id));
+        return;
+      }
+
+      const reassignedDepartmentIds = Array.from(new Set(
+        [target.departmentId, departmentId].filter((value): value is number => value !== null),
+      ));
+      if (reassignedDepartmentIds.length === 0) return;
+      const reassignedPrinters = await tx
+        .select({ id: printers.id })
+        .from(printers)
+        .where(inArray(printers.departmentId, reassignedDepartmentIds));
+      if (reassignedPrinters.length === 0) return;
+      await tx
+        .delete(userPrinterPermissions)
+        .where(and(
+          eq(userPrinterPermissions.userId, id),
+          inArray(
+            userPrinterPermissions.printerId,
+            reassignedPrinters.map((printer) => printer.id),
+          ),
+        ));
+    });
   } catch (err) {
     console.error(err);
     return { error: "Could not update user. Email, username, or Employee ID may already be in use." };
   }
 
   revalidatePath("/manage");
-  redirect("/manage?success=User updated successfully.");
+  revalidatePath(`/manage/${id}`);
+  revalidatePath("/portal");
+  revalidatePath("/portal/print");
+  revalidatePath("/printops/print");
+  redirect(`/manage?success=${encodeURIComponent(
+    assignmentChanged
+      ? "User updated. Printer access was recalculated for the new assignment."
+      : "User updated successfully.",
+  )}`);
 }
 
 export async function deleteUserAction(formData: FormData) {
@@ -400,37 +442,51 @@ async function requirePrinterPermissionActor() {
   return actor;
 }
 
-async function getPrinterPermissionEmployee(userId: number) {
-  const [employee] = await db
+async function getPrinterPermissionAccount(userId: number, actorRole: UserRole) {
+  const [account] = await db
     .select({
       id: users.id,
       role: users.role,
       locationId: users.primaryLocationId,
+      departmentId: users.departmentId,
     })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
-  if (!employee || employee.role !== "employee") {
-    throw new Error("Printer permissions can only be configured for Employee accounts.");
+  if (!account || (account.role !== "employee" && account.role !== "support")) {
+    throw new Error("Printer permissions can only be configured for Employee or Support accounts.");
   }
-  if (!employee.locationId) {
-    throw new Error("Assign a location to this employee before configuring printer permissions.");
+  if (account.role === "support" && !hasAdminPrivileges(actorRole)) {
+    throw new Error("Only an Admin or Super Admin can configure Support printer permissions.");
   }
-  return employee;
+  if (!account.locationId) {
+    throw new Error("Assign a location to this account before configuring printer permissions.");
+  }
+  if (!account.departmentId) {
+    throw new Error("Assign a department to this account before configuring printer permissions.");
+  }
+  return account;
 }
 
 async function validatePermissionAgent(agentId: number, locationId: number) {
   const [agent] = await db
     .select({ id: monitoringAgents.id })
     .from(monitoringAgents)
+    .leftJoin(
+      monitoringAgentLocations,
+      eq(monitoringAgentLocations.agentId, monitoringAgents.id),
+    )
     .where(and(
       eq(monitoringAgents.id, agentId),
-      eq(monitoringAgents.locationId, locationId),
+      or(
+        eq(monitoringAgents.locationId, locationId),
+        eq(monitoringAgentLocations.locationId, locationId),
+      ),
       isNotNull(monitoringAgents.tokenHash),
       isNull(monitoringAgents.tokenRevokedAt),
     ))
     .limit(1);
-  if (!agent) throw new Error("The selected agent is not available at this employee's location.");
+  if (!agent) throw new Error("The selected agent is not available at this account's location.");
   return agent;
 }
 
@@ -444,8 +500,8 @@ export async function refreshPrinterPermissionAgentAction(
   const actor = await requirePrinterPermissionActor();
 
   try {
-    const employee = await getPrinterPermissionEmployee(userId);
-    await validatePermissionAgent(agentId, employee.locationId!);
+    const account = await getPrinterPermissionAccount(userId, actor.role);
+    await validatePermissionAgent(agentId, account.locationId!);
     const [active] = await db
       .select({ id: printOpsCommands.id })
       .from(printOpsCommands)
@@ -487,12 +543,16 @@ export async function updatePrinterPermissionsAction(
   const actor = await requirePrinterPermissionActor();
 
   try {
-    const employee = await getPrinterPermissionEmployee(userId);
-    await validatePermissionAgent(agentId, employee.locationId!);
+    const account = await getPrinterPermissionAccount(userId, actor.role);
+    await validatePermissionAgent(agentId, account.locationId!);
     const validPrinters = requestedPrinterIds.length === 0
       ? []
       : await db
-          .select({ id: printers.id })
+          .select({
+            id: printers.id,
+            departmentId: printers.departmentId,
+            locationId: printers.locationId,
+          })
           .from(printers)
           .innerJoin(
             printerMonitoringAssignments,
@@ -500,13 +560,18 @@ export async function updatePrinterPermissionsAction(
           )
           .where(and(
             inArray(printers.id, requestedPrinterIds),
-            eq(printers.locationId, employee.locationId!),
             eq(printers.status, "Active"),
             eq(printerMonitoringAssignments.agentId, agentId),
           ));
     if (validPrinters.length !== requestedPrinterIds.length) {
-      return { error: "One or more selected printers are no longer available for this employee." };
+      return { error: "One or more selected printers are no longer available for this account." };
     }
+    const additionalPrinters = validPrinters.filter(
+      (printer) => (
+        printer.locationId !== account.locationId ||
+        printer.departmentId !== account.departmentId
+      ),
+    );
 
     await db.transaction(async (tx) => {
       await tx
@@ -515,8 +580,8 @@ export async function updatePrinterPermissionsAction(
           eq(userPrinterPermissions.userId, userId),
           eq(userPrinterPermissions.agentId, agentId),
         ));
-      if (validPrinters.length > 0) {
-        for (const printer of validPrinters) {
+      if (additionalPrinters.length > 0) {
+        for (const printer of additionalPrinters) {
           await tx
             .insert(userPrinterPermissions)
             .values({ userId, agentId, printerId: printer.id })
@@ -525,18 +590,43 @@ export async function updatePrinterPermissionsAction(
               set: { agentId },
             });
         }
+        await tx
+          .update(printerAccessRequests)
+          .set({
+            status: "approved",
+            reviewedBy: actor.id,
+            reviewedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(printerAccessRequests.userId, userId),
+            eq(printerAccessRequests.status, "pending"),
+            inArray(
+              printerAccessRequests.printerId,
+              additionalPrinters.map((printer) => printer.id),
+            ),
+          ));
       }
       await tx.insert(auditLogs).values({
         actorUserId: actor.id,
         action: "user.printer_permissions_updated",
         targetType: "user",
         targetId: String(userId),
-        metadata: { agentId, printerIds: validPrinters.map((printer) => printer.id) },
+        metadata: {
+          targetRole: account.role,
+          agentId,
+          printerIds: additionalPrinters.map((printer) => printer.id),
+        },
       });
     });
     revalidatePath(`/manage/${userId}`);
+    revalidatePath(`/manage/users/${userId}`);
     revalidatePath("/portal/print");
-    return { success: "Printer permissions updated." };
+    revalidatePath("/printops/print");
+    return {
+      success: "Printer permissions updated.",
+      savedPrinterIds: additionalPrinters.map((printer) => printer.id),
+    };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Could not update printer permissions." };
   }

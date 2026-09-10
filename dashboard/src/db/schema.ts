@@ -211,6 +211,32 @@ export const monitoringAgents = pgTable(
   (t) => [index("monitoring_agents_location_idx").on(t.locationId)],
 );
 
+// An agent can serve several physical locations. locationId above remains the
+// primary location for display and backwards compatibility; this table is the
+// authoritative coverage list used by location-scoped features.
+export const monitoringAgentLocations = pgTable(
+  "monitoring_agent_locations",
+  {
+    id: serial("id").primaryKey(),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id, { onDelete: "cascade" }),
+    locationId: integer("location_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("monitoring_agent_locations_agent_location_unique").on(
+      t.agentId,
+      t.locationId,
+    ),
+    index("monitoring_agent_locations_location_idx").on(t.locationId),
+  ],
+);
+
 // A row enables monitoring for exactly one printer and assigns it to exactly
 // one authenticated agent. Removing the row disables future polling while
 // preserving the printer's historical readings and alerts.
@@ -258,6 +284,42 @@ export const userPrinterPermissions = pgTable(
       t.printerId,
     ),
     index("user_printer_permissions_agent_idx").on(t.agentId),
+  ],
+);
+
+// Employee-initiated requests for access to printers visible on their office
+// network. One row tracks the current request lifecycle for each user/printer.
+export const printerAccessRequests = pgTable(
+  "printer_access_requests",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id, { onDelete: "cascade" }),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reviewedBy: integer("reviewed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("printer_access_requests_user_printer_unique").on(
+      t.userId,
+      t.printerId,
+    ),
+    index("printer_access_requests_status_idx").on(t.status, t.requestedAt),
   ],
 );
 

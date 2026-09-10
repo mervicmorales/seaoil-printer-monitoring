@@ -29,6 +29,8 @@ import {
 import { PageHeader, Card, TableCard, Badge, statusBadgeColor, SecondaryButton, EmptyState, IconGlyph } from "@/components/ui";
 import { formatDate, formatPHP } from "@/lib/format";
 import Tabs from "@/components/Tabs";
+import CompactConsumableLevel from "@/components/CompactConsumableLevel";
+import LiveMonitoringBadge from "@/components/LiveMonitoringBadge";
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
 import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
@@ -37,6 +39,8 @@ import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 import { deletePrinterAction } from "../actions";
 
 export const dynamic = "force-dynamic";
+
+type BadgeColor = "green" | "yellow" | "red" | "blue" | "gray" | "orange";
 
 export default async function PrinterViewPage({
   params,
@@ -165,6 +169,19 @@ export default async function PrinterViewPage({
   const activeRepairTicket = tickets.find(
     (ticket) => ticket.status === "Open" || ticket.status === "In Progress",
   );
+  const hasMonitoringWarning = activeAlerts.some((alert) =>
+    ["warning", "error", "critical"].includes(alert.severity.toLowerCase()),
+  );
+  const liveMonitoringStatus: { label: string; color: BadgeColor } = !latestMonitoring
+    ? { label: "Not Monitored", color: "gray" }
+    : !latestMonitoring.online
+      ? { label: "Offline", color: "red" }
+      : hasMonitoringWarning
+        ? { label: "Warning", color: "yellow" }
+        : {
+            label: latestMonitoring.printerStatus || "Online",
+            color: monitoringStatusColor(latestMonitoring.printerStatus),
+          };
 
   return (
     <div>
@@ -204,31 +221,33 @@ export default async function PrinterViewPage({
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <InfoSection
                   title="Asset information"
-                  description="Identity and ownership details"
+                  description="Printer identity, asset status, and network addresses"
                   icon={Printer}
                 >
                   <dl className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-                    <Field label="Asset Tag" value={p.assetTag || "—"} />
-                    <Field label="Model" value={p.model || "—"} />
-                    <Field label="Serial Number" value={p.serialNumber} mono />
-                    <Field label="Assigned User" value={p.assignedUser || "—"} />
-                    <div className="sm:col-span-2">
+                    <div>
                       <dt className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Asset Status</dt>
                       <dd className="mt-2"><Badge color={statusBadgeColor(p.status)}>{p.status}</Badge></dd>
                     </div>
+                    <Field label="Model" value={p.model || "—"} />
+                    <Field label="Serial Number" value={p.serialNumber} mono />
+                    <Field label="IP Address" value={p.ipAddress || "—"} mono />
+                    <Field label="MAC Address" value={p.macAddress || "—"} mono />
+                    <Field label="Asset Tag" value={p.assetTag || "—"} />
                   </dl>
                 </InfoSection>
 
                 <InfoSection
                   title="Assignment"
-                  description="Network and physical placement"
+                  description="Assigned user, location, and department"
                   icon={Building2}
                 >
                   <dl className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
                     <Field label="Location" value={record.locationName || "—"} />
                     <Field label="Department" value={record.departmentName || "—"} />
-                    <Field label="IP Address" value={p.ipAddress || "—"} mono />
-                    <Field label="MAC Address" value={p.macAddress || "—"} mono />
+                    <div className="sm:col-span-2">
+                      <Field label="Assigned User" value={p.assignedUser || "—"} />
+                    </div>
                   </dl>
                 </InfoSection>
 
@@ -266,7 +285,7 @@ export default async function PrinterViewPage({
                         <h3 className="font-bold tracking-[-0.01em] text-[#014171]">Live Monitoring</h3>
                       </div>
                       <p className="mt-1 text-xs text-slate-500">
-                        Latest read-only observation received from PrintDash.
+                        Latest read-only observation received from Agent.
                       </p>
                     </div>
                     {latestMonitoring && (
@@ -295,20 +314,9 @@ export default async function PrinterViewPage({
                       />
                       <StatusBlock
                         label="Monitoring Status"
-                        value={
-                          latestMonitoring
-                            ? latestMonitoring.online
-                              ? "Online"
-                              : "Offline"
-                            : "Not Monitored"
-                        }
-                        color={
-                          latestMonitoring
-                            ? latestMonitoring.online
-                              ? "green"
-                              : "red"
-                            : "gray"
-                        }
+                        value={liveMonitoringStatus.label}
+                        color={liveMonitoringStatus.color}
+                        live
                       />
                     </div>
 
@@ -336,21 +344,30 @@ export default async function PrinterViewPage({
                       </dl>
 
                       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <section className="rounded-xl border border-slate-200 p-5">
-                          <h4 className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                            Consumable Levels
-                          </h4>
+                        <section className="min-w-0 rounded-xl border border-slate-200 p-5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <h4 className="text-sm font-bold text-[#014171]">Consumable Levels</h4>
+                              <p className="mt-0.5 text-xs text-slate-500">Latest readings reported by the monitoring agent.</p>
+                            </div>
+                            <Badge color={latestConsumables.length > 0 ? "blue" : "gray"}>
+                              {latestConsumables.length} items
+                            </Badge>
+                          </div>
                           {latestConsumables.length === 0 ? (
-                            <p className="mt-3 text-sm text-slate-500">
+                            <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center text-sm text-slate-500">
                               No consumable readings reported.
                             </p>
                           ) : (
-                            <div className="mt-3 space-y-4">
+                            <div className="mt-4 grid max-h-72 grid-cols-1 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-2">
                               {latestConsumables.map((consumable) => (
-                                <ConsumableLevel
+                                <CompactConsumableLevel
                                   key={consumable.id}
                                   consumable={consumable}
-                                  printerModel={record.printer.model}
+                                  displayName={monitoringConsumableDisplayName(
+                                    consumable.name,
+                                    record.printer.model,
+                                  )}
                                 />
                               ))}
                             </div>
@@ -560,79 +577,28 @@ function StatusBlock({
   value,
   detail,
   color,
+  live = false,
 }: {
   label: string;
   value: string;
   detail?: string;
-  color: "green" | "yellow" | "red" | "blue" | "gray" | "orange";
+  color: BadgeColor;
+  live?: boolean;
 }) {
   return (
     <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3.5">
       <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-0.5 ${statusAccentColor(color)}`} />
       <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-slate-500">{label}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Badge color={color}>{value}</Badge>
+        {live ? <LiveMonitoringBadge label={value} color={color} /> : <Badge color={color}>{value}</Badge>}
         {detail && <span className="text-xs text-slate-500">{detail}</span>}
       </div>
     </div>
   );
 }
 
-function ConsumableLevel({
-  consumable,
-  printerModel,
-}: {
-  consumable: {
-    name: string;
-    type: string;
-    levelPercent: number | null;
-    status: string | null;
-    isUnknown: boolean;
-  };
-  printerModel: string | null;
-}) {
-  const isUnknown = consumable.isUnknown || consumable.levelPercent === null;
-  const percentage = isUnknown ? 0 : consumable.levelPercent ?? 0;
-  const displayName = monitoringConsumableDisplayName(
-    consumable.name,
-    printerModel,
-  );
-  const unknownLabel =
-    consumable.status && consumable.status.toLowerCase() !== "unknown"
-      ? consumable.status
-      : "Unknown";
-  const barColor = percentage <= 10 ? "bg-red-500" : percentage <= 20 ? "bg-amber-400" : "bg-[#014171]";
-
-  return (
-    <div>
-      <div className="flex items-start justify-between gap-3 text-sm">
-        <div>
-          <p className="font-medium text-slate-700" title={consumable.name}>
-            {displayName}
-          </p>
-          <p className="text-xs capitalize text-slate-400">
-            {humanize(consumable.type)}
-            {!isUnknown && ` · ${consumable.status || "Unknown"}`}
-          </p>
-        </div>
-        <span className="font-semibold text-slate-700">
-          {isUnknown ? unknownLabel : `${percentage}%`}
-        </span>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-        {!isUnknown && (
-          <div
-            className={`h-full rounded-full ${barColor}`}
-            style={{ width: `${percentage}%` }}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
 function statusAccentColor(
-  color: "green" | "yellow" | "red" | "blue" | "gray" | "orange",
+  color: BadgeColor,
 ) {
   return {
     green: "bg-emerald-500",
@@ -642,6 +608,14 @@ function statusAccentColor(
     gray: "bg-slate-400",
     orange: "bg-orange-500",
   }[color];
+}
+
+function monitoringStatusColor(status: string | null): BadgeColor {
+  const normalized = status?.toLowerCase() ?? "online";
+  if (normalized.includes("print") || normalized.includes("process")) return "blue";
+  if (["warning", "error", "fault", "jam"].some((value) => normalized.includes(value))) return "yellow";
+  if (["idle", "ready", "online", "normal", "standby", "sleep"].some((value) => normalized.includes(value))) return "green";
+  return "gray";
 }
 
 function monitoringConsumableDisplayName(

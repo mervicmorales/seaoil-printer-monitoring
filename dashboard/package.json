@@ -20,6 +20,8 @@
     "monitoring:agent:revoke": "node scripts/monitoring-agent-credentials.mjs revoke",
     "monitoring:agent:migrate-global": "node scripts/monitoring-agent-credentials.mjs migrate-global",
     "monitoring:assignments:migrate": "node scripts/migrate-monitoring-assignments.mjs",
+    "db:migrate:agent-locations": "node --env-file=.env.local scripts/migrate-monitoring-agent-locations.mjs",
+    "db:migrate:agent-locations:docker": "node --env-file=.env.docker scripts/migrate-monitoring-agent-locations.mjs",
     "db:migrate:features": "node scripts/migrate-notifications-registration-smtp.mjs",
     "db:migrate:features:docker": "node --env-file=.env.docker scripts/migrate-notifications-registration-smtp.mjs",
     "db:migrate:remove-brand": "node --env-file=.env.local scripts/remove-printer-brand.mjs",
@@ -27,7 +29,9 @@
     "db:migrate:mac": "node --env-file=.env.local scripts/add-printer-mac-address.mjs",
     "db:migrate:mac:docker": "node --env-file=.env.docker scripts/add-printer-mac-address.mjs",
     "db:migrate:printer-permissions": "node --env-file=.env.local scripts/add-user-printer-permissions.mjs",
-    "db:migrate:printer-permissions:docker": "node --env-file=.env.docker scripts/add-user-printer-permissions.mjs"
+    "db:migrate:printer-permissions:docker": "node --env-file=.env.docker scripts/add-user-printer-permissions.mjs",
+    "db:migrate:printer-access-requests": "node --env-file=.env.local scripts/add-printer-access-requests.mjs",
+    "db:migrate:printer-access-requests:docker": "node --env-file=.env.docker scripts/add-printer-access-requests.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

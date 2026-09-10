@@ -1,6 +1,6 @@
 import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import { Send } from "lucide";
-import { getDepartments, getItsNames, getLocations, getTonerTypesWithInventory } from "@/lib/lookups";
+import { getDepartments, getItsNames, getLocations, getVisibleTonerTypesWithInventory } from "@/lib/lookups";
 import { createRequestAction } from "../actions";
 import TonerDeliveryRequestForm from "../TonerDeliveryRequestForm";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -13,7 +13,7 @@ export default async function RequestTonerPage({
 }) {
   await requireModuleFullAccess("toner");
   const [tonerTypes, locations, departments, itsNames] = await Promise.all([
-    getTonerTypesWithInventory(),
+    getVisibleTonerTypesWithInventory(),
     getLocations(),
     getDepartments(),
     getItsNames(),

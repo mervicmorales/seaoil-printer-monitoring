@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { locations, monitoringAgents, systemSettings } from "@/db/schema";
 import { sendEmail } from "@/lib/email";
+import { buildAgentStatusEmail } from "@/lib/email-templates";
 
 function formatManila(value: Date | null) {
   if (!value) return "Never";
@@ -34,28 +35,18 @@ export async function sendAgentTransitionEmail(
   if (transition === "offline" && settings.agentOfflineEmailEnabled === false) return;
   if (transition === "recovered" && settings.agentRecoveredEmailEnabled === false) return;
 
-  const offline = transition === "offline";
-  const text = offline
-    ? [
-        `Agent Name: ${agent.name}`,
-        `Agent Key: ${agent.key}`,
-        `Location: ${agent.location || "Not assigned"}`,
-        `Last Seen: ${formatManila(previousLastSeen)}`,
-        `Detected At: ${formatManila(occurredAt)}`,
-      ].join("\n")
-    : [
-        `Agent Name: ${agent.name}`,
-        `Location: ${agent.location || "Not assigned"}`,
-        `Previous Last Seen: ${formatManila(previousLastSeen)}`,
-        `Recovered At: ${formatManila(occurredAt)}`,
-      ].join("\n");
+  const email = buildAgentStatusEmail({
+    transition,
+    agentName: agent.name,
+    agentKey: agent.key,
+    location: agent.location || "Not assigned",
+    previousLastSeen: formatManila(previousLastSeen),
+    occurredAt: formatManila(occurredAt),
+  });
   try {
     await sendEmail({
       to: settings.notificationEmail,
-      subject: offline
-        ? "SEAOIL Printer - Monitoring Agent Offline"
-        : "SEAOIL Printer - Monitoring Agent Recovered",
-      text,
+      ...email,
     });
   } catch (error) {
     console.error("Monitoring agent email failed:", error instanceof Error ? error.name : "UnknownError");

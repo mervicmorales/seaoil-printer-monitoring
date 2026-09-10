@@ -151,9 +151,9 @@ export default function UserForm({
             <span className="mt-0.5 shrink-0 text-[#014171]"><MorphIcon icon={KeyRound} size={14} strokeWidth={2} reducedMotion="user" /></span>
             <span>
               {role === "employee"
-                ? "Employees only see active printers assigned to their selected location and department."
+                ? "Employees automatically receive printers for their location and department; additional printer grants are saved on their profile."
                 : role === "support"
-                  ? "Support users only see available printers assigned to their selected location and department."
+                  ? "Support users automatically receive printers for their location and department; additional printer grants are saved on their profile."
                   : role === "admin"
                     ? "Admin module access is configured by a Super Admin."
                     : "Super Admins have full system access and authority over all roles."}

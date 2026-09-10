@@ -1,10 +1,10 @@
 "use server";
 
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { monitoringAgents, printOpsCommands } from "@/db/schema";
+import { monitoringAgentLocations, monitoringAgents, printOpsCommands } from "@/db/schema";
 import {
   getModuleAccessMap,
   requireModuleFullAccess,
@@ -78,19 +78,19 @@ export async function queueDurablePrintAction(formData: FormData) {
   if (!Number.isSafeInteger(printerId) || printerId < 1) {
     redirectWith(returnTo, "error", "Select an online printer.");
   }
-  const locationPrinterFilter = locationScope
-    ? sql`and printers.location_id = ${locationScope.locationId}
-          ${locationScope.departmentId === undefined
-            ? sql``
-            : sql`and printers.department_id = ${locationScope.departmentId}`}`
-    : sql``;
-  const userPermissionFilter = session.role === "employee"
-    ? sql`and exists (
-        select 1
-        from user_printer_permissions permission
-        where permission.user_id = ${session.id}
-          and permission.printer_id = printers.id
-      )`
+  const userPermissionFilter = session.role === "employee" || session.role === "support"
+    ? sql`and (
+          (
+            printers.location_id = ${locationScope?.locationId ?? null}
+            and printers.department_id = ${locationScope?.departmentId ?? null}
+          )
+          or exists (
+            select 1
+            from user_printer_permissions permission
+            where permission.user_id = ${session.id}
+              and permission.printer_id = printers.id
+          )
+        )`
     : sql``;
   const availablePrinter = await db.execute<{ name: string }>(sql`
     select coalesce(printers.asset_tag, printers.serial_number) as name
@@ -106,7 +106,6 @@ export async function queueDurablePrintAction(formData: FormData) {
     where assignments.agent_id = ${agentId}
       and assignments.printer_id = ${printerId}
       and latest_reading.online is true
-      ${locationPrinterFilter}
       ${userPermissionFilter}
     limit 1
   `);
@@ -236,9 +235,7 @@ async function requirePrintServiceRequest(operation: "print" | "scan") {
       "Your account needs an assigned location and department before you can use printer services.",
     );
   }
-  const locationScope = session.role === "employee"
-    ? { locationId: accountScope.locationId }
-    : accountScope;
+  const locationScope = accountScope;
   return { session, locationScope, returnTo };
 }
 
@@ -257,17 +254,25 @@ async function validateAgent(
       locationId: monitoringAgents.locationId,
     })
     .from(monitoringAgents)
+    .leftJoin(
+      monitoringAgentLocations,
+      eq(monitoringAgentLocations.agentId, monitoringAgents.id),
+    )
     .where(
       and(
         eq(monitoringAgents.id, agentId),
         isNotNull(monitoringAgents.tokenHash),
         isNull(monitoringAgents.tokenRevokedAt),
+        employeeLocationId === undefined
+          ? undefined
+          : or(
+              eq(monitoringAgents.locationId, employeeLocationId),
+              eq(monitoringAgentLocations.locationId, employeeLocationId),
+            ),
       ),
     )
     .limit(1);
-  if (!agent || (
-    employeeLocationId !== undefined && agent.locationId !== employeeLocationId
-  )) {
+  if (!agent) {
     redirectWith(returnTo, "error", "The selected agent is unavailable.");
   }
   return agentId;

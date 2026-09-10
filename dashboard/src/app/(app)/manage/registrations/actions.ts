@@ -8,6 +8,11 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { auditLogs, emailVerificationTokens, manualUserVerificationTokens, userRegistrationRequests, users } from "@/db/schema";
 import { sendEmail } from "@/lib/email";
+import {
+  buildEmailVerificationEmail,
+  buildRegistrationApprovedEmail,
+  buildUserAccountVerificationEmail,
+} from "@/lib/email-templates";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 
 const SERVICE_DESK_EMAIL = "itservicedesk@seaoil.com.ph";
@@ -38,13 +43,7 @@ async function sendApprovalEmail(request: { fullName: string; email: string }) {
   const loginUrl = `${await applicationOrigin()}/login`;
   await sendEmail({
     to: request.email,
-    subject: "SEAOIL Printer - Registration Approved",
-    text: [
-      `Hello ${request.fullName},`,
-      "Your registration has been approved successfully. You can now sign in using the link below:",
-      loginUrl,
-    ].join("\n\n"),
-    html: `<p>Hello ${escapeHtml(request.fullName)},</p><p>Your registration has been approved successfully. You can now sign in using the link below:</p><p><a href="${escapeHtml(loginUrl)}">Sign in to SEAOIL Printer Monitoring</a></p>`,
+    ...buildRegistrationApprovedEmail({ fullName: request.fullName, loginUrl }),
   });
 }
 
@@ -70,22 +69,20 @@ async function sendRegistrationVerificationEmail(request: {
 }, rawToken: string) {
   const manual = request.source === "manual";
   const verificationUrl = `${await applicationOrigin()}/${manual ? "verify-user-email" : "verify-email"}?token=${encodeURIComponent(rawToken)}`;
-  const nextStep = manual
-    ? "No additional administrator approval is required after verification."
-    : "After verification, your registration will be submitted for administrator approval.";
+  const email = manual
+    ? buildUserAccountVerificationEmail({
+        fullName: request.fullName,
+        employeeId: request.employeeId,
+        verificationUrl,
+      })
+    : buildEmailVerificationEmail({
+        fullName: request.fullName,
+        employeeId: request.employeeId || "Not provided",
+        verificationUrl,
+      });
   await sendEmail({
     to: request.email,
-    subject: manual
-      ? "SEAOIL Printer - Verify Your User Account"
-      : "SEAOIL Printer - Verify Your Email",
-    text: [
-      `Hello ${request.fullName},`,
-      request.employeeId ? `Employee ID: ${request.employeeId}` : "",
-      "Verify your email using the new link below:",
-      verificationUrl,
-      `This single-use link expires in 24 hours. ${nextStep}`,
-    ].filter(Boolean).join("\n\n"),
-    html: `<p>Hello ${escapeHtml(request.fullName)},</p>${request.employeeId ? `<p>Employee ID: ${escapeHtml(request.employeeId)}</p>` : ""}<p><a href="${escapeHtml(verificationUrl)}">Verify your email</a></p><p>This single-use link expires in 24 hours. ${escapeHtml(nextStep)}</p>`,
+    ...email,
   });
 }
 

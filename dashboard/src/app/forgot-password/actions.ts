@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { passwordResetTokens, users } from "@/db/schema";
 import { sendEmail } from "@/lib/email";
+import { buildPasswordResetEmail } from "@/lib/email-templates";
 import { isValidEmail } from "@/lib/validation";
 
 export type ForgotPasswordState = {
@@ -17,16 +18,6 @@ const GENERIC_SUCCESS =
   "If an active account matches that email address, a password reset link will arrive shortly.";
 const RESET_TOKEN_LIFETIME_MS = 60 * 60_000;
 const REQUEST_COOLDOWN_MS = 15 * 60_000;
-
-function escapeHtml(input: string) {
-  return input.replace(
-    /[&<>"']/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        character
-      ]!,
-  );
-}
 
 async function applicationOrigin() {
   const requestHeaders = await headers();
@@ -84,15 +75,7 @@ export async function requestPasswordResetAction(
   try {
     await sendEmail({
       to: user.email,
-      subject: "SEAOIL Printer - Reset Your Password",
-      text: [
-        `Hello ${user.fullName},`,
-        "Use the link below to reset your password:",
-        resetUrl,
-        "This single-use link expires in 1 hour.",
-        "If you did not request this change, you can ignore this email.",
-      ].join("\n\n"),
-      html: `<p>Hello ${escapeHtml(user.fullName)},</p><p>Use the link below to reset your password:</p><p><a href="${escapeHtml(resetUrl)}">Reset password</a></p><p>This single-use link expires in 1 hour.</p><p>If you did not request this change, you can ignore this email.</p>`,
+      ...buildPasswordResetEmail({ fullName: user.fullName, resetUrl }),
     });
   } catch (error) {
     console.error("Password reset email failed:", error instanceof Error ? error.name : "UnknownError");

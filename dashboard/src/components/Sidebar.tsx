@@ -84,7 +84,7 @@ const NAV: NavItem[] = [
 ];
 
 const EMPLOYEE_NAV: NavItem[] = [
-  { href: "/portal", label: "Employee Portal", icon: LayoutDashboard },
+  { href: "/portal", label: "Available Printers", icon: Printer },
   {
     href: "/portal/printer-services",
     label: "Printer Services",

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { departments, locations, userModuleAccess, userPrinterPermissions, users } from "@/db/schema";
+import { departments, locations, printerAccessRequests, printers, userModuleAccess, userPrinterPermissions, users } from "@/db/schema";
 import { Card, IconGlyph, PageHeader, SecondaryButton } from "@/components/ui";
 import DeleteButton from "@/components/DeleteButton";
 import SuccessBanner from "@/components/SuccessBanner";
@@ -64,25 +64,50 @@ export default async function ViewUserPage({
   for (const row of accessRows) access[row.module as keyof typeof access] = row.fullAccess;
   const user = record.user;
   const canManageUser = canManageRole(session.role, user.role);
-  const canConfigurePrinterPermissions = user.role === "employee" && (
-    session.role === "support" || hasAdminPrivileges(session.role)
+  const canConfigurePrinterPermissions = (
+    user.role === "employee" && (
+      session.role === "support" || hasAdminPrivileges(session.role)
+    )
+  ) || (
+    user.role === "support" &&
+    hasAdminPrivileges(session.role) &&
+    canManageUser
   );
   const canViewPagePermissions = (
     hasAdminPrivileges(session.role) && canManageUser
   ) || (
     session.role === "support" && user.role === "employee"
   );
-  const [permissionAgents, printerPermissionRows] = canConfigurePrinterPermissions
+  const [permissionAgents, printerPermissionRows, automaticPrinterRows, pendingPrinterRequestRows] = canConfigurePrinterPermissions
     ? await Promise.all([
         user.primaryLocationId
-          ? getPrintOpsAgents({ locationId: user.primaryLocationId })
+          ? getPrintOpsAgents({
+              locationId: user.primaryLocationId,
+            }, undefined, undefined, true)
           : [],
         db
           .select({ printerId: userPrinterPermissions.printerId })
           .from(userPrinterPermissions)
           .where(eq(userPrinterPermissions.userId, user.id)),
+        (user.role === "support" || user.role === "employee") && user.primaryLocationId && user.departmentId
+          ? db
+              .select({ printerId: printers.id })
+              .from(printers)
+              .where(and(
+                eq(printers.locationId, user.primaryLocationId),
+                eq(printers.departmentId, user.departmentId),
+                eq(printers.status, "Active"),
+              ))
+          : Promise.resolve([]),
+        db
+          .select({ printerId: printerAccessRequests.printerId })
+          .from(printerAccessRequests)
+          .where(and(
+            eq(printerAccessRequests.userId, user.id),
+            eq(printerAccessRequests.status, "pending"),
+          )),
       ])
-    : [[], []];
+    : [[], [], [], []];
 
   return (
     <div>
@@ -140,7 +165,7 @@ export default async function ViewUserPage({
           <PanelHeader
             icon={Printer}
             title="Printer Permissions"
-            description="Select an office agent and grant access to specific printers at this employee's location"
+            description="Department printers are automatic; grant persistent access to requested printers from other departments"
           />
           <div className="p-5 sm:p-6">
             <PrinterPermissionsPanel
@@ -159,11 +184,14 @@ export default async function ViewUserPage({
                   model: printer.model,
                   serialNumber: printer.serialNumber,
                   department: printer.department,
+                  location: printer.location,
                   online: printer.online,
                   status: printer.status,
                 })),
               }))}
               permissionIds={printerPermissionRows.map((permission) => permission.printerId)}
+              automaticPrinterIds={automaticPrinterRows.map((printer) => printer.printerId)}
+              pendingRequestIds={pendingPrinterRequestRows.map((request) => request.printerId)}
               refreshAction={refreshPrinterPermissionAgentAction}
               saveAction={updatePrinterPermissionsAction}
             />

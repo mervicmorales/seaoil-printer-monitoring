@@ -1,48 +1,80 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { db } from "@/db";
 import {
   departments,
   locations,
+  printerAlerts,
+  printerConsumableReadings,
+  printerMonitoringReadings,
   printers,
   userPrinterPermissions,
   users,
 } from "@/db/schema";
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireSession } from "@/lib/server-utils";
+import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
+import { getEmployeePrinterRequestScope } from "@/lib/employee-printer-requests";
+import EmployeePrinterCard from "./EmployeePrinterCard";
+import RequestPrinterAccessDialog from "./RequestPrinterAccessDialog";
 
 export const dynamic = "force-dynamic";
+
+type BadgeColor = "green" | "yellow" | "red" | "blue" | "gray" | "orange";
+type MonitoringSnapshot = {
+  reading_id: number;
+  printer_id: number;
+  checked_at: Date | string;
+  online: boolean;
+  printer_status: string | null;
+  error_status: string | null;
+  error_message: string | null;
+};
+type ActivePrinterAlert = {
+  printerId: number;
+  type: string;
+  severity: string;
+  message: string;
+};
+type LatestConsumable = {
+  printerId: number;
+  name: string;
+  type: string;
+  levelPercent: number | null;
+  status: string | null;
+  isUnknown: boolean;
+};
 
 export default async function PortalPage() {
   const session = await requireSession();
   if (session.role !== "employee") redirect("/dashboard");
 
   const [employee] = await db.select({
-    fullName: users.fullName,
-    employeeId: users.employeeId,
-    accountStatus: users.accountStatus,
     primaryLocationId: users.primaryLocationId,
     departmentId: users.departmentId,
-    location: locations.name,
-    department: departments.name,
   }).from(users)
-    .leftJoin(locations, eq(locations.id, users.primaryLocationId))
-    .leftJoin(departments, eq(departments.id, users.departmentId))
     .where(eq(users.id, session.id))
     .limit(1);
 
   if (!employee) redirect("/login");
 
+  const requestScope = await getEmployeePrinterRequestScope(session.id, await headers());
+
   const availablePrinters = employee.primaryLocationId
     ? await db.select({
         id: printers.id,
-        assetTag: printers.assetTag,
         serialNumber: printers.serialNumber,
         model: printers.model,
-        assignedUser: printers.assignedUser,
+        ipAddress: printers.ipAddress,
+        macAddress: printers.macAddress,
         status: printers.status,
+        locationName: locations.name,
+        departmentName: departments.name,
       }).from(printers)
-        .innerJoin(
+        .leftJoin(locations, eq(locations.id, printers.locationId))
+        .leftJoin(departments, eq(departments.id, printers.departmentId))
+        .leftJoin(
           userPrinterPermissions,
           and(
             eq(userPrinterPermissions.printerId, printers.id),
@@ -50,75 +82,175 @@ export default async function PortalPage() {
           ),
         )
         .where(and(
-        eq(printers.locationId, employee.primaryLocationId),
-        eq(printers.status, "Active"),
-      )).orderBy(asc(printers.model), asc(printers.serialNumber))
+          eq(printers.status, "Active"),
+          employee.departmentId
+            ? or(
+                and(
+                  eq(printers.locationId, employee.primaryLocationId),
+                  eq(printers.departmentId, employee.departmentId),
+                ),
+                eq(userPrinterPermissions.userId, session.id),
+              )
+            : eq(userPrinterPermissions.userId, session.id),
+        )).orderBy(asc(printers.model), asc(printers.serialNumber))
     : [];
 
-  const profileRows = [
-    ["Employee Name", employee.fullName],
-    ["Employee ID", employee.employeeId || "—"],
-    ["Primary Location", employee.location || "—"],
-    ["Department", employee.department || "—"],
-  ];
+  const printerIds = availablePrinters.map((printer) => printer.id);
+  const monitoringSnapshots: MonitoringSnapshot[] = [];
+  const activeAlerts: ActivePrinterAlert[] = [];
+  const latestConsumables: LatestConsumable[] = [];
+  const staleSeconds = await getMonitoringStaleSeconds();
+
+  if (printerIds.length > 0) {
+    const [monitoringResult, alertRows] = await Promise.all([
+      db.execute<MonitoringSnapshot>(sql`
+        select distinct on (${printerMonitoringReadings.printerId})
+          ${printerMonitoringReadings.id} as reading_id,
+          ${printerMonitoringReadings.printerId} as printer_id,
+          ${printerMonitoringReadings.checkedAt} as checked_at,
+          ${printerMonitoringReadings.online} as online,
+          ${printerMonitoringReadings.printerStatus} as printer_status,
+          ${printerMonitoringReadings.errorStatus} as error_status,
+          ${printerMonitoringReadings.errorMessage} as error_message
+        from ${printerMonitoringReadings}
+        where ${printerMonitoringReadings.printerId} in (${sql.join(printerIds.map((printerId) => sql`${printerId}`), sql`, `)})
+        order by
+          ${printerMonitoringReadings.printerId},
+          ${printerMonitoringReadings.checkedAt} desc,
+          ${printerMonitoringReadings.id} desc
+      `),
+      db
+        .select({
+          printerId: printerAlerts.printerId,
+          type: printerAlerts.type,
+          severity: printerAlerts.severity,
+          message: printerAlerts.message,
+        })
+        .from(printerAlerts)
+        .where(
+          and(
+            inArray(printerAlerts.printerId, printerIds),
+            isNull(printerAlerts.resolvedAt),
+          ),
+        )
+        .orderBy(desc(printerAlerts.startedAt)),
+    ]);
+    monitoringSnapshots.push(...monitoringResult.rows);
+    activeAlerts.push(...alertRows);
+
+    const readingIds = monitoringSnapshots.map((snapshot) => snapshot.reading_id);
+    if (readingIds.length > 0) {
+      latestConsumables.push(...await db
+        .select({
+          printerId: printerConsumableReadings.printerId,
+          name: printerConsumableReadings.name,
+          type: printerConsumableReadings.type,
+          levelPercent: printerConsumableReadings.levelPercent,
+          status: printerConsumableReadings.status,
+          isUnknown: printerConsumableReadings.isUnknown,
+        })
+        .from(printerConsumableReadings)
+        .where(inArray(printerConsumableReadings.monitoringReadingId, readingIds))
+        .orderBy(asc(printerConsumableReadings.name)));
+    }
+  }
+
+  const monitoringByPrinter = new Map(
+    monitoringSnapshots.map((snapshot) => [snapshot.printer_id, snapshot]),
+  );
+  const alertsByPrinter = new Map<number, ActivePrinterAlert[]>();
+  for (const alert of activeAlerts) {
+    const printerAlertRows = alertsByPrinter.get(alert.printerId) ?? [];
+    printerAlertRows.push(alert);
+    alertsByPrinter.set(alert.printerId, printerAlertRows);
+  }
+  const consumablesByPrinter = new Map<number, LatestConsumable[]>();
+  for (const consumable of latestConsumables) {
+    const printerConsumables = consumablesByPrinter.get(consumable.printerId) ?? [];
+    printerConsumables.push(consumable);
+    consumablesByPrinter.set(consumable.printerId, printerConsumables);
+  }
+  const renderedAt = new Date();
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <PageHeader title="Employee Portal" subtitle="Available printers for your assigned workplace" />
+      <PageHeader
+        title="Available Printers"
+        subtitle="View printers available for your account."
+        actions={
+          <RequestPrinterAccessDialog
+            scope={requestScope}
+            employee={{
+              id: session.id,
+              name: session.fullName,
+              email: session.email,
+            }}
+          />
+        }
+      />
 
-      <Card className="p-6">
-          <dl className="grid gap-5 sm:grid-cols-2">
-            {profileRows.map(([label, value]) => (
-              <div key={label}>
-                <dt className="text-xs font-semibold uppercase text-slate-500">{label}</dt>
-                <dd className="mt-1 font-medium text-slate-800">{value}</dd>
-              </div>
-            ))}
-            <div>
-              <dt className="text-xs font-semibold uppercase text-slate-500">Account Status</dt>
-              <dd className="mt-1"><Badge color="green">{employee.accountStatus}</Badge></dd>
-            </div>
-          </dl>
-      </Card>
+      {availablePrinters.length === 0 ? (
+        <Card>
+          <EmptyState message="No department or additional printers are available for your account yet." />
+        </Card>
+      ) : (
+        <div className="grid items-stretch gap-5 lg:grid-cols-2">
+          {availablePrinters.map((printer) => {
+            const alerts = alertsByPrinter.get(printer.id) ?? [];
+            const monitoring = monitoringPresentation(
+              monitoringByPrinter.get(printer.id),
+              alerts,
+              renderedAt,
+              staleSeconds,
+            );
 
-      <Card className="overflow-hidden">
-          <div className="border-b border-slate-200 px-6 py-4">
-            <h2 className="font-semibold text-[#014171]">Available Printers</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Printers granted to your account at {employee.location || "your assigned location"}.
-            </p>
-          </div>
-          {availablePrinters.length === 0 ? (
-            <div className="p-6">
-              <EmptyState message="No printers have been granted to your account yet." />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-5 py-3">Asset Tag</th>
-                    <th className="px-5 py-3">Printer</th>
-                    <th className="px-5 py-3">Serial Number</th>
-                    <th className="px-5 py-3">Assigned User</th>
-                    <th className="px-5 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {availablePrinters.map((printer) => (
-                    <tr key={printer.id}>
-                      <td className="px-5 py-3 font-medium">{printer.assetTag || "—"}</td>
-                      <td className="px-5 py-3">{printer.model || "—"}</td>
-                      <td className="px-5 py-3">{printer.serialNumber}</td>
-                      <td className="px-5 py-3">{printer.assignedUser || "Shared"}</td>
-                      <td className="px-5 py-3"><Badge color="green">{printer.status}</Badge></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-      </Card>
+            return <EmployeePrinterCard
+              key={printer.id}
+              printer={printer}
+              monitoring={monitoring}
+              alerts={alerts}
+              consumables={consumablesByPrinter.get(printer.id) ?? []}
+            />;
+          })}
+        </div>
+      )}
     </div>
   );
+}
+
+function monitoringPresentation(
+  snapshot: MonitoringSnapshot | undefined,
+  alerts: ActivePrinterAlert[],
+  renderedAt: Date,
+  staleSeconds: number,
+): { label: string; color: BadgeColor } {
+  if (!snapshot) return { label: "Not Monitored", color: "gray" };
+
+  const checkedAt = new Date(snapshot.checked_at);
+  const isStale = !Number.isNaN(checkedAt.getTime())
+    && checkedAt.getTime() < renderedAt.getTime() - staleSeconds * 1_000;
+  if (isStale) return { label: "Stale", color: "orange" };
+  if (!snapshot.online) return { label: "Offline", color: "red" };
+
+  const hasWarning = Boolean(snapshot.error_status?.trim())
+    || Boolean(snapshot.error_message?.trim())
+    || alerts.some((alert) => ["warning", "error", "critical"].includes(alert.severity.toLowerCase()));
+  if (hasWarning) return { label: "Warning", color: "yellow" };
+
+  const label = formatMonitoringStatus(snapshot.printer_status) || "Online";
+  const normalized = label.toLowerCase();
+  if (normalized.includes("print") || normalized.includes("process")) {
+    return { label, color: "blue" };
+  }
+  if (["idle", "ready", "online", "normal", "standby", "sleeping"].some((status) => normalized.includes(status))) {
+    return { label, color: "green" };
+  }
+  return { label, color: "gray" };
+}
+
+function formatMonitoringStatus(status: string | null) {
+  return status
+    ?.trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }

@@ -24,7 +24,7 @@ export default function PermissionsPanel({
             <p className="text-xs text-slate-500">Super Admins always have full access to every module.</p>
           ) : role === "employee" ? (
             <p className="text-xs text-slate-500">
-              Employees use the Employee Portal. Their allowed printers are configured in the Printer Permissions panel below.
+              Employees use the Employee Portal. Department printers are automatic, and additional grants are configured below.
             </p>
           ) : role === "admin" && !isSuperAdmin(actorRole) ? (
             <p className="text-xs text-slate-500">Only a Super Admin can configure an Admin account&apos;s module permissions.</p>

@@ -36,16 +36,22 @@ export async function PrintOpsPrintPageContent({
     ? await getPrintOpsLocationScope(session.id)
     : undefined;
   const showAgentControls = isSuperAdmin(session.role);
-  const employeePermissionIds = session.role === "employee"
+  const assignedPrinterIds = session.role === "employee" || session.role === "support"
     ? await getUserPrinterPermissionIds(session.id)
     : undefined;
-  const printerScope = session.role === "employee" && locationScope
+  const printerScope = (session.role === "employee" || session.role === "support") && locationScope
     ? { locationId: locationScope.locationId }
     : locationScope;
   const [agents, commands] = await Promise.all([
     locationScoped && !printerScope
       ? []
-      : getPrintOpsAgents(printerScope ?? undefined, employeePermissionIds),
+      : getPrintOpsAgents(
+          printerScope ?? undefined,
+          assignedPrinterIds,
+          session.role === "support" || session.role === "employee"
+            ? locationScope?.departmentId
+            : undefined,
+        ),
     getRecentPrintOpsCommands(
       "print",
       20,
@@ -96,7 +102,7 @@ export async function PrintOpsPrintPageContent({
               <p className="font-semibold">No printer available</p>
               <p className="mt-0.5 text-xs leading-5 text-amber-700">
                 {locationScoped
-                  ? "No printers assigned to your location and department are currently online."
+                  ? "No permitted printers at your assigned location and department are currently online."
                   : showAgentControls
                     ? "No assigned printers are currently online. Refresh an online office agent above."
                     : "No assigned printers are currently online."}

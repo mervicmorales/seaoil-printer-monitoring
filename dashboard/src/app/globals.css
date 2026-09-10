@@ -113,6 +113,97 @@ button:disabled {
   white-space: nowrap;
 }
 
+@keyframes monitoring-heartbeat-core {
+  0%, 40%, 100% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+  8% {
+    opacity: 1;
+    transform: scale(1.32);
+  }
+  16% {
+    opacity: 0.65;
+    transform: scale(0.92);
+  }
+  24% {
+    opacity: 1;
+    transform: scale(1.22);
+  }
+}
+
+@keyframes monitoring-heartbeat-ring {
+  0%, 4%, 40%, 100% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  11% {
+    opacity: 0.75;
+    transform: scale(1.2);
+  }
+  19% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+  22% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  34% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+
+@keyframes monitoring-activity {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scaleY(0.35);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes monitoring-warning-pulse {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.85);
+  }
+}
+
+@keyframes monitoring-stale-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.75; }
+}
+
+.monitoring-heartbeat-core {
+  animation: monitoring-heartbeat-core 2s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.monitoring-heartbeat-ring {
+  animation: monitoring-heartbeat-ring 2s ease-out infinite;
+  will-change: opacity, transform;
+}
+
+.monitoring-activity-bar {
+  animation: monitoring-activity 0.9s ease-in-out infinite;
+}
+
+.monitoring-warning-pulse {
+  animation: monitoring-warning-pulse 1.4s ease-in-out infinite;
+}
+
+.monitoring-stale-pulse {
+  animation: monitoring-stale-pulse 2s ease-in-out infinite;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

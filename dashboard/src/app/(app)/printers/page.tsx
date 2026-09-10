@@ -13,6 +13,7 @@ import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
 import SearchInput from "@/components/SearchInput";
 import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
 import RefreshControl from "@/components/RefreshControl";
+import LiveMonitoringBadge from "@/components/LiveMonitoringBadge";
 
 export const dynamic = "force-dynamic";
 const LOW_CONSUMABLE_THRESHOLD_PERCENT = 20;
@@ -361,9 +362,6 @@ export default async function PrintersPage({
                   </td>
                   <td className="px-4 py-3">
                     <MonitoringBadge printer={monitoring} />
-                    <p className="mt-1.5 truncate text-xs text-slate-500">
-                      {monitoring?.reading_id == null ? "—" : monitoring.printer_status ?? "Unknown"}
-                    </p>
                   </td>
                   <td className="px-4 py-3"><ConsumableLevel printer={monitoring} /></td>
                   <td className="px-4 py-3">
@@ -400,11 +398,28 @@ function MobileField({ label, value }: { label: string; value: string }) {
 }
 
 function MonitoringBadge({ printer }: { printer: PrinterMonitoringSnapshot | null }) {
-  if (!printer || printer.reading_id === null) return <Badge color="gray">Not Monitored</Badge>;
-  if (printer.is_stale) return <Badge color="orange">Stale</Badge>;
-  if (printer.online === false) return <Badge color="red">Offline</Badge>;
-  if (printer.has_warning) return <Badge color="yellow">Warning</Badge>;
-  return <Badge color="green">Online</Badge>;
+  if (!printer || printer.reading_id === null) return <LiveMonitoringBadge label="Not Monitored" color="gray" />;
+  if (printer.is_stale) return <LiveMonitoringBadge label="Stale" color="orange" />;
+  if (printer.online === false) return <LiveMonitoringBadge label="Offline" color="red" />;
+  if (printer.has_warning) return <LiveMonitoringBadge label="Warning" color="yellow" />;
+
+  const label = formatMonitoringStatus(printer.printer_status) || "Online";
+  return <LiveMonitoringBadge label={label} color={monitoringStatusColor(label)} />;
+}
+
+function formatMonitoringStatus(status: string | null) {
+  return status
+    ?.trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function monitoringStatusColor(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("print") || normalized.includes("process")) return "blue" as const;
+  if (["warning", "error", "fault", "jam"].some((value) => normalized.includes(value))) return "yellow" as const;
+  if (["idle", "ready", "online", "normal", "standby", "sleep"].some((value) => normalized.includes(value))) return "green" as const;
+  return "gray" as const;
 }
 
 function ConsumableLevel({ printer }: { printer: PrinterMonitoringSnapshot | null }) {

@@ -28,11 +28,29 @@ export async function getTonerTypes() {
   return db.select().from(tonerTypes).orderBy(asc(tonerTypes.name));
 }
 
+export async function getVisibleTonerTypes() {
+  return db
+    .select()
+    .from(tonerTypes)
+    .where(eq(tonerTypes.showAlertCard, true))
+    .orderBy(asc(tonerTypes.name));
+}
+
 export async function getTonerTypesWithInventory() {
   const rows = await db
     .select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock })
     .from(tonerTypes)
     .leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id))
+    .orderBy(asc(tonerTypes.name));
+  return rows.map((row) => ({ ...row, stock: row.stock ?? 0 }));
+}
+
+export async function getVisibleTonerTypesWithInventory() {
+  const rows = await db
+    .select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock })
+    .from(tonerTypes)
+    .leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id))
+    .where(eq(tonerTypes.showAlertCard, true))
     .orderBy(asc(tonerTypes.name));
   return rows.map((row) => ({ ...row, stock: row.stock ?? 0 }));
 }
