@@ -21,7 +21,7 @@ export default async function PrinterViewModal({
 }) {
   const resolvedSearchParams = await searchParams;
   const returnTo = normalizePrinterReturnTo(resolvedSearchParams.returnTo);
-  const session = await requireModuleFullAccess("printers");
+  const session = await requireModuleFullAccess("printer_records");
   const access = await getModuleAccessMap(session.id, session.role);
   const { id } = await params;
   const printerId = Number(id);
@@ -44,7 +44,7 @@ export default async function PrinterViewModal({
       title={`${printer.location || "—"} / ${printer.department || "—"}`}
       subtitle={`${printer.serialNumber} / ${printer.ipAddress || "—"}`}
       closeHref={returnTo}
-      headerActions={access.printers ? (
+      headerActions={access.printer_records ? (
         <>
           <Link href={`/printers/${printer.id}/edit?returnTo=${encodeURIComponent(returnTo)}`} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50">
             <IconGlyph icon={Pencil} size={13} />

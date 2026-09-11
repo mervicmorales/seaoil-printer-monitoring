@@ -19,7 +19,7 @@ export default function RequestPrinterAccessDialog({
   employee,
 }: {
   scope: EmployeePrinterRequestScope;
-  employee: { id: number; name: string; email: string };
+  employee: { id: number; name: string; email: string; role: "employee" | "support" };
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -87,13 +87,23 @@ export default function RequestPrinterAccessDialog({
   }
 
   function requestAccess(printer: EmployeePrinterRequestOption) {
-    const gmailUrl = buildGmailComposeUrl(printer, employee);
+    const isSystemOnlyRequest = employee.role === "support";
+    const gmailUrl = isSystemOnlyRequest
+      ? null
+      : buildGmailComposeUrl(printer, employee);
     if (requestedIds.has(printer.id)) {
-      if (!openGmailWindow(gmailUrl)) showPopupBlockedToast(printer.id);
+      if (isSystemOnlyRequest) {
+        gooeyToast.info("Request already pending", {
+          id: `printer-access-request-${printer.id}`,
+          description: "Admin and Super Admin can review this request from the system notification.",
+        });
+      } else if (gmailUrl && !openGmailWindow(gmailUrl)) {
+        showPopupBlockedToast(printer.id);
+      }
       return;
     }
 
-    const gmailWindow = openGmailWindow("about:blank");
+    const gmailWindow = isSystemOnlyRequest ? null : openGmailWindow("about:blank");
     setRequestingId(printer.id);
     startTransition(async () => {
       try {
@@ -107,9 +117,16 @@ export default function RequestPrinterAccessDialog({
           return;
         }
         setNewlyRequestedIds((current) => new Set(current).add(printer.id));
-        if (gmailWindow) {
+        if (isSystemOnlyRequest) {
+          gooeyToast.success("Printer access requested", {
+            id: `printer-access-request-${printer.id}`,
+            description: "Admin and Super Admin were notified through the system bell.",
+          });
+          return;
+        }
+        if (gmailWindow && gmailUrl) {
           gmailWindow.location.href = gmailUrl;
-        } else if (!openGmailWindow(gmailUrl)) {
+        } else if (gmailUrl && !openGmailWindow(gmailUrl)) {
           showPopupBlockedToast(printer.id);
           return;
         }
@@ -262,7 +279,9 @@ export default function RequestPrinterAccessDialog({
                             : printer.alreadyAccessible
                               ? <><IconGlyph icon={Check} size={15} /> Already available</>
                               : requested
-                                ? <><IconGlyph icon={Send} size={15} /> Open Gmail compose</>
+                                ? employee.role === "support"
+                                  ? <><IconGlyph icon={Check} size={15} /> Request pending</>
+                                  : <><IconGlyph icon={Send} size={15} /> Open Gmail compose</>
                                 : <><IconGlyph icon={Send} size={15} /> Request access</>}
                         </button>
                       </article>

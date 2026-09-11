@@ -8,6 +8,8 @@ const CAPABILITY_TIMEOUT_MS = 10_000;
 const CREATE_JOB_TIMEOUT_MS = 15_000;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
 const MAX_SCAN_BYTES = 24 * 1024 * 1024;
+const DISCOVERY_ATTEMPTS = 2;
+const DISCOVERY_RETRY_DELAY_MS = 500;
 
 async function discoverEsclDevices(printers, options = {}) {
   const request = requestFor(options.fetchImpl);
@@ -19,38 +21,44 @@ async function discoverEsclDevices(printers, options = {}) {
   );
   const results = await Promise.all(candidates.map(async printer => {
     const ip = String(printer.ip).trim();
-    const baseUrl = `http://${ip}/eSCL`;
-    try {
-      const response = await request(
-        `${baseUrl}/ScannerCapabilities`,
-        { headers: { Accept: 'text/xml, application/xml' } },
-        timeoutMs,
-      );
-      if (!response.ok) return null;
-      const capabilities = parseScannerCapabilities(await response.text());
-      if (!capabilities.hasPlaten && !capabilities.hasAdf) return null;
-      const printerLabel = printer.name || capabilities.model || `Scanner ${ip}`;
-      const detail = capabilities.model && capabilities.model !== printerLabel
-        ? ` · ${capabilities.model}`
-        : '';
-      return {
-        id: `escl:${Number(printer.id)}`,
-        label: `${printerLabel}${detail} · ${ip}`,
-        kind: 'escl',
-        printerId: Number(printer.id),
-        baseUrl,
-        format: capabilities.formats.includes('application/pdf')
-          ? 'application/pdf'
-          : 'image/jpeg',
-        sources: [
-          ...(capabilities.hasPlaten ? ['Flatbed'] : []),
-          ...(capabilities.hasAdf ? ['ADF'] : []),
-          ...(capabilities.hasDuplexAdf ? ['ADF Duplex'] : []),
-        ],
-      };
-    } catch {
-      return null;
+    for (let attempt = 0; attempt < DISCOVERY_ATTEMPTS; attempt += 1) {
+      const baseUrl = `http://${ip}/eSCL`;
+      try {
+        const response = await request(
+          `${baseUrl}/ScannerCapabilities`,
+          { headers: { Accept: 'text/xml, application/xml' } },
+          timeoutMs,
+        );
+        if (!response.ok) continue;
+        const capabilities = parseScannerCapabilities(await response.text());
+        if (!capabilities.hasPlaten && !capabilities.hasAdf) return null;
+        const printerLabel = printer.name || capabilities.model || `Scanner ${ip}`;
+        const detail = capabilities.model && capabilities.model !== printerLabel
+          ? ` · ${capabilities.model}`
+          : '';
+        return {
+          id: `escl:${Number(printer.id)}`,
+          label: `${printerLabel}${detail} · ${ip}`,
+          kind: 'escl',
+          printerId: Number(printer.id),
+          baseUrl,
+          format: capabilities.formats.includes('application/pdf')
+            ? 'application/pdf'
+            : 'image/jpeg',
+          sources: [
+            ...(capabilities.hasPlaten ? ['Flatbed'] : []),
+            ...(capabilities.hasAdf ? ['ADF'] : []),
+            ...(capabilities.hasDuplexAdf ? ['ADF Duplex'] : []),
+          ],
+        };
+      } catch {
+        // Sleeping network MFPs commonly fail their first capability request.
+      }
+      if (attempt + 1 < DISCOVERY_ATTEMPTS) {
+        await delay(DISCOVERY_RETRY_DELAY_MS);
+      }
     }
+    return null;
   }));
   return results.filter(Boolean);
 }
@@ -104,7 +112,7 @@ async function runEsclScan(device, source, options = {}) {
   while (Date.now() < deadline) {
     const documentResponse = await request(
       `${jobUrl}/NextDocument`,
-      { headers: { Accept: `${format}, application/pdf, image/jpeg` } },
+      { headers: { Accept: `${format}, application/pdf, image/jpeg, image/png` } },
       Math.max(1_000, deadline - Date.now()),
     );
     if (documentResponse.status === 503 || documentResponse.status === 425) {
@@ -119,14 +127,45 @@ async function runEsclScan(device, source, options = {}) {
     if (buffer.length === 0) throw new Error('Scanner returned an empty document');
     if (buffer.length > MAX_SCAN_BYTES) throw new Error('The scan is too large to upload to PrintOps');
     const responseType = documentResponse.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
-    const mimeType = responseType === 'application/pdf' ? 'application/pdf' : format;
+    const mimeType = detectScanMimeType(buffer) || (
+      responseType === 'application/pdf' || responseType === 'image/jpeg' || responseType === 'image/png'
+        ? responseType
+        : format
+    );
     return {
       buffer,
       mimeType,
-      extension: mimeType === 'application/pdf' ? 'pdf' : 'jpg',
+      extension: scanFileExtension(mimeType),
     };
   }
   throw new Error('The scanner did not finish within two minutes');
+}
+
+function detectScanMimeType(buffer) {
+  if (buffer.length >= 5 && buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
+    return 'application/pdf';
+  }
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return 'image/jpeg';
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return 'image/png';
+  }
+  return null;
+}
+
+function scanFileExtension(mimeType) {
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType === 'image/png') return 'png';
+  return 'jpg';
 }
 
 function buildScanSettings({ source, format }) {
@@ -282,6 +321,7 @@ function delay(milliseconds) {
 
 module.exports = {
   buildScanSettings,
+  detectScanMimeType,
   discoverEsclDevices,
   parseScannerCapabilities,
   scannerRequest,

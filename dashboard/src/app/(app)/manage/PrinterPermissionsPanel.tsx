@@ -7,6 +7,7 @@ import { Check, LoaderCircle, Printer, RefreshCw } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { gooeyToast } from "goey-toast";
 import { Badge, SecondaryButton } from "@/components/ui";
+import SearchInput from "@/components/SearchInput";
 
 export type PrinterPermissionState = {
   error?: string;
@@ -20,6 +21,7 @@ type PrinterOption = {
   name: string;
   model: string | null;
   serialNumber: string | null;
+  ipAddress: string | null;
   department: string | null;
   location: string | null;
   online: boolean;
@@ -61,6 +63,7 @@ export default function PrinterPermissionsPanel({
 }) {
   const router = useRouter();
   const [selectedAgentId, setSelectedAgentId] = useState(String(agents[0]?.id ?? ""));
+  const [searchQuery, setSearchQuery] = useState("");
   const automaticIds = useMemo(() => new Set(automaticPrinterIds), [automaticPrinterIds]);
   const pendingIds = useMemo(() => new Set(pendingRequestIds), [pendingRequestIds]);
   const [selectedPrinterIds, setSelectedPrinterIds] = useState(
@@ -69,6 +72,22 @@ export default function PrinterPermissionsPanel({
   const [refreshState, refreshFormAction] = useActionState(refreshAction, {});
   const [saveState, saveFormAction] = useActionState(saveAction, {});
   const selectedAgent = agents.find((agent) => String(agent.id) === selectedAgentId);
+  const filteredPrinters = useMemo(() => {
+    if (!selectedAgent) return [];
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+    if (!normalizedQuery) return selectedAgent.printers;
+
+    return selectedAgent.printers.filter((printer) =>
+      [
+        printer.name,
+        printer.serialNumber,
+        printer.model,
+        printer.location,
+        printer.department,
+        printer.ipAddress,
+      ].some((value) => value?.toLocaleLowerCase().includes(normalizedQuery)),
+    );
+  }, [searchQuery, selectedAgent]);
   const selectedCount = useMemo(
     () => selectedAgent?.printers.filter((printer) => selectedPrinterIds.has(printer.id)).length ?? 0,
     [selectedAgent, selectedPrinterIds],
@@ -134,7 +153,10 @@ export default function PrinterPermissionsPanel({
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Available Agent</span>
           <select
             value={selectedAgentId}
-            onChange={(event) => setSelectedAgentId(event.target.value)}
+            onChange={(event) => {
+              setSelectedAgentId(event.target.value);
+              setSearchQuery("");
+            }}
             className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
           >
             {agents.map((agent) => (
@@ -192,8 +214,36 @@ export default function PrinterPermissionsPanel({
               <p className="mt-1 text-xs text-slate-500">Refresh the agent to retrieve its latest printer data.</p>
             </div>
           ) : (
-            <div className="grid max-h-80 gap-2 overflow-y-auto p-3 sm:grid-cols-2">
-              {selectedAgent.printers.map((printer) => {
+            <>
+              <div className="border-b border-slate-200 bg-white p-3 sm:p-4">
+                <SearchInput
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                  submitOnClear={false}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.preventDefault();
+                  }}
+                  aria-label="Search available printers"
+                  placeholder="Search by serial number, model, floor, department, or IP address"
+                />
+                {searchQuery && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {filteredPrinters.length} of {selectedAgent.printers.length} printers shown
+                  </p>
+                )}
+              </div>
+
+              {filteredPrinters.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                    <MorphIcon icon={Printer} size={20} strokeWidth={2} reducedMotion="user" />
+                  </span>
+                  <p className="mt-3 text-sm font-semibold text-slate-700">No matching printers</p>
+                  <p className="mt-1 text-xs text-slate-500">Try another serial number, model, location, department, or IP address.</p>
+                </div>
+              ) : (
+                <div className="grid max-h-80 gap-2 overflow-y-auto p-3 sm:grid-cols-2">
+              {filteredPrinters.map((printer) => {
                 const automatic = automaticIds.has(printer.id);
                 const requested = pendingIds.has(printer.id);
                 const checked = automatic || selectedPrinterIds.has(printer.id);
@@ -230,13 +280,15 @@ export default function PrinterPermissionsPanel({
                         </span>
                       </span>
                       <span className="mt-1 block text-xs leading-5 text-slate-500">
-                        {[printer.location, printer.department, printer.model, printer.serialNumber].filter(Boolean).join(" · ")}
+                        {[printer.location, printer.department, printer.model, printer.serialNumber, printer.ipAddress].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                   </label>
                 );
               })}
-            </div>
+                </div>
+              )}
+            </>
           )}
 
           <div className="flex justify-end border-t border-slate-200 bg-slate-50/40 px-4 py-3">

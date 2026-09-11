@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { getModuleAccessMap, requireSession } from "@/lib/server-utils";
 import { db } from "@/db";
 import { notifications, users } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, notInArray } from "drizzle-orm";
 import Sidebar from "@/components/Sidebar";
 import AppHeader from "@/components/AppHeader";
 import AgentStatusNotifications from "@/components/AgentStatusNotifications";
@@ -12,6 +12,7 @@ import { getBlobSkinCookieName, isBlobSkin } from "@/lib/blob-skins";
 import { BlobSkinProvider } from "@/components/BlobSkinProvider";
 import { SYSTEM_LOGO_URL } from "@/lib/branding";
 import { redirect } from "next/navigation";
+import { ADMIN_ONLY_NOTIFICATION_TYPES } from "@/lib/notification-types";
 
 export default async function AppLayout({
   children,
@@ -30,6 +31,9 @@ export default async function AppLayout({
     db
       .select()
       .from(notifications)
+      .where(session.role === "support"
+        ? notInArray(notifications.type, [...ADMIN_ONLY_NOTIFICATION_TYPES])
+        : undefined)
       .orderBy(desc(notifications.createdAt))
       .limit(20),
     db
@@ -56,6 +60,7 @@ export default async function AppLayout({
             collapsedCookie === undefined ? null : collapsedCookie === "true"
           }
           moduleAccess={access}
+          userRole={session.role}
         />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
           <AppHeader

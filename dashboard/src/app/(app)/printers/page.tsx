@@ -50,7 +50,7 @@ export default async function PrintersPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; location?: string; success?: string }>;
 }) {
-  const session = await requireModuleFullAccess("printers");
+  const session = await requireModuleFullAccess("printer_records");
   const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
@@ -191,7 +191,7 @@ export default async function PrintersPage({
               refreshedAtLabel={formatDateTime(renderedAt)}
               intervalSeconds={AUTO_REFRESH_SECONDS}
             />
-            {access.printers && (
+            {access.printer_records && (
             <Link
               href="/printers/new"
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012c50] hover:shadow-md"

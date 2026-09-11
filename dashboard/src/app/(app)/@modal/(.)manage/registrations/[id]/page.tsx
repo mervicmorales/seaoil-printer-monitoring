@@ -10,7 +10,7 @@ export default function RegistrationDetailModal({
 }) {
   return (
     <ModalShell
-      title="Registration Detail"
+      title="Registration Details"
       closeHref="/manage/registrations"
       showTitle={false}
       pageHeaderInModal

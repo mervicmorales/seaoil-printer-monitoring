@@ -63,7 +63,7 @@ export default async function TonerMonitoringPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await requireModuleFullAccess("toner");
+  const session = await requireModuleFullAccess("toner_monitoring");
   const access = await getModuleAccessMap(session.id, session.role);
   const sp = await searchParams;
 
@@ -142,7 +142,7 @@ export default async function TonerMonitoringPage({
         title="Toner Monitoring"
         subtitle="Track toner inventory levels, deliveries and requests."
         actions={
-          access.toner ? (
+          access.toner_monitoring ? (
             <>
               <Link
                 href="/toner-monitoring/delivery"
@@ -325,7 +325,7 @@ export default async function TonerMonitoringPage({
                   <TransactionField label="Remarks" value={t.remarks || "—"} />
                 </dl>
 
-                {access.toner && (
+                {access.toner_monitoring && (
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <Link href={`/toner-monitoring/${t.id}/edit`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50">
                       <IconGlyph icon={Pencil} size={13} />
@@ -411,7 +411,7 @@ export default async function TonerMonitoringPage({
                     </p>
                   </td>
                   <td className="w-px whitespace-nowrap px-4 py-3.5">
-                    {access.toner && (
+                    {access.toner_monitoring && (
                       <div className="flex justify-end gap-2">
                         <Link href={`/toner-monitoring/${t.id}/edit`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
                           <IconGlyph icon={Pencil} size={13} />

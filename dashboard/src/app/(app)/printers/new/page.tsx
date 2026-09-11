@@ -20,7 +20,7 @@ export default async function NewPrinterPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
   embedded?: boolean;
 }) {
-  await requireModuleFullAccess("printers");
+  await requireModuleFullAccess("printer_records");
   const params = (await searchParams) ?? {};
   const value = (name: string, maxLength: number) => {
     const candidate = params[name];

@@ -11,6 +11,7 @@ import {
 } from "lucide";
 import { db } from "@/db";
 import { Badge, IconGlyph, PageHeader, TableCard } from "@/components/ui";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ type AlertFilter = "active" | "resolved";
 type AlertRow = {
   id: number;
   printer_id: number;
-  printer_name: string;
+  model: string | null;
   serial_number: string;
   location_name: string | null;
   department_name: string | null;
@@ -43,6 +44,7 @@ export default async function MonitoringAlertsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  await requireModuleFullAccess("monitoring_alerts");
   const params = await searchParams;
   const status: AlertFilter =
     params.status === "resolved" ? "resolved" : "active";
@@ -59,7 +61,7 @@ export default async function MonitoringAlertsPage({
       select
         printer_alerts.id,
         printer_alerts.printer_id,
-        coalesce(printers.asset_tag, printers.serial_number) as printer_name,
+        printers.model,
         printers.serial_number,
         locations.name as location_name,
         departments.name as department_name,
@@ -169,7 +171,7 @@ export default async function MonitoringAlertsPage({
                   <tr>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Alert</th>
-                    <th className="px-4 py-3">Printer</th>
+                    <th className="px-4 py-3">Model / SN:</th>
                     <th className="px-4 py-3">Location / Department</th>
                     <th className="px-4 py-3">Agent</th>
                     <th className="px-4 py-3">Started</th>
@@ -195,7 +197,7 @@ export default async function MonitoringAlertsPage({
                           href={printerDetailHref(alert.printer_id, alertsReturnTo)}
                           className="font-bold text-[#014171] decoration-[#014171]/30 underline-offset-4 transition hover:underline"
                         >
-                          {alert.printer_name}
+                          {alert.model ?? "Model unavailable"}
                         </Link>
                         <p className="mt-1 break-all font-mono text-[11px] font-medium text-slate-500">
                           {alert.serial_number}
@@ -300,16 +302,16 @@ function AlertCard({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:grid-cols-2">
-        <AlertDetail icon={Printer} label="Printer">
+        <AlertDetail icon={Printer} label="Model / SN:">
           <Link
             href={printerDetailHref(alert.printer_id, returnTo)}
             className="font-bold text-[#014171] decoration-[#014171]/30 underline-offset-4 hover:underline"
           >
-            {alert.printer_name}
+            {alert.model ?? "Model unavailable"}
           </Link>
           <span className="mt-0.5 block break-all font-mono text-[11px] text-slate-500">{alert.serial_number}</span>
         </AlertDetail>
-        <AlertDetail icon={BellRing} label="Assignment">
+        <AlertDetail icon={BellRing} label="Location / Department">
           <span className="font-semibold text-slate-700">{alert.location_name ?? "Not assigned"}</span>
           <span className="mt-0.5 block text-xs text-slate-500">{alert.department_name ?? "Not assigned"}</span>
         </AlertDetail>
@@ -319,11 +321,10 @@ function AlertCard({
         <AlertDetail icon={CircleCheckBig} label="Resolved">
           {alert.resolved_at ? formatDateTime(alert.resolved_at) : "—"}
         </AlertDetail>
+        <AlertDetail icon={BellRing} label="Agent">
+          {alert.agent_name ?? "Not available"}
+        </AlertDetail>
       </div>
-
-      <p className="mt-3 text-xs text-slate-500">
-        Reporting agent: <span className="font-semibold text-slate-700">{alert.agent_name ?? "Not available"}</span>
-      </p>
     </article>
   );
 }

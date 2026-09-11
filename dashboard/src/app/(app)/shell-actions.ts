@@ -9,9 +9,10 @@ import {
 } from "@/lib/auth";
 import { db } from "@/db";
 import { notifications, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/server-utils";
+import { ADMIN_ONLY_NOTIFICATION_TYPES } from "@/lib/notification-types";
 
 export type ChangePasswordResult = {
   success?: boolean;
@@ -69,11 +70,29 @@ export async function logoutAction() {
 }
 
 export async function markNotificationReadAction(id: number) {
-  await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
+  const session = await requireSession();
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(session.role === "support"
+      ? and(
+          eq(notifications.id, id),
+          notInArray(notifications.type, [...ADMIN_ONLY_NOTIFICATION_TYPES]),
+        )
+      : eq(notifications.id, id));
   revalidatePath("/", "layout");
 }
 
 export async function markAllNotificationsReadAction() {
-  await db.update(notifications).set({ isRead: true }).where(eq(notifications.isRead, false));
+  const session = await requireSession();
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(session.role === "support"
+      ? and(
+          eq(notifications.isRead, false),
+          notInArray(notifications.type, [...ADMIN_ONLY_NOTIFICATION_TYPES]),
+        )
+      : eq(notifications.isRead, false));
   revalidatePath("/", "layout");
 }

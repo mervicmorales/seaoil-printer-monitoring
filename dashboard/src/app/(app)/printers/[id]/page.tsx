@@ -54,7 +54,7 @@ export default async function PrinterViewPage({
   const { id } = await params;
   const sp = await searchParams;
   const returnTo = normalizePrinterReturnTo(sp.returnTo);
-  const session = await requireModuleFullAccess("printers");
+  const session = await requireModuleFullAccess("printer_records");
   const access = await getModuleAccessMap(session.id, session.role);
   const printerId = Number(id);
   if (!Number.isInteger(printerId) || printerId <= 0) notFound();
@@ -191,7 +191,7 @@ export default async function PrinterViewPage({
           subtitle={`${p.serialNumber} / ${p.ipAddress || "—"}`}
           actions={
             <>
-              {access.printers && (
+              {access.printer_records && (
                 <>
                   <Link href={`/printers/${p.id}/edit?returnTo=${encodeURIComponent(returnTo)}`}>
                     <SecondaryButton>Edit Printer</SecondaryButton>

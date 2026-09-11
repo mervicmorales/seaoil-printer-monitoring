@@ -30,7 +30,7 @@ export default async function EditPrinterPage({
   searchParams: Promise<{ returnTo?: string }>;
   embedded?: boolean;
 }) {
-  const session = await requireModuleFullAccess("printers");
+  const session = await requireModuleFullAccess("printer_records");
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
   const returnTo = normalizePrinterReturnTo(resolvedSearchParams.returnTo);

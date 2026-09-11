@@ -80,7 +80,7 @@ export default async function RegistrationDetailPage({
 
   return (
     <div>
-      <PageHeader title="Registration Detail" />
+      <PageHeader title="Registration Details" />
 
       <SuccessBanner
         message={messages.success}

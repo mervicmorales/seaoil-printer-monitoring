@@ -91,7 +91,7 @@ export async function getEmployeePrinterRequestScope(
       on request.user_id = employee.id
       and request.printer_id = printer.id
     where employee.id = ${userId}
-      and employee.role = 'employee'
+      and employee.role in ('employee', 'support')
     order by location.name, department.name, printer.model, printer.serial_number
   `);
 

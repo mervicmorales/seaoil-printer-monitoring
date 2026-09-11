@@ -36,7 +36,7 @@ export async function updatePrinterStatusAction(
   printerId: number,
   status: string,
 ): Promise<{ success: boolean }> {
-  await requireAdmin("printers");
+  await requireAdmin("printer_records");
 
   if (!Number.isInteger(printerId) || !PRINTER_STATUSES.some((item) => item === status)) {
     return { success: false };
@@ -113,7 +113,7 @@ export async function createPrinterAction(
   _prev: PrinterFormState,
   formData: FormData,
 ): Promise<PrinterFormState> {
-  await requireModuleFullAccess("printers");
+  await requireModuleFullAccess("printer_records");
 
   const serialNumber = str(formData.get("serialNumber"));
   const model = str(formData.get("model"));
@@ -179,7 +179,7 @@ export async function updatePrinterAction(
   _prev: PrinterFormState,
   formData: FormData,
 ): Promise<PrinterFormState> {
-  const session = await requireModuleFullAccess("printers");
+  const session = await requireModuleFullAccess("printer_records");
 
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid printer." };
@@ -255,7 +255,7 @@ export async function updatePrinterAction(
 }
 
 export async function deletePrinterAction(formData: FormData) {
-  await requireAdmin("printers");
+  await requireAdmin("printer_records");
   const id = num(formData.get("id"));
   if (!id) return;
   await db.delete(printers).where(eq(printers.id, id));
@@ -268,7 +268,7 @@ export async function addReplacementAction(
   _prev: PrinterFormState,
   formData: FormData,
 ): Promise<PrinterFormState> {
-  await requireAdmin("printers");
+  await requireAdmin("printer_records");
 
   const printerId = num(formData.get("printerId"));
   const newSerialNumber = str(formData.get("newSerialNumber"));

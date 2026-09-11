@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   buildScanSettings,
+  detectScanMimeType,
   discoverEsclDevices,
   parseScannerCapabilities,
   runEsclScan,
@@ -41,6 +42,23 @@ test('discovers assigned eSCL printers without a SANE installation', async () =>
   assert.deepEqual(devices[0].sources, ['Flatbed', 'ADF']);
 });
 
+test('retries scanner discovery when a sleeping printer misses the first request', async () => {
+  let requests = 0;
+  const devices = await discoverEsclDevices(
+    [{ id: 43, name: 'Sleeping Office Printer', ip: '192.0.2.43' }],
+    {
+      fetchImpl: async () => {
+        requests += 1;
+        if (requests === 1) throw new Error('temporary connection failure');
+        return new Response(capabilities, { status: 200 });
+      },
+    },
+  );
+  assert.equal(requests, 2);
+  assert.equal(devices.length, 1);
+  assert.equal(devices[0].printerId, 43);
+});
+
 test('creates an eSCL job and downloads its document', async () => {
   const requests = [];
   const fetchImpl = async (url, init) => {
@@ -70,6 +88,41 @@ test('creates an eSCL job and downloads its document', async () => {
   assert.equal(requests[0].url, 'http://192.0.2.42/eSCL/ScanJobs');
   assert.equal(requests[1].url, 'http://192.0.2.42/eSCL/ScanJobs/7/NextDocument');
   assert.match(String(requests[0].init.body), /<pwg:InputSource>Platen<\/pwg:InputSource>/);
+});
+
+test('uses the returned JPEG signature when a scanner advertises PDF', async () => {
+  const fetchImpl = async url => {
+    if (String(url).endsWith('/ScanJobs')) {
+      return new Response('', {
+        status: 201,
+        headers: { location: '/eSCL/ScanJobs/8' },
+      });
+    }
+    return new Response(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]), {
+      status: 200,
+      headers: { 'content-type': 'image/jpeg' },
+    });
+  };
+  const result = await runEsclScan({
+    id: 'escl:45',
+    kind: 'escl',
+    baseUrl: 'http://192.0.2.45/eSCL',
+    format: 'application/pdf',
+    sources: ['Flatbed'],
+  }, 'Flatbed', { fetchImpl });
+
+  assert.equal(result.mimeType, 'image/jpeg');
+  assert.equal(result.extension, 'jpg');
+});
+
+test('detects supported scan formats from their file signatures', () => {
+  assert.equal(detectScanMimeType(Buffer.from('%PDF-test')), 'application/pdf');
+  assert.equal(detectScanMimeType(Buffer.from([0xff, 0xd8, 0xff, 0xe0])), 'image/jpeg');
+  assert.equal(
+    detectScanMimeType(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    'image/png',
+  );
+  assert.equal(detectScanMimeType(Buffer.from('unknown')), null);
 });
 
 test('builds feeder and duplex scan settings', () => {

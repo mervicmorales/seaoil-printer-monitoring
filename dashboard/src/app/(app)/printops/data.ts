@@ -9,7 +9,11 @@ import {
   userPrinterPermissions,
   users,
 } from "@/db/schema";
-import { normalizePrintOpsSnapshot, type PrintOpsSnapshot } from "@/lib/printops";
+import {
+  mergeRecentScanDevices,
+  normalizePrintOpsSnapshot,
+  type PrintOpsSnapshot,
+} from "@/lib/printops";
 import { purgeExpiredScanFiles } from "@/lib/scan-retention";
 
 export type PrintOpsAgent = {
@@ -63,6 +67,7 @@ export type PrintOpsPhysicalPrinter = {
   location: string | null;
   model: string | null;
   serialNumber: string;
+  ipAddress: string | null;
   online: boolean;
   status: string;
   checkedAt: Date;
@@ -171,8 +176,12 @@ export async function getPrintOpsAgents(
   }
 
   const latestByAgent = new Map<number, (typeof syncCommands)[number]>();
+  const recentSnapshotsByAgent = new Map<number, PrintOpsSnapshot[]>();
   for (const command of syncCommands) {
     if (!latestByAgent.has(command.agentId)) latestByAgent.set(command.agentId, command);
+    const recentSnapshots = recentSnapshotsByAgent.get(command.agentId) ?? [];
+    recentSnapshots.push(normalizePrintOpsSnapshot(command.result));
+    recentSnapshotsByAgent.set(command.agentId, recentSnapshots);
   }
   const monitoredPrintersByAgent = new Map<number, MonitoredPrinterRow[]>();
   for (const printer of assignedPrinterResult.rows) {
@@ -188,6 +197,9 @@ export async function getPrintOpsAgents(
   }).map((agent) => {
     const command = latestByAgent.get(agent.id);
     const snapshot = normalizePrintOpsSnapshot(command?.result);
+    const recentScanDevices = mergeRecentScanDevices(
+      recentSnapshotsByAgent.get(agent.id) ?? [snapshot],
+    );
     const monitoredPrinters = (monitoredPrintersByAgent.get(agent.id) ?? []).filter((printer) => {
       if (includeAllCoveredLocationPrinters) return true;
       if (!locationScope) return true;
@@ -202,7 +214,7 @@ export async function getPrintOpsAgents(
     const onlinePrinterIds = new Set(
       monitoredPrinters.filter((printer) => printer.online).map((printer) => printer.printer_id),
     );
-    const onlineScanDevices = snapshot.scanDevices.filter((device) => (
+    const onlineScanDevices = recentScanDevices.filter((device) => (
       device.printerId === null || onlinePrinterIds.has(device.printerId)
     ));
     return {
@@ -215,6 +227,7 @@ export async function getPrintOpsAgents(
         location: printer.location,
         model: printer.model,
         serialNumber: printer.serial_number,
+        ipAddress: printer.ip,
         online: printer.online,
         status: printer.printer_status ?? (printer.online ? "Unknown" : "Offline"),
         checkedAt: printer.checked_at,
@@ -279,4 +292,50 @@ export async function getRecentPrintOpsCommands(
     )
     .orderBy(desc(printOpsCommands.requestedAt), desc(printOpsCommands.id))
     .limit(limit);
+}
+
+export function getPrintOpsActivityPrinter(
+  command: {
+    agentId: number;
+    payload: Record<string, unknown>;
+  },
+  agents: readonly PrintOpsAgent[],
+) {
+  const agent = agents.find((candidate) => candidate.id === command.agentId);
+  const explicitPrinterId = numericPayload(command.payload, "printerId");
+  const deviceId = textPayload(command.payload, "device");
+  const devicePrinterId = deviceId
+    ? agent?.snapshot.scanDevices.find((device) => device.id === deviceId)?.printerId ??
+      esclPrinterId(deviceId)
+    : null;
+  const printerId = explicitPrinterId ?? devicePrinterId;
+  const printer = printerId
+    ? agent?.physicalPrinters.find((candidate) => candidate.id === printerId)
+    : undefined;
+
+  return {
+    location: textPayload(command.payload, "printerLocation") || printer?.location || "—",
+    department: textPayload(command.payload, "printerDepartment") || printer?.department || "—",
+    model: textPayload(command.payload, "printerModel") || printer?.model || "—",
+    serialNumber:
+      textPayload(command.payload, "printerSerialNumber") || printer?.serialNumber || "—",
+  };
+}
+
+function textPayload(payload: Record<string, unknown>, key: string) {
+  return typeof payload[key] === "string" ? payload[key] : "";
+}
+
+function numericPayload(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : null;
+}
+
+function esclPrinterId(deviceId: string) {
+  const match = deviceId.match(/^escl:(\d+)$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
 }

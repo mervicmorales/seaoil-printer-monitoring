@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { getModuleAccessMap } from "@/lib/server-utils";
 import { isSuperAdmin } from "@/lib/roles";
 import { purgeExpiredScanFiles, SCAN_RETENTION_MS } from "@/lib/scan-retention";
+import { detectScanFileType, replaceScanFileExtension } from "@/lib/scan-file-type";
 
 export async function GET(
   request: Request,
@@ -49,13 +50,17 @@ export async function GET(
     return NextResponse.json({ message: "Scan file not found" }, { status: 404 });
   }
   const file = Buffer.from(scan.data, "base64");
-  const safeName = scan.name.replace(/["\\\r\n]/g, "_");
+  const detectedType = detectScanFileType(file);
+  const responseName = detectedType
+    ? replaceScanFileExtension(scan.name, detectedType.extension)
+    : scan.name;
+  const safeName = responseName.replace(/["\\\r\n]/g, "_");
   const disposition = new URL(request.url).searchParams.get("view") === "1"
     ? "inline"
     : "attachment";
   return new NextResponse(new Uint8Array(file), {
     headers: {
-      "Content-Type": scan.mimeType || "application/pdf",
+      "Content-Type": detectedType?.mimeType || scan.mimeType || "application/pdf",
       "Content-Length": String(file.length),
       "Content-Disposition": `${disposition}; filename="${safeName}"`,
       "Cache-Control": "private, no-store",

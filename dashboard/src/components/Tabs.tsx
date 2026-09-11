@@ -18,7 +18,7 @@ export default function Tabs({
     <div className={fillHeight ? "flex min-h-0 flex-1 flex-col" : ""}>
       <div
         role="tablist"
-        className={`mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 ${fillHeight ? "shrink-0" : ""}`}
+        className={`mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 ${fillHeight ? "shrink-0" : ""}`}
       >
         {tabs.map((t) => (
           <button

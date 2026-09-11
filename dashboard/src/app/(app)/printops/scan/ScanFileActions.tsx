@@ -25,24 +25,26 @@ type SaveFilePicker = (options: {
 export default function ScanFileActions({
   scan,
   fullWidth = false,
+  compact = false,
 }: {
   scan: ScanFile;
   fullWidth?: boolean;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <div className={`inline-flex gap-2 ${fullWidth ? "w-full" : ""}`}>
+      <div className={`inline-flex items-center ${compact ? "gap-1.5" : "gap-2"} ${fullWidth ? "w-full" : ""}`}>
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#014171] shadow-sm transition hover:border-sky-200 hover:bg-sky-50 ${fullWidth ? "flex-1" : ""}`}
+          className={`inline-flex items-center justify-center border border-slate-200 bg-white font-semibold text-[#014171] shadow-sm transition hover:border-sky-200 hover:bg-sky-50 ${compact ? "h-8 gap-1 rounded-lg px-2.5 text-[11px]" : "gap-1.5 rounded-xl px-3 py-2 text-xs"} ${fullWidth ? "flex-1" : ""}`}
         >
-          <IconGlyph icon={Eye} size={14} />
+          <IconGlyph icon={Eye} size={compact ? 12 : 14} />
           Preview
         </button>
-        <SaveAsButton scan={scan} fullWidth={fullWidth} />
+        <SaveAsButton scan={scan} fullWidth={fullWidth} compact={compact} />
       </div>
       <ScanPreviewDialog scan={scan} open={open} onClose={() => setOpen(false)} />
     </>
@@ -143,7 +145,15 @@ function emptySubscribe() {
   return () => {};
 }
 
-function SaveAsButton({ scan, fullWidth = false }: { scan: ScanFile; fullWidth?: boolean }) {
+function SaveAsButton({
+  scan,
+  fullWidth = false,
+  compact = false,
+}: {
+  scan: ScanFile;
+  fullWidth?: boolean;
+  compact?: boolean;
+}) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -187,9 +197,9 @@ function SaveAsButton({ scan, fullWidth = false }: { scan: ScanFile; fullWidth?:
         type="button"
         onClick={() => void saveAs()}
         disabled={saving}
-        className={`inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65 ${fullWidth ? "w-full" : ""}`}
+        className={`inline-flex items-center justify-center bg-emerald-600 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65 ${compact ? "h-8 gap-1 rounded-lg px-2.5 text-[11px]" : "gap-1.5 rounded-xl px-3.5 py-2.5 text-xs"} ${fullWidth ? "w-full" : ""}`}
       >
-        <IconGlyph icon={Download} size={14} />
+        <IconGlyph icon={Download} size={compact ? 12 : 14} />
         {saving ? "Saving…" : "Save as…"}
       </button>
       {error && <p className="mt-1 max-w-48 text-left text-[10px] leading-4 text-red-600">{error}</p>}

@@ -9,7 +9,7 @@ import { updateTransactionAction } from "../../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export default async function EditTransactionPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireModuleFullAccess("toner");
+  await requireModuleFullAccess("toner_monitoring");
   const { id } = await params;
   const rows = await db.select().from(tonerTransactions).where(eq(tonerTransactions.id, Number(id))).limit(1);
   const txn = rows[0];

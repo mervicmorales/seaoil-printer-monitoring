@@ -13,7 +13,7 @@ import {
   users,
 } from "@/db/schema";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
-import { requireSession } from "@/lib/server-utils";
+import { requireModuleFullAccess, requireSession } from "@/lib/server-utils";
 import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
 import { getEmployeePrinterRequestScope } from "@/lib/employee-printer-requests";
 import EmployeePrinterCard from "./EmployeePrinterCard";
@@ -46,9 +46,21 @@ type LatestConsumable = {
   isUnknown: boolean;
 };
 
-export default async function PortalPage() {
-  const session = await requireSession();
-  if (session.role !== "employee") redirect("/dashboard");
+export default function PortalPage() {
+  return <AvailablePrintersPageContent accountRole="employee" />;
+}
+
+export async function AvailablePrintersPageContent({
+  accountRole,
+}: {
+  accountRole: "employee" | "support";
+}) {
+  const session = accountRole === "support"
+    ? await requireModuleFullAccess("printops")
+    : await requireSession();
+  if (session.role !== accountRole) {
+    redirect(session.role === "employee" ? "/portal" : "/dashboard");
+  }
 
   const [employee] = await db.select({
     primaryLocationId: users.primaryLocationId,
@@ -184,6 +196,7 @@ export default async function PortalPage() {
               id: session.id,
               name: session.fullName,
               email: session.email,
+              role: session.role,
             }}
           />
         }

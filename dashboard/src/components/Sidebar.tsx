@@ -24,6 +24,7 @@ import {
   LogOut,
   Menu,
   Radar,
+  ReceiptText,
   PanelLeftClose,
   Printer,
   Settings,
@@ -41,6 +42,15 @@ import {
   BLOB_SKINS,
 } from "@/lib/blob-skins";
 import { MODULE_LABELS, type ModuleName } from "@/lib/permissions";
+import type { UserRole } from "@/lib/roles";
+
+type NavChild = {
+  href: string;
+  label: string;
+  icon: IconNode;
+  module?: ModuleName;
+  disabled?: boolean;
+};
 
 type NavItem = {
   href: string;
@@ -48,7 +58,7 @@ type NavItem = {
   icon: IconNode;
   module?: ModuleName;
   separated?: boolean;
-  children?: Array<{ href: string; label: string; icon: IconNode; module?: ModuleName; disabled?: boolean }>;
+  children?: NavChild[];
 };
 
 const NAV: NavItem[] = [
@@ -59,14 +69,24 @@ const NAV: NavItem[] = [
     icon: Printer,
     module: "printers",
     children: [
-      { href: "/printers", label: "Printer Records", icon: Printer, module: "printers" },
-      { href: "/printdash/alerts", label: "Monitoring Alerts", icon: Bell, module: "printers" },
-      { href: "/printdash/discover", label: "Discover Printers", icon: Radar, module: "printers" },
+      { href: "/printers", label: MODULE_LABELS.printer_records, icon: Printer, module: "printer_records" },
+      { href: "/repair-history", label: "Repair History", icon: Wrench, module: "repair" },
+      { href: "/printdash/alerts", label: MODULE_LABELS.monitoring_alerts, icon: Bell, module: "monitoring_alerts" },
+      { href: "/printdash/discover", label: MODULE_LABELS.discover_printers, icon: Radar, module: "discover_printers" },
     ],
   },
-  { href: "/toner-monitoring", label: MODULE_LABELS.toner, icon: Droplets, module: "toner", separated: true },
-  { href: "/contracts", label: MODULE_LABELS.contract, icon: FileText, module: "contract" },
-  { href: "/repair-history", label: MODULE_LABELS.repair, icon: Wrench, module: "repair" },
+  {
+    href: "/toners",
+    label: "Toners",
+    icon: Droplets,
+    module: "toner",
+    separated: true,
+    children: [
+      { href: "/toner-monitoring", label: MODULE_LABELS.toner_monitoring, icon: Droplets, module: "toner_monitoring" },
+      { href: "/toner-expenses", label: MODULE_LABELS.toner_expenses, icon: ReceiptText, module: "toner_expenses" },
+    ],
+  },
+  { href: "/contracts", label: MODULE_LABELS.contract, icon: FileText, module: "contract", separated: true },
   {
     href: "/printops",
     label: MODULE_LABELS.printops,
@@ -97,6 +117,12 @@ const EMPLOYEE_NAV: NavItem[] = [
   },
 ];
 
+const SUPPORT_AVAILABLE_PRINTERS: NavChild = {
+  href: "/printops/available",
+  label: "Available Printers",
+  icon: Printer,
+};
+
 function StaticIcon({ icon, size = 19 }: { icon: IconNode; size?: number }) {
   return (
     <svg
@@ -123,12 +149,14 @@ export default function Sidebar({
   initialCollapsed,
   moduleAccess,
   employeeMode = false,
+  userRole,
 }: {
   logoUrl: string | null;
   accountName: string;
   initialCollapsed: boolean | null;
   moduleAccess: Record<ModuleName, boolean>;
   employeeMode?: boolean;
+  userRole?: UserRole;
 }) {
   const pathname = usePathname();
   const { blobSkin, setBlobSkin } = useBlobSkin();
@@ -136,8 +164,12 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState(initialCollapsed ?? false);
   const [printersOpen, setPrintersOpen] = useState(
     pathname.startsWith("/printers") ||
+      pathname.startsWith("/repair-history") ||
       pathname.startsWith("/printdash/alerts") ||
       pathname.startsWith("/printdash/discover"),
+  );
+  const [tonersOpen, setTonersOpen] = useState(
+    pathname.startsWith("/toner-monitoring") || pathname.startsWith("/toner-expenses"),
   );
   const [printOpsOpen, setPrintOpsOpen] = useState(pathname.startsWith("/printops"));
   const [employeeServicesOpen, setEmployeeServicesOpen] = useState(true);
@@ -151,16 +183,17 @@ export default function Sidebar({
   const signOutButtonRef = useRef<HTMLButtonElement>(null);
   const aboutButtonRef = useRef<HTMLButtonElement>(null);
   const permittedItems = NAV
-    .filter((item) =>
-      !item.module ||
-      moduleAccess[item.module] ||
-      item.children?.some((child) => child.module && moduleAccess[child.module]),
-    )
+    .filter((item) => !item.module || moduleAccess[item.module])
     .map((item) => ({
       ...item,
       children: item.children?.filter((child) => !child.module || moduleAccess[child.module]),
     }));
-  const items = employeeMode ? EMPLOYEE_NAV : permittedItems;
+  const roleAdjustedItems = userRole === "support"
+    ? permittedItems.map((item) => item.href === "/printops"
+      ? { ...item, children: [SUPPORT_AVAILABLE_PRINTERS, ...(item.children ?? [])] }
+      : item)
+    : permittedItems;
+  const items = employeeMode ? EMPLOYEE_NAV : roleAdjustedItems;
   const brandTitle = "SEAOIL PrintOps";
   const brandSubtitle = employeeMode ? null : "Printer Management System";
   const brandName = brandSubtitle ? `${brandTitle} ${brandSubtitle}` : brandTitle;
@@ -347,27 +380,33 @@ export default function Sidebar({
             const directDescendantActive = !item.children && item.href !== "/printdash" && pathname.startsWith(`${item.href}/`);
             const sectionActive = active || childRouteActive || directDescendantActive;
             const isPrinters = item.href === "/printers";
+            const isToners = item.href === "/toners";
             const isPrintOps = item.href === "/printops";
             const isEmployeeServices = item.href === "/portal/printer-services";
-            const isDropdown = isPrinters || isPrintOps || isEmployeeServices;
+            const isDropdown = isPrinters || isToners || isPrintOps || isEmployeeServices;
             const submenuOpen = isPrinters
               ? printersOpen
-              : isPrintOps
-                ? printOpsOpen
-                : isEmployeeServices
-                  ? employeeServicesOpen
-                  : sectionActive;
+              : isToners
+                ? tonersOpen
+                : isPrintOps
+                  ? printOpsOpen
+                  : isEmployeeServices
+                    ? employeeServicesOpen
+                    : sectionActive;
             const submenuId = isPrinters
               ? "printers-submenu"
-              : isPrintOps
-                ? "printops-submenu"
-                : isEmployeeServices
-                  ? "employee-print-services-submenu"
-                  : undefined;
+              : isToners
+                ? "toners-submenu"
+                : isPrintOps
+                  ? "printops-submenu"
+                  : isEmployeeServices
+                    ? "employee-print-services-submenu"
+                    : undefined;
             return (
               <div key={item.href}>
                 {item.separated &&
-                  (item.href !== "/toner-monitoring" || printersOpen) &&
+                  (item.href !== "/toners" || printersOpen) &&
+                  (item.href !== "/contracts" || tonersOpen) &&
                   (item.href !== "/manage/registrations" || printOpsOpen) && (
                   <div className="mx-2 my-3 border-t border-white/15" />
                 )}
@@ -383,6 +422,11 @@ export default function Sidebar({
                       if (isPrinters) {
                         event.preventDefault();
                         setPrintersOpen((open) => !open);
+                        return;
+                      }
+                      if (isToners) {
+                        event.preventDefault();
+                        setTonersOpen((open) => !open);
                         return;
                       }
                       if (isPrintOps) {
@@ -416,6 +460,7 @@ export default function Sidebar({
                       aria-controls={submenuId}
                       onClick={() => {
                         if (isPrinters) setPrintersOpen((open) => !open);
+                        if (isToners) setTonersOpen((open) => !open);
                         if (isPrintOps) setPrintOpsOpen((open) => !open);
                         if (isEmployeeServices) setEmployeeServicesOpen((open) => !open);
                       }}

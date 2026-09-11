@@ -23,7 +23,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/auth";
-import { MODULES, defaultAccessForRole } from "@/lib/permissions";
+import { MODULES, MODULE_PARENTS, defaultAccessForRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { buildPasswordResetEmail, buildUserAccountVerificationEmail } from "@/lib/email-templates";
 import { canManageRole, hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
@@ -286,7 +286,10 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   revalidatePath(`/manage/${id}`);
   revalidatePath("/portal");
   revalidatePath("/portal/print");
+  revalidatePath("/portal/scan");
+  revalidatePath("/printops/available");
   revalidatePath("/printops/print");
+  revalidatePath("/printops/scan");
   redirect(`/manage?success=${encodeURIComponent(
     assignmentChanged
       ? "User updated. Printer access was recalculated for the new assignment."
@@ -422,13 +425,28 @@ export async function updatePermissionsAction(formData: FormData) {
   if (!target) return;
   if (!canManageRole(actor.role, target.role)) redirect("/access-denied");
 
-  for (const mod of MODULES) {
-    const fullAccess = formData.get(`module_${mod}`) === "on";
-    await db
-      .insert(userModuleAccess)
-      .values({ userId, module: mod, fullAccess })
-      .onConflictDoUpdate({ target: [userModuleAccess.userId, userModuleAccess.module], set: { fullAccess } });
+  const requestedAccess = Object.fromEntries(
+    MODULES.map((module) => [module, formData.get(`module_${module}`) === "on"]),
+  ) as Record<(typeof MODULES)[number], boolean>;
+
+  for (const [child, parent] of Object.entries(MODULE_PARENTS) as [
+    (typeof MODULES)[number],
+    (typeof MODULES)[number],
+  ][]) {
+    if (!requestedAccess[parent]) requestedAccess[child] = false;
   }
+
+  await db.transaction(async (tx) => {
+    for (const moduleName of MODULES) {
+      await tx
+        .insert(userModuleAccess)
+        .values({ userId, module: moduleName, fullAccess: requestedAccess[moduleName] })
+        .onConflictDoUpdate({
+          target: [userModuleAccess.userId, userModuleAccess.module],
+          set: { fullAccess: requestedAccess[moduleName] },
+        });
+    }
+  });
 
   revalidatePath("/manage");
   redirect("/manage?success=Permissions updated.");
@@ -621,8 +639,12 @@ export async function updatePrinterPermissionsAction(
     });
     revalidatePath(`/manage/${userId}`);
     revalidatePath(`/manage/users/${userId}`);
+    revalidatePath("/portal");
     revalidatePath("/portal/print");
+    revalidatePath("/portal/scan");
+    revalidatePath("/printops/available");
     revalidatePath("/printops/print");
+    revalidatePath("/printops/scan");
     return {
       success: "Printer permissions updated.",
       savedPrinterIds: additionalPrinters.map((printer) => printer.id),

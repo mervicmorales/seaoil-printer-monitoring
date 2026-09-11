@@ -53,7 +53,7 @@ async function allTonerTypesAreVisible(tonerTypeIds: number[]) {
 }
 
 export async function createDeliveryAction(_prev: TonerFormState, formData: FormData): Promise<TonerFormState> {
-  await requireModuleFullAccess("toner");
+  await requireModuleFullAccess("toner_monitoring");
 
   const date = str(formData.get("date"));
   const quantity = num(formData.get("quantity"));
@@ -98,7 +98,7 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
 }
 
 export async function createRequestAction(_prev: TonerFormState, formData: FormData): Promise<TonerFormState> {
-  await requireModuleFullAccess("toner");
+  await requireModuleFullAccess("toner_monitoring");
 
   const date = str(formData.get("date"));
   const quantity = num(formData.get("quantity"));
@@ -170,7 +170,7 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
 }
 
 export async function updateTransactionAction(_prev: TonerFormState, formData: FormData): Promise<TonerFormState> {
-  await requireModuleFullAccess("toner");
+  await requireModuleFullAccess("toner_monitoring");
 
   const id = num(formData.get("id"));
   if (!id) return { error: "Invalid transaction." };
@@ -240,7 +240,7 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
 }
 
 export async function deleteTransactionAction(formData: FormData) {
-  await requireModuleFullAccess("toner");
+  await requireModuleFullAccess("toner_monitoring");
   const id = num(formData.get("id"));
   if (!id) return;
   const rows = await db.select().from(tonerTransactions).where(eq(tonerTransactions.id, id)).limit(1);

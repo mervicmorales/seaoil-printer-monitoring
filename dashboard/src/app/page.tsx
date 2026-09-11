@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getModuleAccessMap } from "@/lib/server-utils";
-import { MODULES, MODULE_PATHS } from "@/lib/permissions";
+import { MODULE_PATHS, NAVIGABLE_MODULES } from "@/lib/permissions";
 import { hasAdminPrivileges } from "@/lib/roles";
 
 export default async function RootPage() {
@@ -10,6 +10,6 @@ export default async function RootPage() {
   if (session.role === "employee") redirect("/portal");
   if (hasAdminPrivileges(session.role)) redirect("/dashboard");
   const access = await getModuleAccessMap(session.id, session.role);
-  const firstModule = MODULES.find((module) => access[module]);
+  const firstModule = NAVIGABLE_MODULES.find((module) => access[module]);
   redirect(firstModule ? MODULE_PATHS[firstModule] : "/access-denied");
 }

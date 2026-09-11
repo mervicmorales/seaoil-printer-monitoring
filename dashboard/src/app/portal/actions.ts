@@ -10,6 +10,7 @@ import {
   printerAccessRequests,
 } from "@/db/schema";
 import { getEmployeePrinterRequestScope } from "@/lib/employee-printer-requests";
+import { SUPPORT_PRINTER_ACCESS_NOTIFICATION_TYPE } from "@/lib/notification-types";
 import { requireSession } from "@/lib/server-utils";
 
 export type PrinterAccessRequestResult = {
@@ -22,8 +23,8 @@ export async function requestPrinterAccessAction(
   printerId: number,
 ): Promise<PrinterAccessRequestResult> {
   const session = await requireSession();
-  if (session.role !== "employee") {
-    return { error: "Only Employee accounts can request printer access." };
+  if (session.role !== "employee" && session.role !== "support") {
+    return { error: "Only Employee and Support accounts can request printer access." };
   }
   if (!Number.isSafeInteger(printerId) || printerId < 1) {
     return { error: "Select a valid printer." };
@@ -76,9 +77,11 @@ export async function requestPrinterAccessAction(
           reviewedAt: null,
           updatedAt: requestedAt,
         },
-      });
+    });
     await tx.insert(notifications).values({
-      type: "printer-access-request",
+      type: session.role === "support"
+        ? SUPPORT_PRINTER_ACCESS_NOTIFICATION_TYPE
+        : "printer-access-request",
       message: `${session.fullName} requested access to printer ${printer.serialNumber} at ${printer.locationName || "an assigned office"}.`,
     });
     await tx.insert(auditLogs).values({
@@ -95,10 +98,14 @@ export async function requestPrinterAccessAction(
   });
 
   revalidatePath("/portal");
+  revalidatePath("/printops/available");
   revalidatePath(`/manage/${session.id}`);
   revalidatePath(`/manage/users/${session.id}`);
+  revalidatePath("/", "layout");
   return {
-    success: "Request saved. Review the prepared email in Gmail and click Send.",
+    success: session.role === "support"
+      ? "Request sent. Admin and Super Admin were notified."
+      : "Request saved. Review the prepared email in Gmail and click Send.",
     printerId,
   };
 }

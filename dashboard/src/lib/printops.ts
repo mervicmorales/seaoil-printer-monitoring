@@ -68,6 +68,26 @@ export function normalizePrintOpsSnapshot(value: unknown): PrintOpsSnapshot {
   };
 }
 
+export function mergeRecentScanDevices(
+  snapshots: readonly PrintOpsSnapshot[],
+): PrintOpsScanDevice[] {
+  const devices: PrintOpsScanDevice[] = [];
+  const seenDeviceIds = new Set<string>();
+  const seenPrinterIds = new Set<number>();
+
+  for (const snapshot of snapshots) {
+    for (const device of snapshot.scanDevices) {
+      if (seenDeviceIds.has(device.id)) continue;
+      if (device.printerId !== null && seenPrinterIds.has(device.printerId)) continue;
+      seenDeviceIds.add(device.id);
+      if (device.printerId !== null) seenPrinterIds.add(device.printerId);
+      devices.push(device);
+    }
+  }
+
+  return devices;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

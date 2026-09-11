@@ -8,6 +8,7 @@ import { scanExpiresAt, SCAN_RETENTION_HOURS } from "@/lib/scan-retention";
 import AgentSyncPanel from "../AgentSyncPanel";
 import {
   getPrintOpsAgents,
+  getPrintOpsActivityPrinter,
   getPrintOpsLocationScope,
   getRecentPrintOpsCommands,
   getUserPrinterPermissionIds,
@@ -19,6 +20,7 @@ import ScanFileActions, { LatestScanAutoPreview } from "./ScanFileActions";
 import ScanTargetFields from "./ScanTargetFields";
 
 type ScanRequest = Awaited<ReturnType<typeof getRecentPrintOpsCommands>>[number];
+type ActivityPrinter = ReturnType<typeof getPrintOpsActivityPrinter>;
 
 export async function PrintOpsScanPageContent({
   searchParams,
@@ -166,29 +168,39 @@ export async function PrintOpsScanPageContent({
         ) : (
           <>
             <div className="divide-y divide-slate-100 lg:hidden">
-              {scans.map((scan) => <ScanRequestCard key={scan.id} scan={scan} />)}
+              {scans.map((scan) => (
+                <ScanRequestCard
+                  key={scan.id}
+                  scan={scan}
+                  printer={getPrintOpsActivityPrinter(scan, agents)}
+                />
+              ))}
             </div>
             <div className="hidden lg:block">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[1120px] text-sm">
                 <thead className="bg-slate-50/95 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
-                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Agent</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
+                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Location / Department</th><th className="px-4 py-3">Printer / SN</th><th className="px-4 py-3">Date Requested</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {scans.map((scan) => (
-                    <tr key={scan.id} className="transition hover:bg-slate-50/70">
-                      <td className="px-4 py-4 font-semibold text-slate-800">{scan.outputFileName || `Scan #${scan.id}`}</td>
-                      <td className="px-4 py-4 text-slate-600">{scan.agentName}</td>
-                      <td className="px-4 py-4 text-slate-600">{payloadText(scan.payload, "source") || "—"}</td>
-                      <td className="px-4 py-4 text-xs font-medium text-slate-500">{formatDateTime(scan.requestedAt)}</td>
-                      <td className="px-4 py-4">
-                        <Badge color={statusColor(displayStatus(scan))}>{displayStatus(scan)}</Badge>
-                        <ScanProgress status={scan.status} />
-                        {scan.errorMessage && <p className="mt-1.5 max-w-xs text-xs leading-5 text-red-600">{scan.errorMessage}</p>}
-                        <ScanRetentionReminder scan={scan} />
-                      </td>
-                      <td className="px-4 py-4 text-right"><ScanResultActions scan={scan} /></td>
-                    </tr>
-                  ))}
+                  {scans.map((scan) => {
+                    const printer = getPrintOpsActivityPrinter(scan, agents);
+                    return (
+                      <tr key={scan.id} className="transition hover:bg-slate-50/70">
+                        <td className="px-4 py-4 font-semibold text-slate-800">{scan.outputFileName || `Scan #${scan.id}`}</td>
+                        <td className="px-4 py-4 text-slate-600">{payloadText(scan.payload, "source") || "—"}</td>
+                        <td className="px-4 py-4"><PrimarySecondary primary={printer.location} secondary={printer.department} /></td>
+                        <td className="px-4 py-4"><PrimarySecondary primary={printer.model} secondary={printer.serialNumber} monoSecondary /></td>
+                        <td className="px-4 py-4 text-xs font-medium text-slate-500">{formatDateTime(scan.requestedAt)}</td>
+                        <td className="px-4 py-4">
+                          <Badge color={statusColor(displayStatus(scan))}>{displayStatus(scan)}</Badge>
+                          <ScanProgress status={scan.status} />
+                          {scan.errorMessage && <p className="mt-1.5 max-w-xs text-xs leading-5 text-red-600">{scan.errorMessage}</p>}
+                          <ScanRetentionReminder scan={scan} />
+                        </td>
+                        <td className="px-4 py-4 text-right"><ScanResultActions scan={scan} /></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -199,7 +211,7 @@ export async function PrintOpsScanPageContent({
   );
 }
 
-function ScanRequestCard({ scan }: { scan: ScanRequest }) {
+function ScanRequestCard({ scan, printer }: { scan: ScanRequest; printer: ActivityPrinter }) {
   return (
     <article className="p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
@@ -209,18 +221,22 @@ function ScanRequestCard({ scan }: { scan: ScanRequest }) {
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-800">{scan.outputFileName || `Scan #${scan.id}`}</p>
-            <p className="mt-1 text-xs text-slate-500">{scan.agentName}</p>
+            <p className="mt-1 text-xs text-slate-500">{printer.location} · {printer.department}</p>
           </div>
         </div>
         <Badge color={statusColor(displayStatus(scan))}>{displayStatus(scan)}</Badge>
       </div>
-      <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+      <dl className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:grid-cols-3">
         <div>
           <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Source</dt>
           <dd className="mt-1 text-xs font-semibold text-slate-700">{payloadText(scan.payload, "source") || "—"}</dd>
         </div>
         <div>
-          <dt className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400"><IconGlyph icon={Clock3} size={11} /> Requested</dt>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Printer / SN</dt>
+          <dd className="mt-1 text-xs font-semibold text-slate-700">{printer.model}<span className="mt-0.5 block font-mono font-medium text-slate-500">{printer.serialNumber}</span></dd>
+        </div>
+        <div>
+          <dt className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400"><IconGlyph icon={Clock3} size={11} /> Date Requested</dt>
           <dd className="mt-1 text-xs font-medium leading-5 text-slate-600">{formatDateTime(scan.requestedAt)}</dd>
         </div>
       </dl>
@@ -241,6 +257,7 @@ function ScanResultActions({ scan, fullWidth = false }: { scan: ScanRequest; ful
     <ScanFileActions
       scan={{ id: scan.id, name: scan.outputFileName, mimeType: scan.outputMimeType }}
       fullWidth={fullWidth}
+      compact={!fullWidth}
     />
   );
 }
@@ -287,6 +304,10 @@ function scannerDisplayLabel(
 ) {
   const printer = agent.physicalPrinters.find((candidate) => candidate.id === device.printerId);
   return `${printer?.department || "No Department"} | ${printer?.model || "Unknown Model"} | SN: ${printer?.serialNumber || "Unknown"}`;
+}
+
+function PrimarySecondary({ primary, secondary, monoSecondary = false }: { primary: string; secondary: string; monoSecondary?: boolean }) {
+  return <div className="min-w-0"><p className="font-semibold text-slate-700">{primary}</p><p className={`mt-0.5 text-xs text-slate-500 ${monoSecondary ? "font-mono" : ""}`}>{secondary}</p></div>;
 }
 
 function payloadText(payload: Record<string, unknown>, key: string) { return typeof payload[key] === "string" ? payload[key] : ""; }

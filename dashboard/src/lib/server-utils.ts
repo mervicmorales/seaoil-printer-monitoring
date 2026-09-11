@@ -4,7 +4,7 @@ import { notifications, systemSettings, userModuleAccess } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { emptyModuleAccess, MODULES, type ModuleName } from "@/lib/permissions";
+import { MODULES, resolveModuleAccess, type ModuleName } from "@/lib/permissions";
 import { hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
 
 export async function requireSession() {
@@ -24,11 +24,7 @@ export async function getModuleAccessMap(userId: number, role: UserRole) {
     .select()
     .from(userModuleAccess)
     .where(eq(userModuleAccess.userId, userId));
-  const map = emptyModuleAccess();
-  for (const row of rows) {
-    map[row.module as ModuleName] = row.fullAccess;
-  }
-  return map;
+  return resolveModuleAccess(rows);
 }
 
 export async function requireModuleFullAccess(module: ModuleName) {

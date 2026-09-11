@@ -11,7 +11,7 @@ export default async function RequestTonerPage({
 }: {
   embedded?: boolean;
 }) {
-  await requireModuleFullAccess("toner");
+  await requireModuleFullAccess("toner_monitoring");
   const [tonerTypes, locations, departments, itsNames] = await Promise.all([
     getVisibleTonerTypesWithInventory(),
     getLocations(),

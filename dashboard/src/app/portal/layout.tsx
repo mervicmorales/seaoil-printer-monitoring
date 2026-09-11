@@ -40,6 +40,7 @@ export default async function EmployeePortalLayout({ children }: { children: Rea
           initialCollapsed={collapsedCookie === undefined ? null : collapsedCookie === "true"}
           moduleAccess={emptyModuleAccess()}
           employeeMode
+          userRole={session.role}
         />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
           <AppHeader notifications={[]} hideNotifications />

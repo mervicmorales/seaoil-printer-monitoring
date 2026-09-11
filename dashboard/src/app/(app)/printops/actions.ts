@@ -4,7 +4,14 @@ import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm"
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { monitoringAgentLocations, monitoringAgents, printOpsCommands } from "@/db/schema";
+import {
+  departments,
+  locations,
+  monitoringAgentLocations,
+  monitoringAgents,
+  printers,
+  printOpsCommands,
+} from "@/db/schema";
 import {
   getModuleAccessMap,
   requireModuleFullAccess,
@@ -92,10 +99,23 @@ export async function queueDurablePrintAction(formData: FormData) {
           )
         )`
     : sql``;
-  const availablePrinter = await db.execute<{ name: string }>(sql`
-    select coalesce(printers.asset_tag, printers.serial_number) as name
+  const availablePrinter = await db.execute<{
+    name: string;
+    location: string | null;
+    department: string | null;
+    model: string | null;
+    serialNumber: string;
+  }>(sql`
+    select
+      coalesce(printers.asset_tag, printers.serial_number) as name,
+      locations.name as location,
+      departments.name as department,
+      printers.model,
+      printers.serial_number as "serialNumber"
     from printer_monitoring_assignments assignments
     inner join printers on printers.id = assignments.printer_id
+    left join locations on locations.id = printers.location_id
+    left join departments on departments.id = printers.department_id
     inner join lateral (
       select online
       from printer_monitoring_readings
@@ -164,6 +184,10 @@ export async function queueDurablePrintAction(formData: FormData) {
     payload: {
       printerId,
       printerName: availablePrinter.rows[0].name,
+      printerLocation: availablePrinter.rows[0].location,
+      printerDepartment: availablePrinter.rows[0].department,
+      printerModel: availablePrinter.rows[0].model,
+      printerSerialNumber: availablePrinter.rows[0].serialNumber,
       copies,
       duplex,
       pageRanges: pageMode === "custom" ? pageRanges : null,
@@ -198,7 +222,7 @@ export async function queueScanAction(formData: FormData) {
   if (!new Set(["Flatbed", "ADF", "ADF Duplex"]).has(source)) {
     redirectWith(returnTo, "error", "Select a valid scan source.");
   }
-  await validateScanDevice(
+  const scanDevice = await validateScanDevice(
     agentId,
     device,
     source,
@@ -211,11 +235,22 @@ export async function queueScanAction(formData: FormData) {
         }
       : undefined,
   );
+  const printerDetails = scanDevice.printerId
+    ? await getPrinterActivityDetails(scanDevice.printerId)
+    : null;
   await db.insert(printOpsCommands).values({
     agentId,
     requestedBy: session.id,
     type: "scan",
-    payload: { device, source },
+    payload: {
+      device,
+      source,
+      printerId: scanDevice.printerId,
+      printerLocation: printerDetails?.location ?? null,
+      printerDepartment: printerDetails?.department ?? null,
+      printerModel: printerDetails?.model ?? null,
+      printerSerialNumber: printerDetails?.serialNumber ?? null,
+    },
   });
   revalidatePrintOps();
   redirectWith(returnTo, "success", "Scan queued for the office agent.");
@@ -297,7 +332,7 @@ async function validateScanDevice(
   returnTo: string,
   accountScope?: { userId: number; locationId: number; departmentId?: number },
 ) {
-  const [latestSync] = await db
+  const recentSyncs = await db
     .select({ result: printOpsCommands.result })
     .from(printOpsCommands)
     .where(and(
@@ -306,16 +341,17 @@ async function validateScanDevice(
       eq(printOpsCommands.status, "completed"),
     ))
     .orderBy(desc(printOpsCommands.completedAt), desc(printOpsCommands.id))
-    .limit(1);
-  const device = normalizePrintOpsSnapshot(latestSync?.result)
-    .scanDevices.find((candidate) => candidate.id === deviceId);
+    .limit(12);
+  const device = recentSyncs
+    .flatMap((sync) => normalizePrintOpsSnapshot(sync.result).scanDevices)
+    .find((candidate) => candidate.id === deviceId);
   if (!device) {
     redirectWith(returnTo, "error", "The selected scanner is no longer available.");
   }
   if (device.sources.length > 0 && !device.sources.includes(source)) {
     redirectWith(returnTo, "error", "The selected document source is not supported by this scanner.");
   }
-  if (!accountScope) return;
+  if (!accountScope) return device;
   if (!device.printerId) {
     redirectWith(returnTo, "error", "This scanner is not linked to a printer available for your account.");
   }
@@ -343,6 +379,23 @@ async function validateScanDevice(
   if (!permitted.rows[0]) {
     redirectWith(returnTo, "error", "This scanner is not available for your account.");
   }
+  return device;
+}
+
+async function getPrinterActivityDetails(printerId: number) {
+  const [printer] = await db
+    .select({
+      location: locations.name,
+      department: departments.name,
+      model: printers.model,
+      serialNumber: printers.serialNumber,
+    })
+    .from(printers)
+    .leftJoin(locations, eq(locations.id, printers.locationId))
+    .leftJoin(departments, eq(departments.id, printers.departmentId))
+    .where(eq(printers.id, printerId))
+    .limit(1);
+  return printer ?? null;
 }
 
 function parseTarget(value: FormDataEntryValue | null) {

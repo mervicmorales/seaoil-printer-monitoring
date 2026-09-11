@@ -21,6 +21,7 @@ import PrintDashStatusToasts, {
 import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
 import SearchInput from "@/components/SearchInput";
 import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,7 @@ export default async function PrintDashPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; location?: string }>;
 }) {
+  await requireModuleFullAccess("monitoring_alerts");
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
   const status = params.status && STATUS_FILTERS.has(params.status) ? params.status : "";

@@ -9,6 +9,7 @@ import {
 } from "@/lib/monitoring";
 import { claimPrintFile } from "@/lib/printops-file-transfer";
 import { purgeExpiredScanFiles } from "@/lib/scan-retention";
+import { detectScanFileType, replaceScanFileExtension } from "@/lib/scan-file-type";
 
 export const dynamic = "force-dynamic";
 
@@ -131,14 +132,15 @@ export async function POST(request: Request) {
   }
 
   const failed = Boolean(parsed.data.error);
+  const output = normalizeScanOutput(parsed.data.output);
   const updated = await db
     .update(printOpsCommands)
     .set({
       status: failed ? "failed" : "completed",
       result: parsed.data.result ?? {},
-      outputFileName: parsed.data.output?.name ?? null,
-      outputMimeType: parsed.data.output?.mimeType ?? null,
-      outputFileData: parsed.data.output?.data ?? null,
+      outputFileName: output?.name ?? null,
+      outputMimeType: output?.mimeType ?? null,
+      outputFileData: output?.data ?? null,
       inputFileData: null,
       errorMessage: parsed.data.error ?? null,
       completedAt: new Date(),
@@ -168,6 +170,17 @@ export async function POST(request: Request) {
     });
   }
   return NextResponse.json({ success: true });
+}
+
+function normalizeScanOutput(output: z.infer<typeof outputSchema> | undefined) {
+  if (!output) return null;
+  const fileType = detectScanFileType(Buffer.from(output.data, "base64"));
+  if (!fileType) return output;
+  return {
+    ...output,
+    name: replaceScanFileExtension(output.name, fileType.extension),
+    mimeType: fileType.mimeType,
+  };
 }
 
 async function ensureAutomaticSync(agentId: number) {
