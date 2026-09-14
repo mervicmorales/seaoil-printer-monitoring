@@ -1,5 +1,9 @@
 'use strict';
-require('dotenv').config({ quiet: true });
+const serviceEnvironmentFile = process.env.SEAOIL_ENV_FILE?.trim();
+const environmentLoadResult = require('dotenv').config({
+  quiet: true,
+  ...(serviceEnvironmentFile ? { path: serviceEnvironmentFile } : {}),
+});
 const express = require('express');
 const snmp    = require('net-snmp');
 const { attachSnmpSessionErrorHandler, isolatePrinterPoll, safeError } = require('./snmp-safety');
@@ -15,11 +19,23 @@ const { buildLpArgs } = require('./print-options');
 const { runCupsAdminCommand } = require('./cups-admin');
 const { readPrinterMacAddress } = require('./mac-address');
 const { discoverEsclDevices, runEsclScan } = require('./escl-scanner');
+const {
+  createHealthPayload,
+  createShutdownCoordinator,
+  formatListenError,
+  getRuntimeSettings,
+  redactLogValue,
+  validateServiceStartup,
+} = require('./service-runtime');
 const app  = express();
-const configuredPort = Number(process.env.PORT || 3003);
-const PORT = Number.isInteger(configuredPort) && configuredPort > 0 && configuredPort <= 65535 ? configuredPort : 3003;
+const runtimeSettings = getRuntimeSettings();
+const PORT = runtimeSettings.port;
+const BIND_ADDRESS = runtimeSettings.bindAddress;
+const PROCESS_STARTED_AT = Date.now();
+let lifecycleState = 'starting';
 // other existing imports...
 const {
+  abortActiveAgentRequests,
   agentConfig,
   completeDiscoveryJob,
   completePrintOpsCommand,
@@ -31,6 +47,20 @@ const {
   saveCachedMonitoringConfig,
   sendToSeaoil,
 } = require("./seaoil-agent");
+
+const startupValidation = validateServiceStartup({
+  settings: runtimeSettings,
+  agentConfig,
+  environmentLoadError: environmentLoadResult.error || null,
+});
+
+app.get('/health', (_req, res) => {
+  const status = lifecycleState === 'running' ? 200 : 503;
+  res.status(status).json(createHealthPayload({
+    state: lifecycleState === 'running' ? 'ok' : lifecycleState,
+    startedAt: PROCESS_STARTED_AT,
+  }));
+});
 
 // ── Auth: users + sessions ──────────────────────────────────────────────────────
 const USERS_FILE = process.env.USERS_FILE || './users.json';
@@ -60,7 +90,7 @@ function loadUsers() {
   return defaults;
 }
 function saveUsers() { try { fs.writeFileSync(USERS_FILE, JSON.stringify(USERS,null,2)); } catch {} }
-let USERS = loadUsers();
+let USERS = startupValidation.ok ? loadUsers() : [];
 
 const sessions = new Map(); // token -> {username, role, exp}
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
@@ -92,6 +122,9 @@ const USER_ALLOWED = [
   /^\/api\/scans/,
 ];
 app.use((req, res, next) => {
+  if (lifecycleState === 'stopping') {
+    return res.status(503).json({error:'SEAOIL Agent is stopping'});
+  }
   if (req.path === '/login' || req.path === '/api/login') return next();
   const session = getSession(req);
   if (!session) {
@@ -368,7 +401,16 @@ function bufToStr(v) {
 // is unsupported. Use one standard baseline OID for connectivity, then fetch
 // optional values independently so a missing metric cannot make the device
 // appear offline.
+const activeSnmpSessions = new Set();
+
+function createSnmpSession(ip, community, options) {
+  const session = snmp.createSession(ip, community, options);
+  activeSnmpSessions.add(session);
+  return session;
+}
+
 function closeSnmpSession(session) {
+  activeSnmpSessions.delete(session);
   try {
     session.close();
   } catch {
@@ -385,7 +427,7 @@ function snmpGetOne(ip, community, oid, printerIdentifier = ip) {
   return new Promise(resolve => {
     let s;
     try {
-      s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+      s = createSnmpSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
     } catch (error) {
       logSnmpSessionError(ip, error, `get ${oid}`, printerIdentifier);
       return resolve({ok:false,value:null});
@@ -417,7 +459,7 @@ function snmpGetOptional(ip, community, oids, printerIdentifier = ip) {
     const result = Object.fromEntries(oids.map(oid => [oid, null]));
     let s;
     try {
-      s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+      s = createSnmpSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
     } catch (error) {
       logSnmpSessionError(ip, error, 'get optional metrics', printerIdentifier);
       return resolve(result);
@@ -454,7 +496,7 @@ function snmpWalk(ip, community, oid, printerIdentifier = ip) {
     const res = [];
     let s;
     try {
-      s = snmp.createSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
+      s = createSnmpSession(ip, community||'public', {timeout:4000,retries:1,version:snmp.Version1});
     } catch (error) {
       logSnmpSessionError(ip, error, `subtree ${oid}`, printerIdentifier);
       return resolve(res);
@@ -669,6 +711,23 @@ let cache = {data:[],updatedAt:null};
 let polling = false;
 let centralDiscoveryRunning = false;
 let centralPrintOpsRunning = false;
+const monitoringTimers = new Set();
+
+function scheduleMonitoringInterval(callback, delay) {
+  const timer = setInterval(callback, delay);
+  monitoringTimers.add(timer);
+  return timer;
+}
+
+function stopMonitoringTimers() {
+  for (const timer of monitoringTimers) clearInterval(timer);
+  monitoringTimers.clear();
+}
+
+function closeActiveSnmpSessions() {
+  for (const session of [...activeSnmpSessions]) closeSnmpSession(session);
+}
+
 async function pollPrinterSafely(printer) {
   return isolatePrinterPoll(getPrinterData, printer, (failedPrinter, error) => {
     const ip = failedPrinter.ip || 'unknown';
@@ -681,7 +740,7 @@ async function pollPrinterSafely(printer) {
   });
 }
 async function refreshAll() {
-  if (polling) return;
+  if (polling || lifecycleState === 'stopping') return;
   polling=true;
   try {
     const oldData = cache.data;
@@ -691,6 +750,8 @@ async function refreshAll() {
       console.error('[SEAOIL Agent] Unexpected upload error. Local monitoring continues; retrying next poll.');
     });
     cache.data=newData; cache.updatedAt=new Date().toISOString();
+    const online = newData.filter(printer => printer.online).length;
+    console.log(`[SEAOIL Agent] Poll complete: ${newData.length} printer(s), ${online} online, ${newData.length-online} offline.`);
     for (const p of newData) {
       const old = oldData.find(o=>o.id===p.id);
       checkAlerts(p, old).catch(()=>{});
@@ -700,6 +761,7 @@ async function refreshAll() {
 }
 
 async function syncCentralPrinterConfig() {
+  if (lifecycleState === 'stopping') return false;
   const result = await fetchMonitoringConfig();
   if (!result.ok) return false;
 
@@ -716,7 +778,7 @@ async function syncCentralPrinterConfig() {
 }
 
 async function processCentralDiscoveryJob() {
-  if (centralDiscoveryRunning) return;
+  if (centralDiscoveryRunning || lifecycleState === 'stopping') return;
   const job = await fetchDiscoveryJob();
   if (!job) return;
   centralDiscoveryRunning = true;
@@ -831,7 +893,7 @@ async function executePrintOpsCommand(command) {
 }
 
 async function processCentralPrintOpsCommand() {
-  if (centralPrintOpsRunning) return;
+  if (centralPrintOpsRunning || lifecycleState === 'stopping') return;
   const command = await fetchPrintOpsCommand();
   if (!command) return;
   centralPrintOpsRunning = true;
@@ -860,16 +922,19 @@ async function processCentralPrintOpsCommand() {
 }
 
 async function startMonitoringLoops() {
+  if (lifecycleState === 'stopping') return;
   purgeExpiredLocalScans();
   await syncCentralPrinterConfig();
+  if (lifecycleState === 'stopping') return;
   await refreshAll();
+  if (lifecycleState === 'stopping') return;
   void processCentralDiscoveryJob();
   void processCentralPrintOpsCommand();
-  setInterval(() => { void refreshAll(); }, agentConfig.pollIntervalMs);
-  setInterval(() => { void processCentralDiscoveryJob(); }, 10_000);
-  setInterval(() => { void processCentralPrintOpsCommand(); }, 3_000);
-  setInterval(purgeExpiredLocalScans, 60 * 60 * 1000);
-  setInterval(() => {
+  scheduleMonitoringInterval(() => { void refreshAll(); }, agentConfig.pollIntervalMs);
+  scheduleMonitoringInterval(() => { void processCentralDiscoveryJob(); }, 10_000);
+  scheduleMonitoringInterval(() => { void processCentralPrintOpsCommand(); }, 3_000);
+  scheduleMonitoringInterval(purgeExpiredLocalScans, 60 * 60 * 1000);
+  scheduleMonitoringInterval(() => {
     void syncCentralPrinterConfig().then(changed => {
       if (changed) void refreshAll();
     }).catch(() => {
@@ -877,10 +942,6 @@ async function startMonitoringLoops() {
     });
   }, agentConfig.configRefreshMs);
 }
-
-void startMonitoringLoops().catch(() => {
-  console.error('[SEAOIL Agent] Monitoring startup encountered an error; local dashboard remains available.');
-});
 
 // ── Multer ────────────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
@@ -1092,7 +1153,7 @@ function snmpProbe(ip, community) {
   return new Promise(resolve => {
     let s;
     try {
-      s = snmp.createSession(ip, community||'public', {timeout:600,retries:0,version:snmp.Version1});
+      s = createSnmpSession(ip, community||'public', {timeout:600,retries:0,version:snmp.Version1});
     } catch (error) {
       logSnmpSessionError(ip, error, 'discovery probe', ip);
       return resolve(null);
@@ -1139,6 +1200,7 @@ async function discoverSnmpDevices(cidr, community) {
   const results = [];
   const BATCH=32;
   for (let i=0;i<ips.length;i+=BATCH) {
+    if (lifecycleState === 'stopping') break;
     const batch = ips.slice(i,i+BATCH);
     const res = await Promise.all(batch.map(async ip => {
       const discovered = await snmpProbe(ip, community);
@@ -2453,12 +2515,110 @@ loadCupsPrinters();
 </body>
 </html>`;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('=======================================');
-  console.log('  PrintDash v4 -> http://0.0.0.0:'+PORT);
-  console.log('  Scan folder  -> '+SCAN_DIR);
-  console.log('  Upload dir   -> '+UPLOAD_DIR);
-  console.log('  Telegram     -> '+(SETTINGS.telegram.enabled?'enabled':'disabled (configure in Settings tab)'));
-  logAgentStartup();
-  console.log('=======================================');
+let httpServer = null;
+
+function closeHttpServer() {
+  return new Promise(resolve => {
+    if (!httpServer?.listening) return resolve();
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve();
+    };
+    const timeout = setTimeout(() => {
+      console.warn('[SEAOIL Agent] HTTP shutdown exceeded 10 seconds; closing remaining local connections.');
+      httpServer.closeAllConnections?.();
+      finish();
+    }, 10_000);
+    timeout.unref?.();
+    httpServer.close(error => {
+      if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') {
+        console.warn(`[SEAOIL Agent] HTTP shutdown warning: ${redactLogValue(error.message)}`);
+      }
+      finish();
+    });
+    httpServer.closeIdleConnections?.();
+  });
+}
+
+async function waitForActiveWork() {
+  const deadline = Date.now() + 8_000;
+  while ((polling || centralDiscoveryRunning || centralPrintOpsRunning) && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  if (polling || centralDiscoveryRunning || centralPrintOpsRunning) {
+    console.warn('[SEAOIL Agent] Some active work did not finish before the graceful-shutdown deadline.');
+  }
+}
+
+const shutdownCoordinator = createShutdownCoordinator({
+  steps: [
+    () => {
+      lifecycleState = 'stopping';
+      stopMonitoringTimers();
+    },
+    () => {
+      abortActiveAgentRequests();
+      closeActiveSnmpSessions();
+    },
+    closeHttpServer,
+    waitForActiveWork,
+  ],
 });
+
+function beginShutdown(reason, exitCode = 0) {
+  return shutdownCoordinator.shutdown(reason, exitCode);
+}
+
+function logUnexpectedFailure(label, error) {
+  console.error(`[SEAOIL Agent] ${label}: ${redactLogValue(error?.stack || error?.message || error)}`);
+  void beginShutdown(label, 1).finally(() => process.exit(1));
+}
+
+function startHttpServer() {
+  httpServer = app.listen(PORT, BIND_ADDRESS);
+  httpServer.once('listening', () => {
+    lifecycleState = 'running';
+    console.log('=======================================');
+    console.log(`[SEAOIL Agent] Started ${new Date(PROCESS_STARTED_AT).toISOString()} version=${agentConfig.version} hostname=${os.hostname()} mode=${runtimeSettings.serviceMode?'windows-service':'interactive'}`);
+    console.log(`  PrintDash v${agentConfig.version} -> http://${BIND_ADDRESS}:${PORT}`);
+    console.log('  Scan folder  -> '+SCAN_DIR);
+    console.log('  Upload dir   -> '+UPLOAD_DIR);
+    console.log('  Telegram     -> '+(SETTINGS.telegram.enabled?'enabled':'disabled (configure in Settings tab)'));
+    logAgentStartup();
+    console.log('=======================================');
+    void startMonitoringLoops().catch(error => {
+      console.error(`[SEAOIL Agent] Monitoring startup encountered an error; local dashboard remains available. ${redactLogValue(error?.message || error)}`);
+    });
+  });
+  httpServer.once('error', error => {
+    lifecycleState = 'failed';
+    console.error(`[SEAOIL Agent] ${formatListenError(error, PORT)}`);
+    void beginShutdown('HTTP server startup failure', 1);
+  });
+}
+
+if (!startupValidation.ok) {
+  lifecycleState = 'failed';
+  for (const error of startupValidation.errors) {
+    console.error(`[SEAOIL Agent] Service startup validation failed: ${redactLogValue(error)}`);
+  }
+  for (const warning of startupValidation.warnings) {
+    console.warn(`[SEAOIL Agent] Service startup warning: ${warning}`);
+  }
+  process.exitCode = 1;
+} else {
+  for (const warning of startupValidation.warnings) {
+    console.warn(`[SEAOIL Agent] Service startup warning: ${warning}`);
+  }
+  process.once('SIGTERM', () => { void beginShutdown('SIGTERM'); });
+  process.once('SIGINT', () => { void beginShutdown('SIGINT'); });
+  if (process.platform === 'win32') {
+    process.once('SIGBREAK', () => { void beginShutdown('SIGBREAK'); });
+  }
+  process.once('uncaughtException', error => logUnexpectedFailure('Uncaught exception', error));
+  process.once('unhandledRejection', error => logUnexpectedFailure('Unhandled promise rejection', error));
+  startHttpServer();
+}

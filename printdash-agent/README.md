@@ -179,6 +179,8 @@ monitoring uploads. Configure `SEAOIL_SNMP_COMMUNITY` explicitly in production.
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `3003` | Local PrintDash dashboard port |
+| `PRINTDASH_LISTEN_ADDRESS` | `0.0.0.0` | Agent HTTP listener; the Windows service template uses `127.0.0.1` |
+| `SEAOIL_ENV_FILE` | Normal dotenv lookup | Optional explicit `.env` path used by Windows service deployments |
 | `USERS_FILE` | `./users.json` | Path to the users/auth file |
 | `DATA_FILE` | `./printers.json` | Path to the printers list |
 | `SEAOIL_CONFIG_CACHE_FILE` | Beside `DATA_FILE` | Agent-managed last-known central configuration |
@@ -255,6 +257,15 @@ For production, use PM2:
 pm2 start server.js --name printdash
 pm2 save
 ```
+
+### Windows Service deployment
+
+Windows service support uses a pinned WinSW wrapper, an explicit Node.js runtime,
+ProgramData-backed configuration/data/logs, automatic recovery, and graceful
+shutdown. It is additive: `npm start` remains unchanged on macOS and Linux.
+See [windows/service/README.md](windows/service/README.md) for installation,
+management commands, log rotation, security notes, and the Windows integration
+test procedure. No installer or updater is included in this milestone.
 
 ---
 

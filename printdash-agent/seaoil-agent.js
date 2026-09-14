@@ -1,6 +1,10 @@
 "use strict";
 
-require("dotenv").config({ quiet: true });
+const serviceEnvironmentFile = process.env.SEAOIL_ENV_FILE?.trim();
+require("dotenv").config({
+  quiet: true,
+  ...(serviceEnvironmentFile ? { path: serviceEnvironmentFile } : {}),
+});
 
 const net = require("net");
 const fs = require("fs");
@@ -16,6 +20,22 @@ const DEFAULT_CONFIG_REFRESH_SECONDS = 60;
 const MIN_CONFIG_REFRESH_SECONDS = 30;
 const MAX_CONFIG_REFRESH_SECONDS = 3600;
 const API_TIMEOUT_MS = 10_000;
+const activeRequestControllers = new Set();
+
+function createRequestController() {
+  const controller = new AbortController();
+  activeRequestControllers.add(controller);
+  return controller;
+}
+
+function releaseRequestController(controller) {
+  activeRequestControllers.delete(controller);
+}
+
+function abortActiveAgentRequests() {
+  for (const controller of activeRequestControllers) controller.abort();
+  activeRequestControllers.clear();
+}
 
 function optionalEnvironmentValue(name) {
   const value = process.env[name]?.trim();
@@ -299,7 +319,7 @@ async function fetchMonitoringConfig() {
     return { ok: false, reason: "configuration" };
   }
 
-  const controller = new AbortController();
+  const controller = createRequestController();
   const timeout = setTimeout(() => controller.abort(), agentConfig.apiTimeoutMs);
   try {
     const response = await fetch(agentConfig.configUrl, {
@@ -340,6 +360,7 @@ async function fetchMonitoringConfig() {
     return { ok: false, reason: timedOut ? "timeout" : "network" };
   } finally {
     clearTimeout(timeout);
+    releaseRequestController(controller);
   }
 }
 
@@ -386,7 +407,7 @@ async function sendToSeaoil(printers) {
     printers: printers.map(safePrinterPayload),
   };
 
-  const controller = new AbortController();
+  const controller = createRequestController();
   const timeout = setTimeout(() => controller.abort(), agentConfig.apiTimeoutMs);
 
   try {
@@ -428,6 +449,7 @@ async function sendToSeaoil(printers) {
     return { ok: false, reason: timedOut ? "timeout" : "network" };
   } finally {
     clearTimeout(timeout);
+    releaseRequestController(controller);
   }
 }
 
@@ -441,7 +463,7 @@ function logDiscoveryEndpointError(message) {
 
 async function fetchDiscoveryJob() {
   if (agentConfig.errors.length > 0) return null;
-  const controller = new AbortController();
+  const controller = createRequestController();
   const timeout = setTimeout(() => controller.abort(), agentConfig.apiTimeoutMs);
   try {
     const response = await fetch(agentConfig.discoveryUrl, {
@@ -470,12 +492,13 @@ async function fetchDiscoveryJob() {
     return null;
   } finally {
     clearTimeout(timeout);
+    releaseRequestController(controller);
   }
 }
 
 async function completeDiscoveryJob(jobId, results, error) {
   if (agentConfig.errors.length > 0) return false;
-  const controller = new AbortController();
+  const controller = createRequestController();
   const timeout = setTimeout(() => controller.abort(), agentConfig.apiTimeoutMs);
   try {
     const response = await fetch(agentConfig.discoveryUrl, {
@@ -493,6 +516,7 @@ async function completeDiscoveryJob(jobId, results, error) {
     return false;
   } finally {
     clearTimeout(timeout);
+    releaseRequestController(controller);
   }
 }
 
@@ -506,7 +530,7 @@ function logPrintOpsEndpointError(message) {
 
 async function fetchPrintOpsCommand() {
   if (agentConfig.errors.length > 0) return null;
-  const controller = new AbortController();
+  const controller = createRequestController();
   const timeout = setTimeout(() => controller.abort(), agentConfig.apiTimeoutMs);
   try {
     const response = await fetch(agentConfig.printOpsUrl, {
@@ -537,12 +561,13 @@ async function fetchPrintOpsCommand() {
     return null;
   } finally {
     clearTimeout(timeout);
+    releaseRequestController(controller);
   }
 }
 
 async function completePrintOpsCommand(commandId, result, output, error) {
   if (agentConfig.errors.length > 0) return false;
-  const controller = new AbortController();
+  const controller = createRequestController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
     const body = error
@@ -563,10 +588,12 @@ async function completePrintOpsCommand(commandId, result, output, error) {
     return false;
   } finally {
     clearTimeout(timeout);
+    releaseRequestController(controller);
   }
 }
 
 module.exports = {
+  abortActiveAgentRequests,
   agentConfig,
   completeDiscoveryJob,
   completePrintOpsCommand,

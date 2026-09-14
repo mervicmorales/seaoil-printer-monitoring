@@ -8,3 +8,7 @@ seaoil-config-cache.json
 
 *.tmp
 .env
+
+# WinSW is acquired and checksum-verified during Windows deployment.
+windows/service/WinSW-*.exe
+windows/service/SEAOILPrinterAgent.exe

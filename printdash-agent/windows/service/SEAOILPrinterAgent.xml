@@ -1,0 +1,35 @@
+<service>
+  <id>SEAOILPrinterAgent</id>
+  <name>SEAOIL Printer Monitoring Agent</name>
+  <description>Monitors SEAOIL network printers and securely reports printer status to the SEAOIL Printer Management System.</description>
+
+  <executable>{{NODE_EXECUTABLE}}</executable>
+  <arguments>&quot;{{AGENT_ENTRYPOINT}}&quot;</arguments>
+  <workingdirectory>{{AGENT_DIRECTORY}}</workingdirectory>
+
+  <env name="NODE_ENV" value="production" />
+  <env name="SEAOIL_SERVICE_MODE" value="windows-service" />
+  <env name="SEAOIL_ENV_FILE" value="{{CONFIG_FILE}}" />
+  <env name="PORT" value="3003" />
+  <env name="PRINTDASH_LISTEN_ADDRESS" value="127.0.0.1" />
+  <env name="USERS_FILE" value="{{USERS_FILE}}" />
+  <env name="DATA_FILE" value="{{PRINTERS_FILE}}" />
+  <env name="SETTINGS_FILE" value="{{SETTINGS_FILE}}" />
+  <env name="SEAOIL_CONFIG_CACHE_FILE" value="{{CONFIG_CACHE_FILE}}" />
+  <env name="SCAN_DIR" value="{{SCAN_DIRECTORY}}" />
+  <env name="UPLOAD_DIR" value="{{UPLOAD_DIRECTORY}}" />
+
+  <startmode>Automatic</startmode>
+  <stoptimeout>30 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+  <onfailure action="restart" delay="60 sec" />
+  <onfailure action="restart" delay="60 sec" />
+  <onfailure action="restart" delay="60 sec" />
+  <resetfailure>1 hour</resetfailure>
+
+  <logpath>{{LOG_DIRECTORY}}</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>

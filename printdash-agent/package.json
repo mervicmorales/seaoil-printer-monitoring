@@ -10,7 +10,8 @@
     "test:snmp-safety": "node --test snmp-safety.test.js",
     "test:mac": "node --test mac-address.test.js",
     "test:scanner": "node --test escl-scanner.test.js",
-    "test:metadata": "node --test agent-metadata.test.js"
+    "test:metadata": "node --test agent-metadata.test.js",
+    "test:service": "node --test service-runtime.test.js"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
