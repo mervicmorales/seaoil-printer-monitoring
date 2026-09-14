@@ -106,12 +106,20 @@ export async function POST(request: Request) {
   try {
     const principal = authentication.principal;
     const [before] = await db.select({ lastSeen: monitoringAgents.lastSeen }).from(monitoringAgents).where(eq(monitoringAgents.id, principal.id)).limit(1);
+    const reportedMetadata = {
+      hostname: payload.agent.hostname ?? null,
+      version: payload.agent.version ?? null,
+      platform: payload.agent.platform ?? null,
+      architecture: payload.agent.architecture ?? null,
+      nodeVersion: payload.agent.nodeVersion ?? null,
+      agentUptimeSeconds: payload.agent.agentUptimeSeconds ?? null,
+      buildIdentifier: payload.agent.buildIdentifier ?? null,
+    };
     const result = await db.transaction(async (tx) => {
       const [recoveredAgent] = await tx
         .update(monitoringAgents)
         .set({
-          hostname: payload.agent.hostname ?? null,
-          version: payload.agent.version ?? null,
+          ...reportedMetadata,
           status: "online",
           lastSeen: receivedAt,
           updatedAt: receivedAt,
@@ -143,8 +151,7 @@ export async function POST(request: Request) {
         : await tx
             .update(monitoringAgents)
             .set({
-              hostname: payload.agent.hostname ?? null,
-              version: payload.agent.version ?? null,
+              ...reportedMetadata,
               status: "online",
               lastSeen: receivedAt,
               updatedAt: receivedAt,
@@ -344,6 +351,16 @@ export async function POST(request: Request) {
           matchedBy,
         });
       }
+
+      await tx
+        .update(monitoringAgents)
+        .set({
+          lastSuccessfulUploadAt: receivedAt,
+          lastMatchedPrinterCount: matched.length,
+          lastUnmatchedPrinterCount: unmatched.length,
+          updatedAt: receivedAt,
+        })
+        .where(eq(monitoringAgents.id, agent.id));
 
       return { agentId: agent.id, recovered: Boolean(recoveredAgent), matched, unmatched };
     });

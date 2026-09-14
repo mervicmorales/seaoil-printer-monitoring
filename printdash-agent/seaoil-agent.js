@@ -2,11 +2,10 @@
 
 require("dotenv").config({ quiet: true });
 
-const os = require("os");
 const net = require("net");
 const fs = require("fs");
 const path = require("path");
-const { version } = require("./package.json");
+const { AGENT_VERSION, getAgentRuntimeMetadata } = require("./agent-metadata");
 const { normalizeMacAddress } = require("./mac-address");
 
 const DEFAULT_API_URL = "http://localhost:3000/api/monitoring/ingest";
@@ -155,8 +154,7 @@ const agentConfig = Object.freeze({
   agentKey,
   agentName: optionalEnvironmentValue("SEAOIL_AGENT_NAME") || "PrintDash Agent",
   agentLocation: optionalEnvironmentValue("SEAOIL_AGENT_LOCATION"),
-  hostname: os.hostname(),
-  version,
+  version: AGENT_VERSION,
   pollIntervalSeconds: pollInterval.value,
   pollIntervalMs: pollInterval.value * 1000,
   configRefreshSeconds: configRefresh.value,
@@ -178,6 +176,7 @@ let configurationErrorLogged = false;
 function logAgentStartup() {
   console.log("  SEAOIL Agent Name -> " + agentConfig.agentName);
   console.log("  Agent Key         -> " + (agentConfig.agentKey || "NOT CONFIGURED"));
+  console.log("  Agent Version     -> " + agentConfig.version);
   console.log("  Central API URL    -> " + agentConfig.apiDisplayUrl);
   console.log("  Config API URL     -> " + agentConfig.configDisplayUrl);
   console.log("  Poll Interval      -> " + agentConfig.pollIntervalSeconds + "s");
@@ -378,8 +377,7 @@ async function sendToSeaoil(printers) {
     agent: {
       key: agentConfig.agentKey,
       name: agentConfig.agentName,
-      hostname: agentConfig.hostname,
-      version: agentConfig.version,
+      ...getAgentRuntimeMetadata(),
       ...(agentConfig.agentLocation
         ? { location: agentConfig.agentLocation }
         : {}),

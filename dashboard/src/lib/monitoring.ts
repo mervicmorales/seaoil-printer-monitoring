@@ -85,10 +85,15 @@ export const monitoringPayloadSchema = z.object({
     name: shortText,
     hostname: optionalShortText,
     version: optionalShortText,
+    platform: optionalShortText,
+    architecture: optionalShortText,
+    nodeVersion: optionalShortText,
+    agentUptimeSeconds: counter,
+    buildIdentifier: optionalShortText,
     location: optionalShortText,
   }),
   sentAt: dateTime,
-  printers: z.array(printerObservationSchema).min(1).max(100),
+  printers: z.array(printerObservationSchema).max(100),
 });
 
 export type MonitoringPayload = z.infer<typeof monitoringPayloadSchema>;

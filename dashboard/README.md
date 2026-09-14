@@ -40,6 +40,52 @@ The `/printdash` workspace treats the latest printer reading and reporting
 agent as stale after `MONITORING_STALE_SECONDS`. The safe default is 180
 seconds (three 60-second polling cycles); accepted values are 60-86400.
 
+## Agent Management architecture
+
+The admin-only **Printers → Monitoring Agents** page reports connectivity and
+runtime information for each registered office agent. Access requires an Admin
+or Super Admin account with the existing Monitoring Alerts permission. The
+page and its `/api/admin/monitoring/agents` endpoints enforce the same policy
+server-side and refresh every 45 seconds.
+
+The agent version is read from `printdash-agent/package.json`. Authenticated
+monitoring uploads may also report the host platform, CPU architecture,
+hostname, Node.js version, process uptime, and an optional non-secret build
+identifier. Successful uploads update these nullable fields plus the latest
+matched/unmatched printer counts and `last_successful_upload_at`. Older agents
+without metadata remain accepted and display **Unknown version**.
+
+Configure the centrally recommended release with a semantic version:
+
+```bash
+LATEST_AGENT_VERSION=4.0.0
+```
+
+Connectivity and release state are deliberately separate:
+
+- **Online** means the existing agent status is online and its latest
+  authenticated communication is within the configured stale interval.
+- **Offline** means that heartbeat is stale, absent, inactive, or revoked.
+- **Up to date** means the installed semantic version is equal to or newer than
+  `LATEST_AGENT_VERSION`.
+- **Update available** means the installed semantic version is older.
+- **Unknown version** means the installed value is missing or invalid.
+
+Before running this version against an existing database, apply the additive,
+repeatable migration. It preserves credentials, assignments, printers,
+readings, alerts, and monitoring history:
+
+```bash
+npm run db:migrate:agent-management
+```
+
+Use `npm run db:migrate:agent-management:docker` with `.env.docker`.
+
+This milestone reports metadata only. Future milestones may add Windows
+Service hosting, an installer, one-time provisioning, and a controlled updater
+with rollback. No remote command execution, installer download, package
+execution, or automatic update capability exists in this milestone.
+
 ## Monitoring agent credentials
 
 Monitoring agents authenticate with independent bearer tokens. The stable

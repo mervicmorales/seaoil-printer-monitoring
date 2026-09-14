@@ -687,11 +687,9 @@ async function refreshAll() {
     const oldData = cache.data;
     const targets = [...PRINTERS];
     const newData = await Promise.all(targets.map(pollPrinterSafely));
-    if (newData.length > 0) {
-      void sendToSeaoil(newData).catch(() => {
-        console.error('[SEAOIL Agent] Unexpected upload error. Local monitoring continues; retrying next poll.');
-      });
-    }
+    void sendToSeaoil(newData).catch(() => {
+      console.error('[SEAOIL Agent] Unexpected upload error. Local monitoring continues; retrying next poll.');
+    });
     cache.data=newData; cache.updatedAt=new Date().toISOString();
     for (const p of newData) {
       const old = oldData.find(o=>o.id===p.id);

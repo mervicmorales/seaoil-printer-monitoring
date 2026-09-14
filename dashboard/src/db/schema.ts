@@ -196,11 +196,21 @@ export const monitoringAgents = pgTable(
     }),
     hostname: text("hostname"),
     version: text("version"),
+    platform: text("platform"),
+    architecture: text("architecture"),
+    nodeVersion: text("node_version"),
+    agentUptimeSeconds: bigint("agent_uptime_seconds", { mode: "number" }),
+    buildIdentifier: text("build_identifier"),
     status: text("status").notNull().default("inactive"),
     tokenHash: text("token_hash"),
     tokenCreatedAt: timestamp("token_created_at", { withTimezone: true }),
     tokenRevokedAt: timestamp("token_revoked_at", { withTimezone: true }),
     lastSeen: timestamp("last_seen", { withTimezone: true }),
+    lastSuccessfulUploadAt: timestamp("last_successful_upload_at", {
+      withTimezone: true,
+    }),
+    lastMatchedPrinterCount: integer("last_matched_printer_count"),
+    lastUnmatchedPrinterCount: integer("last_unmatched_printer_count"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

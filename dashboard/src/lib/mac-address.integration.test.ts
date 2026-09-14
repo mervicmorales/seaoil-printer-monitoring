@@ -58,15 +58,16 @@ test("printer MAC persistence and monitoring integration", async (t) => {
     await pool.query("INSERT INTO monitoring_agents (id, agent_key, name, token_hash, status) VALUES (1, 'mac-test', 'MAC test', $1, 'online')", [await bcrypt.hash(token, 4)]);
     await pool.query("INSERT INTO printer_monitoring_assignments (printer_id, agent_id) VALUES (1, 1)");
     const { POST: ingest } = await import("../app/api/monitoring/ingest/route");
-    const upload = (macAddress?: string, online = true) => ingest(new Request("http://localhost/api/monitoring/ingest", {
+    const upload = (macAddress?: string, online = true, metadata: Record<string, unknown> = {}) => ingest(new Request("http://localhost/api/monitoring/ingest", {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ agent: { key: "mac-test", name: "MAC test" }, sentAt: new Date().toISOString(), printers: [{ name: "Test", serial: "MAC-TEST", ip: "192.0.2.10", online, macAddress }] }),
+      body: JSON.stringify({ agent: { key: "mac-test", name: "MAC test", ...metadata }, sentAt: new Date().toISOString(), printers: [{ name: "Test", serial: "MAC-TEST", ip: "192.0.2.10", online, macAddress }] }),
     }));
     await t.test("only online, assigned observations fill missing MAC; saved values survive later uploads", async () => {
       for (const [value, online] of [[undefined, true], ["invalid", true], ["00:1A:2B:3C:4D:5E", false]] as const) {
         assert.equal((await upload(value, online)).status, 200);
         assert.equal((await pool.query("SELECT mac_address FROM printers WHERE id = 1")).rows[0].mac_address, null);
       }
+      assert.equal((await pool.query("SELECT version FROM monitoring_agents WHERE id = 1")).rows[0].version, null, "legacy payload remains accepted with unknown version");
       await pool.query("UPDATE printer_monitoring_assignments SET agent_id = 2");
       assert.equal((await upload("00:1A:2B:3C:4D:5E")).status, 200);
       assert.equal((await pool.query("SELECT mac_address FROM printers WHERE id = 1")).rows[0].mac_address, null);
@@ -76,6 +77,45 @@ test("printer MAC persistence and monitoring integration", async (t) => {
       assert.equal((await upload("00:1A:2B:3C:4D:60")).status, 200);
       assert.equal((await pool.query("SELECT mac_address FROM printers WHERE id = 1")).rows[0].mac_address, "00:1A:2B:3C:4D:5E");
       assert.equal((await pool.query("SELECT count(*)::int AS count FROM printer_monitoring_readings")).rows[0].count, 5);
+    });
+    await t.test("persists runtime metadata and successful upload counts", async () => {
+      const response = await upload(undefined, true, {
+        hostname: "TEST-AGENT-01",
+        version: "1.2.3",
+        platform: "win32",
+        architecture: "x64",
+        nodeVersion: "v24.11.0",
+        agentUptimeSeconds: 12345,
+        buildIdentifier: "release-2026.09",
+      });
+      assert.equal(response.status, 200);
+      const row = (await pool.query(`SELECT hostname, version, platform, architecture, node_version,
+        agent_uptime_seconds::int AS agent_uptime_seconds, build_identifier,
+        last_seen, last_successful_upload_at, last_matched_printer_count,
+        last_unmatched_printer_count FROM monitoring_agents WHERE id = 1`)).rows[0];
+      assert.deepEqual({
+        hostname: row.hostname,
+        version: row.version,
+        platform: row.platform,
+        architecture: row.architecture,
+        nodeVersion: row.node_version,
+        agentUptimeSeconds: row.agent_uptime_seconds,
+        buildIdentifier: row.build_identifier,
+        matched: row.last_matched_printer_count,
+        unmatched: row.last_unmatched_printer_count,
+      }, {
+        hostname: "TEST-AGENT-01",
+        version: "1.2.3",
+        platform: "win32",
+        architecture: "x64",
+        nodeVersion: "v24.11.0",
+        agentUptimeSeconds: 12345,
+        buildIdentifier: "release-2026.09",
+        matched: 1,
+        unmatched: 0,
+      });
+      assert.ok(row.last_seen instanceof Date);
+      assert.ok(row.last_successful_upload_at instanceof Date);
     });
     await t.test("discovery saves normalized MAC for Add Printer", async () => {
       await pool.query("INSERT INTO printer_discovery_scans (id, agent_id, status) VALUES (1, 1, 'running')");

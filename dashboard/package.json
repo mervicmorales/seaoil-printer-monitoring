@@ -31,7 +31,9 @@
     "db:migrate:printer-permissions": "node --env-file=.env.local scripts/add-user-printer-permissions.mjs",
     "db:migrate:printer-permissions:docker": "node --env-file=.env.docker scripts/add-user-printer-permissions.mjs",
     "db:migrate:printer-access-requests": "node --env-file=.env.local scripts/add-printer-access-requests.mjs",
-    "db:migrate:printer-access-requests:docker": "node --env-file=.env.docker scripts/add-printer-access-requests.mjs"
+    "db:migrate:printer-access-requests:docker": "node --env-file=.env.docker scripts/add-printer-access-requests.mjs",
+    "db:migrate:agent-management": "node --env-file=.env.local scripts/migrate-agent-management.mjs",
+    "db:migrate:agent-management:docker": "node --env-file=.env.docker scripts/migrate-agent-management.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -25,6 +25,7 @@ import {
   Menu,
   Radar,
   ReceiptText,
+  ServerCog,
   PanelLeftClose,
   Printer,
   Settings,
@@ -50,6 +51,7 @@ type NavChild = {
   icon: IconNode;
   module?: ModuleName;
   disabled?: boolean;
+  adminOnly?: boolean;
 };
 
 type NavItem = {
@@ -73,6 +75,7 @@ const NAV: NavItem[] = [
       { href: "/repair-history", label: "Repair History", icon: Wrench, module: "repair" },
       { href: "/printdash/alerts", label: MODULE_LABELS.monitoring_alerts, icon: Bell, module: "monitoring_alerts" },
       { href: "/printdash/discover", label: MODULE_LABELS.discover_printers, icon: Radar, module: "discover_printers" },
+      { href: "/monitoring-agents", label: "Monitoring Agents", icon: ServerCog, module: "monitoring_alerts", adminOnly: true },
     ],
   },
   {
@@ -166,7 +169,8 @@ export default function Sidebar({
     pathname.startsWith("/printers") ||
       pathname.startsWith("/repair-history") ||
       pathname.startsWith("/printdash/alerts") ||
-      pathname.startsWith("/printdash/discover"),
+      pathname.startsWith("/printdash/discover") ||
+      pathname.startsWith("/monitoring-agents"),
   );
   const [tonersOpen, setTonersOpen] = useState(
     pathname.startsWith("/toner-monitoring") || pathname.startsWith("/toner-expenses"),
@@ -186,7 +190,11 @@ export default function Sidebar({
     .filter((item) => !item.module || moduleAccess[item.module])
     .map((item) => ({
       ...item,
-      children: item.children?.filter((child) => !child.module || moduleAccess[child.module]),
+      children: item.children?.filter(
+        (child) =>
+          (!child.module || moduleAccess[child.module]) &&
+          (!child.adminOnly || userRole === "admin" || userRole === "super_admin"),
+      ),
     }));
   const roleAdjustedItems = userRole === "support"
     ? permittedItems.map((item) => item.href === "/printops"

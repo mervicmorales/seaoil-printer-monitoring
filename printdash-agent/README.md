@@ -134,6 +134,7 @@ different office because each key has an independent token.
 | `SEAOIL_AGENT_KEY` | Yes | None | Stable ID such as `cebu-agent`; never derive it only from hostname |
 | `SEAOIL_AGENT_NAME` | No | `PrintDash Agent` | Human-readable agent name |
 | `SEAOIL_AGENT_LOCATION` | No | None | Human-readable office/location metadata |
+| `SEAOIL_AGENT_BUILD_ID` | No | None | Optional non-secret release/build label reported to Agent Management |
 | `POLL_INTERVAL_SECONDS` | No | `60` | SNMP polling interval; valid range is 30-3600 seconds |
 | `SEAOIL_CONFIG_REFRESH_SECONDS` | No | `60` | Central assignment refresh interval; valid range is 30-3600 seconds |
 | `SEAOIL_CONFIG_CACHE_FILE` | No | Beside `DATA_FILE` | Last-known-good central assignment cache; contains no credentials |
@@ -142,6 +143,22 @@ different office because each key has an independent token.
 An invalid interval falls back to 60 seconds. If the token or stable key is
 missing, local PrintDash monitoring remains available but central upload is
 disabled with a clear startup error. The token is never printed.
+
+### Agent version and runtime reporting
+
+`package.json` is the single source of truth for the agent application version
+and must contain a Semantic Versioning value (`MAJOR.MINOR.PATCH`). Startup does
+not change this value. Each authenticated monitoring upload reports the agent
+version, operating-system platform, CPU architecture, hostname, Node.js
+version, and current process uptime. `SEAOIL_AGENT_BUILD_ID` is included only
+when configured. No operating-system username, bearer token, SNMP community,
+password, or encryption key is included in the payload.
+
+The central dashboard accepts both this payload and legacy payloads without
+runtime metadata. Agents with no assigned printers send an empty authenticated
+monitoring heartbeat so their runtime and last-successful-upload state can
+still be observed. This milestone does not download or execute updates and
+does not expose any remote command-execution mechanism.
 
 On startup, and then every configuration refresh interval, PrintDash fetches
 only the printers assigned to its authenticated agent key. The first valid
@@ -227,8 +244,8 @@ npm ci
 npm start
 ```
 
-At startup, PrintDash prints the agent name, stable key, central API URL, and
-poll interval. It never prints the bearer token. Central uploads have a
+At startup, PrintDash prints the agent name, stable key, application version,
+central API URL, and poll interval. It never prints the bearer token. Central uploads have a
 10-second timeout; an outage or authentication error is logged concisely and
 retried on the next poll without stopping the dashboard or local SNMP polling.
 
