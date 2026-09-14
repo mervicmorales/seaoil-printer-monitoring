@@ -98,7 +98,7 @@ export default function RegisterForm({ locations, departments }: { locations: { 
       <FormSection icon={UserRound} title="Employee information" description="Enter the details shown on your company records.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Input id="registration-full-name" label="Full Name" name="fullName" autoComplete="name" required error={state.fieldErrors?.fullName} />
-          <Input id="registration-employee-id" label="Employee ID" name="employeeId" placeholder="SPI00001" autoComplete="off" required error={state.fieldErrors?.employeeId} />
+          <Input id="registration-employee-id" label="Employee ID" name="employeeId" autoComplete="off" required error={state.fieldErrors?.employeeId} />
         </div>
         <Input id="registration-email" label="SEAOIL Email" name="email" type="email" placeholder="name@seaoil.com.ph" autoComplete="email" required error={state.fieldErrors?.email} />
       </FormSection>

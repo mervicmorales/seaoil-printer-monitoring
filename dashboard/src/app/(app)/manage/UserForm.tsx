@@ -123,7 +123,6 @@ export default function UserForm({
             <Input
               label="Employee ID"
               name="employeeId"
-              placeholder="SPI00001"
               required={employeeRequired}
               defaultValue={user?.employeeId ?? ""}
               error={state.fieldErrors?.employeeId}

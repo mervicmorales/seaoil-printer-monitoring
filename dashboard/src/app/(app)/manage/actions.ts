@@ -23,6 +23,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/auth";
+import { EMPLOYEE_ID_RULE_TEXT, isValidEmployeeId } from "@/lib/validation";
 import { MODULES, MODULE_PARENTS, defaultAccessForRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { buildPasswordResetEmail, buildUserAccountVerificationEmail } from "@/lib/email-templates";
@@ -102,7 +103,7 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
   if (!email) fieldErrors.email = "Email Address is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email address.";
   if (!username) fieldErrors.username = "Username is required.";
-  if (employeeId && !/^SPI[0-9]{5}$/.test(employeeId)) fieldErrors.employeeId = "Use the format SPI followed by five digits.";
+  if (employeeId && !isValidEmployeeId(employeeId)) fieldErrors.employeeId = EMPLOYEE_ID_RULE_TEXT;
   if (role === "employee" && !employeeId) fieldErrors.employeeId = "Employee ID is required for employees.";
   if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for Employee and Support accounts.";
   if ((role === "employee" || role === "support") && !departmentId) fieldErrors.departmentId = "Department is required for Employee and Support accounts.";
@@ -211,7 +212,7 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   if (!email) fieldErrors.email = "Email Address is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email address.";
   if (!username) fieldErrors.username = "Username is required.";
-  if (employeeId && !/^SPI[0-9]{5}$/.test(employeeId)) fieldErrors.employeeId = "Use the format SPI followed by five digits.";
+  if (employeeId && !isValidEmployeeId(employeeId)) fieldErrors.employeeId = EMPLOYEE_ID_RULE_TEXT;
   if (role === "employee" && !employeeId) fieldErrors.employeeId = "Employee ID is required for employees.";
   if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for Employee and Support accounts.";
   if ((role === "employee" || role === "support") && !departmentId) fieldErrors.departmentId = "Department is required for Employee and Support accounts.";

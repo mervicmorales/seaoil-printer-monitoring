@@ -8,7 +8,12 @@ import { departments, emailVerificationTokens, locations, systemSettings, userRe
 import { hashPassword } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { buildEmailVerificationEmail } from "@/lib/email-templates";
-import { isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/validation";
+import {
+  EMPLOYEE_ID_RULE_TEXT,
+  isValidEmployeeId,
+  isValidPassword,
+  PASSWORD_RULE_TEXT,
+} from "@/lib/validation";
 import { expireRegistrationRequests } from "@/lib/registration-requests";
 
 export type RegistrationState = {
@@ -57,7 +62,7 @@ export async function registerAction(_previous: RegistrationState, formData: For
   const username = email.split("@")[0];
   const fieldErrors: Record<string, string> = {};
   if (fullName.length < 2) fieldErrors.fullName = "Full name is required.";
-  if (!/^SPI[0-9]{5}$/.test(employeeId)) fieldErrors.employeeId = "Use the format SPI followed by five digits.";
+  if (!isValidEmployeeId(employeeId)) fieldErrors.employeeId = EMPLOYEE_ID_RULE_TEXT;
   if (!/^[^\s@]+@seaoil\.com\.ph$/i.test(email)) fieldErrors.email = "Use your @seaoil.com.ph email address.";
   if (!isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
   if (password !== confirmPassword) fieldErrors.confirmPassword = "Passwords do not match.";
