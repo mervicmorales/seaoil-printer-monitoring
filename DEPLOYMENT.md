@@ -1,4 +1,4 @@
-# OpenShip deployment
+# Coolify deployment
 
 The root `docker-compose.yml` is the production deployment definition. It runs:
 
@@ -7,15 +7,31 @@ The root `docker-compose.yml` is the production deployment definition. It runs:
 - the Next.js dashboard on internal port 3000;
 - the PrintDash agent on internal port 3003 with persistent data and scan volumes.
 
-## OpenShip setup
+The three repository-built services use explicit local image names ending in
+`:coolify`. Coolify builds and tags these images from the temporary Git checkout.
+Its later `docker compose up -d` step reuses the tagged images and does not need
+the `dashboard/` or `printdash-agent/` source directories in Coolify's persistent
+application directory. `pull_policy: never` also prevents Compose from trying to
+pull these private, host-local images from a registry.
+
+The production volumes are external and must retain these names:
+
+- `openship-seaoil-printer-monitoring-postgres-data`
+- `openship-seaoil-printer-monitoring-printdash-data`
+- `openship-seaoil-printer-monitoring-printdash-scans`
+
+Do not delete, recreate, or rename these volumes during deployment.
+
+## Coolify setup
 
 1. In **New Project**, select this repository.
-2. Under **Compose file**, enter `docker-compose.yml` and select **Scan**.
+2. Select the **Docker Compose** build pack, use `/` as the base directory, and
+   use `/docker-compose.yml` as the Compose location.
 3. Expose only `dashboard` publicly. Keep `db`, `db-init`, and `printdash-agent` internal.
-4. Add the variables from `.env.production.example` in OpenShip. Replace every
+4. Add the variables from `.env.production.example` in Coolify. Replace every
    `CHANGE_ME` value with a unique secret. Do not commit the resulting values.
 5. Use `pms.seaoil.com.ph` as `APP_BASE_URL` only after its DNS and HTTPS route
-   are configured. Until then, use the actual dashboard URL supplied by OpenShip.
+   are configured. Until then, use the actual dashboard URL supplied by Coolify.
 6. Deploy and wait for `db-init` to finish successfully and both health checks
    to become healthy.
 
@@ -35,13 +51,15 @@ community string.
 
 ## Local verification
 
-Copy `.env.production.example` to `.env`, replace all required values, then run:
+Validate interpolation, image names, and build targets without starting containers:
 
 ```bash
-docker compose up -d --build --wait
-docker compose ps
+docker compose --env-file .env.production.example config --quiet
+docker compose --env-file .env.production.example config --images
+docker compose --env-file .env.production.example build --print
 ```
 
-The dashboard health endpoint is `/api/health`; the agent health check uses
-`/login`. Back up the `postgres-data`, `printdash-data`, and `printdash-scans`
-volumes before destructive maintenance.
+Do not run `docker compose up` against the external production volumes as a local
+test. During an approved deployment, the dashboard health endpoint is
+`/api/health`; the agent health check uses `/login`. Back up the `postgres-data`,
+`printdash-data`, and `printdash-scans` volumes before destructive maintenance.
