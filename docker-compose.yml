@@ -18,8 +18,6 @@ services:
       start_period: 10s
 
   db-init:
-    image: seaoil-printer-monitoring-db-init:coolify
-    pull_policy: never
     build:
       context: ./dashboard
       dockerfile: Dockerfile.migrate
@@ -45,8 +43,6 @@ services:
         node scripts/add-user-printer-permissions.mjs
 
   dashboard:
-    image: seaoil-printer-monitoring-dashboard:coolify
-    pull_policy: never
     build:
       context: ./dashboard
     restart: unless-stopped
@@ -87,8 +83,6 @@ services:
       start_period: 30s
 
   printdash-agent:
-    image: seaoil-printer-monitoring-printdash-agent:coolify
-    pull_policy: never
     build:
       context: ./printdash-agent
     restart: unless-stopped
@@ -134,11 +128,5 @@ services:
 
 volumes:
   postgres-data:
-    external: true
-    name: openship-seaoil-printer-monitoring-postgres-data
   printdash-data:
-    external: true
-    name: openship-seaoil-printer-monitoring-printdash-data
   printdash-scans:
-    external: true
-    name: openship-seaoil-printer-monitoring-printdash-scans

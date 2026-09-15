@@ -1,6 +1,8 @@
 # Coolify deployment
 
-The root `docker-compose.yml` is the production deployment definition. It runs:
+`_deployment/compose.coolify.yml` is the Coolify production deployment
+definition. The root `docker-compose.yml` remains the local/direct Compose
+definition. The production definition runs:
 
 - PostgreSQL with a persistent volume;
 - a one-shot, idempotent database initializer;
@@ -26,7 +28,7 @@ Do not delete, recreate, or rename these volumes during deployment.
 
 1. In **New Project**, select this repository.
 2. Select the **Docker Compose** build pack, use `/` as the base directory, and
-   use `/docker-compose.yml` as the Compose location.
+   use `/_deployment/compose.coolify.yml` as the Compose location.
 3. Expose only `dashboard` publicly. Keep `db`, `db-init`, and `printdash-agent` internal.
 4. Add the variables from `.env.production.example` in Coolify. Replace every
    `CHANGE_ME` value with a unique secret. Do not commit the resulting values.
@@ -54,9 +56,12 @@ community string.
 Validate interpolation, image names, and build targets without starting containers:
 
 ```bash
-docker compose --env-file .env.production.example config --quiet
-docker compose --env-file .env.production.example config --images
-docker compose --env-file .env.production.example build --print
+docker compose --project-directory . --env-file .env.production.example \
+  -f _deployment/compose.coolify.yml config --quiet
+docker compose --project-directory . --env-file .env.production.example \
+  -f _deployment/compose.coolify.yml config --images
+docker compose --project-directory . --env-file .env.production.example \
+  -f _deployment/compose.coolify.yml build --print
 ```
 
 Do not run `docker compose up` against the external production volumes as a local

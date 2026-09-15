@@ -18,6 +18,8 @@ services:
       start_period: 10s
 
   db-init:
+    image: seaoil-printer-monitoring-db-init:coolify
+    pull_policy: never
     build:
       context: ./dashboard
       dockerfile: Dockerfile.migrate
@@ -41,6 +43,8 @@ services:
         node scripts/add-printer-access-requests.mjs
 
   dashboard:
+    image: seaoil-printer-monitoring-dashboard:coolify
+    pull_policy: never
     build:
       context: ./dashboard
       dockerfile: Dockerfile
@@ -82,6 +86,8 @@ services:
       start_period: 30s
 
   printdash-agent:
+    image: seaoil-printer-monitoring-printdash-agent:coolify
+    pull_policy: never
     build:
       context: ./printdash-agent
       dockerfile: Dockerfile
