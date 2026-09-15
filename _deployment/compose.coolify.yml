@@ -19,7 +19,7 @@ services:
 
   db-init:
     build:
-      context: ../dashboard
+      context: ./dashboard
       dockerfile: Dockerfile.migrate
     restart: "no"
     environment:
@@ -42,7 +42,7 @@ services:
 
   dashboard:
     build:
-      context: ../dashboard
+      context: ./dashboard
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
@@ -83,7 +83,7 @@ services:
 
   printdash-agent:
     build:
-      context: ../printdash-agent
+      context: ./printdash-agent
       dockerfile: Dockerfile
     restart: unless-stopped
     init: true
