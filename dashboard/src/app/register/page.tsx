@@ -37,8 +37,15 @@ export default async function RegisterPage() {
         </div>
 
         <div className="grid overflow-hidden rounded-3xl border border-[#dfe6ee] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.10)] lg:grid-cols-[minmax(17rem,0.72fr)_minmax(0,1.28fr)]">
-          <aside className="relative overflow-hidden bg-gradient-to-br from-[#075184] via-[#014171] to-[#012f53] px-6 py-8 text-white sm:px-8 sm:py-10 lg:px-10 lg:py-12">
-            <div aria-hidden="true" className="absolute -right-20 -top-20 size-56 rounded-full border border-white/10 bg-[#7DA8D0]/15" />
+          <aside className="relative overflow-hidden bg-[#012f53] px-6 py-8 text-white sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-cover bg-[position:18%_center] bg-no-repeat"
+              style={{ backgroundImage: "url('/branding/login-print-scan-anywhere.webp')" }}
+            />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-[#012b4d]/80 via-[#013d69]/70 to-[#01263f]/92" />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#012f53]/50 via-[#012f53]/20 to-[#012f53]/35" />
+            <div aria-hidden="true" className="absolute -right-20 -top-20 size-56 rounded-full border border-white/10 bg-[#7DA8D0]/10" />
             <div aria-hidden="true" className="absolute -bottom-24 -left-16 size-60 rounded-full bg-[#FEF200]/10 blur-2xl" />
 
             <div className="relative">

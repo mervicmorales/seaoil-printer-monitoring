@@ -18,10 +18,16 @@ export default async function LoginPage({
 
   return (
     <main className="relative grid min-h-screen grid-cols-1 overflow-hidden bg-[#f4f7fa] lg:grid-cols-[minmax(0,1.05fr)_minmax(28rem,0.95fr)]">
-      <section className="relative hidden min-h-screen flex-col justify-between overflow-hidden bg-gradient-to-br from-[#075184] via-[#014171] to-[#012f53] px-12 py-10 text-white lg:flex xl:px-16 xl:py-12">
-        <div aria-hidden="true" className="absolute -right-28 -top-32 size-[28rem] rounded-full border border-white/10 bg-[#7DA8D0]/15" />
+      <section className="relative hidden min-h-screen flex-col justify-between overflow-hidden bg-[#012f53] px-12 py-10 text-white lg:flex xl:px-16 xl:py-12">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-[position:24%_center] bg-no-repeat"
+          style={{ backgroundImage: "url('/branding/login-print-scan-anywhere.webp')" }}
+        />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-[#012b4d]/80 via-[#013d69]/68 to-[#01263f]/90" />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#012f53]/45 via-transparent to-[#012f53]/20" />
+        <div aria-hidden="true" className="absolute -right-28 -top-32 size-[28rem] rounded-full border border-white/10 bg-[#7DA8D0]/10" />
         <div aria-hidden="true" className="absolute -bottom-40 -left-28 size-[30rem] rounded-full bg-[#FEF200]/10 blur-3xl" />
-        <div aria-hidden="true" className="absolute bottom-[18%] right-[8%] size-32 rounded-full border border-white/[0.06]" />
 
         <div className="relative z-10 flex items-center gap-3.5">
           <div
@@ -44,7 +50,7 @@ export default async function LoginPage({
           </div>
         </div>
 
-        <div className="relative z-10 my-12 max-w-xl">
+        <div className="relative z-10 my-12 max-w-xl rounded-3xl border border-white/15 bg-[#012f53]/35 p-7 shadow-[0_24px_70px_rgba(0,20,38,0.22)] backdrop-blur-[2px] xl:p-8">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#e5eff8]">
             <IconGlyph icon={ShieldCheck} size={14} />
             Secured
@@ -52,7 +58,7 @@ export default async function LoginPage({
           <h1 className="mt-6 text-4xl font-bold leading-[1.12] tracking-[-0.035em] xl:text-5xl">
             Print &amp; Scan Anywhere.
           </h1>
-          <p className="mt-5 max-w-lg text-sm leading-6 text-[#cfe0f2] xl:text-[15px]">
+          <p className="mt-5 max-w-lg text-sm leading-6 text-[#e3edf7] xl:text-[15px]">
             Use one secure workspace to print, scan, and access available devices across SEAOIL locations.
           </p>
 
@@ -63,7 +69,7 @@ export default async function LoginPage({
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center justify-between gap-5 border-t border-white/15 pt-5 text-[11px] text-[#aac5dd]">
+        <div className="relative z-10 flex items-center justify-between gap-5 border-t border-white/20 pt-5 text-[11px] text-[#d6e5f2]">
           <p>For internal use by SEAOIL Philippines Inc. only.</p>
           <p className="font-semibold uppercase tracking-[0.12em]">Printer Management System</p>
         </div>
@@ -126,7 +132,7 @@ export default async function LoginPage({
 
 function FeatureItem({ icon, label }: { icon: IconNode; label: string }) {
   return (
-    <div className="rounded-xl border border-white/15 bg-white/[0.07] px-3.5 py-3">
+    <div className="rounded-xl border border-white/15 bg-[#012f53]/45 px-3.5 py-3 backdrop-blur-sm">
       <span className="text-[#FEF200]"><IconGlyph icon={icon} size={17} /></span>
       <p className="mt-2 text-xs font-semibold leading-5 text-[#e6f0f8]">{label}</p>
     </div>
