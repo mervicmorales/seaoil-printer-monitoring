@@ -55,6 +55,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
       .select({
         id: tonerTypes.id,
         name: tonerTypes.name,
+        unitCost: tonerTypes.unitCost,
         stock: tonerInventory.stock,
         threshold: tonerInventory.lowStockThreshold,
         criticalThreshold: tonerInventory.criticalStockThreshold,
@@ -148,6 +149,7 @@ export default async function SystemPage({ searchParams }: { searchParams: Promi
                   items={tonerRows.map((t) => ({
                     id: t.id,
                     name: t.name,
+                    unitCost: Number(t.unitCost ?? 0),
                     stock: t.stock ?? 0,
                     threshold: t.threshold ?? 5,
                     criticalThreshold: t.criticalThreshold ?? 2,

@@ -108,6 +108,7 @@ export const vendors = pgTable("vendors", {
 export const tonerTypes = pgTable("toner_types", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
+  unitCost: numeric("unit_cost", { precision: 12, scale: 2 }).notNull().default("0.00"),
   showAlertCard: boolean("show_alert_card").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

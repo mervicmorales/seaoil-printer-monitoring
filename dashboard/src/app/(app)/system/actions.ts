@@ -35,6 +35,7 @@ function revalidateAll() {
   revalidatePath("/dashboard");
   revalidatePath("/printers");
   revalidatePath("/toner-monitoring");
+  revalidatePath("/toner-expenses");
   revalidatePath("/contracts");
   revalidatePath("/repair-history");
 }
@@ -107,8 +108,15 @@ export async function deleteItsNameAction(formData: FormData) {
 export async function addTonerTypeAction(formData: FormData) {
   await requireAdmin("system");
   const name = str(formData.get("name"));
+  const unitCost = num(formData.get("unitCost")) ?? 0;
+  if (!Number.isFinite(unitCost) || unitCost < 0 || unitCost > 9_999_999_999.99) {
+    redirect("/system?tab=toner&error=Enter a valid non-negative unit cost.");
+  }
   if (name) {
-    const inserted = await db.insert(tonerTypes).values({ name }).onConflictDoNothing().returning();
+    const inserted = await db.insert(tonerTypes).values({
+      name,
+      unitCost: unitCost.toFixed(2),
+    }).onConflictDoNothing().returning();
     if (inserted[0]) {
       await db.insert(tonerInventory).values({ tonerTypeId: inserted[0].id, stock: 0, lowStockThreshold: 5 });
     }
@@ -120,9 +128,18 @@ export async function updateTonerTypeAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
   const name = str(formData.get("name"));
-  if (id && name) await db.update(tonerTypes).set({ name }).where(eq(tonerTypes.id, id));
+  const unitCost = num(formData.get("unitCost")) ?? 0;
+  if (!Number.isFinite(unitCost) || unitCost < 0 || unitCost > 9_999_999_999.99) {
+    redirect("/system?tab=toner&error=Enter a valid non-negative unit cost.");
+  }
+  if (id && name) {
+    await db
+      .update(tonerTypes)
+      .set({ name, unitCost: unitCost.toFixed(2) })
+      .where(eq(tonerTypes.id, id));
+  }
   revalidateAll();
-  redirect("/system?tab=toner&success=Toner Type updated.");
+  redirect("/system?tab=toner&success=Toner type and unit cost updated.");
 }
 export async function deleteTonerTypeAction(formData: FormData) {
   await requireAdmin("system");
