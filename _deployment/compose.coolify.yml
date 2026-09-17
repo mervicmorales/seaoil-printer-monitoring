@@ -85,60 +85,7 @@ services:
       retries: 5
       start_period: 30s
 
-  printdash-agent:
-    image: seaoil-printer-monitoring-printdash-agent:coolify
-    pull_policy: never
-    build:
-      context: ./printdash-agent
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    init: true
-    environment:
-      PORT: "3003"
-      USERS_FILE: /data/users.json
-      DATA_FILE: /data/printers.json
-      SETTINGS_FILE: /data/settings.json
-      SEAOIL_CONFIG_CACHE_FILE: /data/seaoil-config-cache.json
-      SCAN_DIR: /opt/scans
-      UPLOAD_DIR: /tmp/printdash-uploads
-      SEAOIL_API_URL: ${SEAOIL_API_URL:-http://dashboard:3000/api/monitoring/ingest}
-      SEAOIL_CONFIG_URL: ${SEAOIL_CONFIG_URL:-http://dashboard:3000/api/monitoring/config}
-      SEAOIL_AGENT_TOKEN: ${SEAOIL_AGENT_TOKEN:-}
-      SEAOIL_AGENT_KEY: ${SEAOIL_AGENT_KEY:-head-office-agent}
-      SEAOIL_AGENT_NAME: ${SEAOIL_AGENT_NAME:-Head Office Agent}
-      SEAOIL_AGENT_LOCATION: ${SEAOIL_AGENT_LOCATION:-Head Office}
-      SEAOIL_SNMP_COMMUNITY: ${SEAOIL_SNMP_COMMUNITY:-public}
-      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-60}
-      SEAOIL_CONFIG_REFRESH_SECONDS: ${SEAOIL_CONFIG_REFRESH_SECONDS:-60}
-      PRINTDASH_ADMIN_PASSWORD: ${PRINTDASH_ADMIN_PASSWORD}
-      PRINTDASH_USER_PASSWORD: ${PRINTDASH_USER_PASSWORD}
-    ports:
-      - "127.0.0.1:${PRINTDASH_PORT:-3003}:3003"
-    volumes:
-      - printdash-data:/data
-      - printdash-scans:/opt/scans
-      - /var/run/cups/cups.sock:/var/run/cups/cups.sock
-    depends_on:
-      dashboard:
-        condition: service_healthy
-    healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - fetch('http://127.0.0.1:3003/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-
 volumes:
   postgres-data:
     external: true
     name: openship-seaoil-printer-monitoring-postgres-data
-  printdash-data:
-    external: true
-    name: openship-seaoil-printer-monitoring-printdash-data
-  printdash-scans:
-    external: true
-    name: openship-seaoil-printer-monitoring-printdash-scans
