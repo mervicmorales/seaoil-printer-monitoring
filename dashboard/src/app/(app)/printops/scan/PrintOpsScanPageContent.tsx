@@ -64,7 +64,9 @@ export async function PrintOpsScanPageContent({
     agent.snapshot.scanDevices.map((device) => ({ agent, device })),
   );
   const renderedAt = new Date();
-  const latestScan = scans[0];
+  const latestScan = showAgentControls
+    ? scans.find((scan) => scan.requestedBy === session.id)
+    : scans[0];
   const recentCompletedScan = latestScan?.status === "completed"
     && latestScan.outputFileName
     && latestScan.hasOutputFile

@@ -5,6 +5,10 @@ import { createPortal } from "react-dom";
 import { Download, ExternalLink, Eye, FileCheck2, X } from "lucide";
 import { IconGlyph } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
+import {
+  SCAN_AUTO_PREVIEW_STORAGE_KEY,
+  shouldAutoPreviewScan,
+} from "./scan-auto-preview";
 
 type ScanFile = {
   id: number;
@@ -52,14 +56,45 @@ export default function ScanFileActions({
 }
 
 export function LatestScanAutoPreview({ scan }: { scan: ScanFile | null }) {
-  const [dismissedScanId, setDismissedScanId] = useState<number | null>(null);
+  const [autoPreviewScanId, setAutoPreviewScanId] = useState<number | null>(null);
+  const scanId = scan?.id ?? null;
 
-  if (!scan) return null;
+  useEffect(() => {
+    if (scanId === null) return;
+
+    let lastAutoPreviewedScanId: string | null = null;
+    try {
+      lastAutoPreviewedScanId = window.sessionStorage.getItem(
+        SCAN_AUTO_PREVIEW_STORAGE_KEY,
+      );
+    } catch {
+      // Auto-preview remains available when browser storage is unavailable.
+    }
+
+    if (!shouldAutoPreviewScan(scanId, lastAutoPreviewedScanId)) return;
+
+    const openPreview = window.setTimeout(() => {
+      // Record the scan before opening so a refresh cannot reopen the same file.
+      try {
+        window.sessionStorage.setItem(
+          SCAN_AUTO_PREVIEW_STORAGE_KEY,
+          String(scanId),
+        );
+      } catch {
+        // The current page can still preview the completed scan once.
+      }
+      setAutoPreviewScanId(scanId);
+    }, 0);
+
+    return () => window.clearTimeout(openPreview);
+  }, [scanId]);
+
+  if (!scan || autoPreviewScanId !== scan.id) return null;
   return (
     <ScanPreviewDialog
       scan={scan}
-      open={dismissedScanId !== scan.id}
-      onClose={() => setDismissedScanId(scan.id)}
+      open
+      onClose={() => setAutoPreviewScanId(null)}
     />
   );
 }
