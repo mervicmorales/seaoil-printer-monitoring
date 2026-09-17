@@ -10,6 +10,9 @@ const DOWNLOAD_TIMEOUT_MS = 120_000;
 const MAX_SCAN_BYTES = 24 * 1024 * 1024;
 const DISCOVERY_ATTEMPTS = 2;
 const DISCOVERY_RETRY_DELAY_MS = 500;
+const MODERN_ESCL_NAMESPACE = 'http://schemas.hp.com/imaging/escl/2011/05/03';
+const LEGACY_HP_SCAN_NAMESPACE = 'http://schemas.hp.com/imaging/escl/2011/02/08';
+const SUPPORTED_COLOR_MODES = new Set(['RGB24', 'Grayscale8', 'BlackAndWhite1']);
 
 async function discoverEsclDevices(printers, options = {}) {
   const request = requestFor(options.fetchImpl);
@@ -45,6 +48,7 @@ async function discoverEsclDevices(printers, options = {}) {
           format: capabilities.formats.includes('application/pdf')
             ? 'application/pdf'
             : 'image/jpeg',
+          scanSettings: capabilities.scanSettings,
           sources: [
             ...(capabilities.hasPlaten ? ['Flatbed'] : []),
             ...(capabilities.hasAdf ? ['ADF'] : []),
@@ -66,9 +70,27 @@ async function discoverEsclDevices(printers, options = {}) {
 function parseScannerCapabilities(xml) {
   const model = xmlValue(xml, 'MakeAndModel');
   const serialNumber = xmlValue(xml, 'SerialNumber');
-  const formats = Array.from(xml.matchAll(
-    /<(?:[A-Za-z0-9_-]+:)?(?:DocumentFormat|DocumentFormatExt)\b[^>]*>([^<]+)</gi,
-  )).map(match => decodeXml(match[1].trim()).toLowerCase());
+  const formatMatches = Array.from(xml.matchAll(
+    /<(?:[A-Za-z0-9_-]+:)?(DocumentFormat|DocumentFormatExt)\b[^>]*>([^<]+)</gi,
+  ));
+  const formats = formatMatches.map(match => decodeXml(match[2].trim()).toLowerCase());
+  const advertisedNamespace = xml.match(/xmlns:scan=["']([^"']+)["']/i)?.[1];
+  const scanNamespace = advertisedNamespace === LEGACY_HP_SCAN_NAMESPACE
+    ? LEGACY_HP_SCAN_NAMESPACE
+    : MODERN_ESCL_NAMESPACE;
+  const advertisedVersion = xmlValue(xml, 'Version');
+  const version = /^\d+(?:\.\d+)?$/.test(advertisedVersion || '')
+    ? advertisedVersion
+    : '2.0';
+  const colorModes = Array.from(xml.matchAll(
+    /<(?:[A-Za-z0-9_-]+:)?(?:ColorMode|ColorReference)\b[^>]*>([^<]+)</gi,
+  )).map(match => decodeXml(match[1].trim()));
+  const intents = Array.from(xml.matchAll(
+    /<(?:[A-Za-z0-9_-]+:)?(?:SupportedIntent|Intent)\b[^>]*>([^<]+)</gi,
+  )).map(match => decodeXml(match[1].trim()));
+  const platen = parseInputCapabilities(xmlBlock(xml, 'PlatenInputCaps'));
+  const adf = parseInputCapabilities(xmlBlock(xml, 'AdfSimplexInputCaps'));
+  const adfDuplex = parseInputCapabilities(xmlBlock(xml, 'AdfDuplexInputCaps'));
   return {
     model,
     serialNumber,
@@ -76,6 +98,34 @@ function parseScannerCapabilities(xml) {
     hasPlaten: /<(?:[A-Za-z0-9_-]+:)?Platen\b/i.test(xml),
     hasAdf: /<(?:[A-Za-z0-9_-]+:)?Adf\b/i.test(xml),
     hasDuplexAdf: /<(?:[A-Za-z0-9_-]+:)?AdfDuplexInputCaps\b/i.test(xml),
+    scanSettings: {
+      namespace: scanNamespace,
+      version,
+      supportsDocumentFormatExt: formatMatches.some(match => (
+        match[1].toLowerCase() === 'documentformatext'
+      )),
+      supportsDocumentIntent: intents.includes('Document'),
+      colorMode: colorModes.find(mode => SUPPORTED_COLOR_MODES.has(mode)) || 'RGB24',
+      sources: {
+        Flatbed: platen,
+        ADF: adf,
+        'ADF Duplex': adfDuplex.maxWidth ? adfDuplex : adf,
+      },
+    },
+  };
+}
+
+function parseInputCapabilities(xml) {
+  if (!xml) return { maxWidth: null, maxHeight: null, resolutions: [] };
+  const resolutions = Array.from(xml.matchAll(
+    /<(?:[A-Za-z0-9_-]+:)?XResolution\b[^>]*>([^<]+)</gi,
+  ))
+    .map(match => Number(match[1].trim()))
+    .filter(value => Number.isSafeInteger(value) && value > 0);
+  return {
+    maxWidth: positiveIntegerXmlValue(xml, 'MaxWidth'),
+    maxHeight: positiveIntegerXmlValue(xml, 'MaxHeight'),
+    resolutions: Array.from(new Set(resolutions)),
   };
 }
 
@@ -96,7 +146,7 @@ async function runEsclScan(device, source, options = {}) {
         Accept: 'text/xml, application/xml',
         'Content-Type': 'text/xml; charset=utf-8',
       },
-      body: buildScanSettings({ source, format }),
+      body: buildScanSettings({ source, format, settings: device.scanSettings }),
     },
     CREATE_JOB_TIMEOUT_MS,
   );
@@ -168,29 +218,50 @@ function scanFileExtension(mimeType) {
   return 'jpg';
 }
 
-function buildScanSettings({ source, format }) {
+function buildScanSettings({ source, format, settings = {} }) {
   const inputSource = source === 'Flatbed' ? 'Platen' : 'Feeder';
   const duplex = source === 'ADF Duplex';
+  const sourceSettings = settings.sources?.[source] || {};
+  const width = sourceSettings.maxWidth || 2550;
+  const height = sourceSettings.maxHeight || (source === 'Flatbed' ? 3508 : 4500);
+  const resolution = preferredResolution(sourceSettings.resolutions);
+  const namespace = settings.namespace || MODERN_ESCL_NAMESPACE;
+  const version = settings.version || '2.0';
+  const colorMode = settings.colorMode || 'RGB24';
+  const intent = settings.supportsDocumentIntent
+    ? '  <scan:Intent>Document</scan:Intent>\n'
+    : '';
+  const extendedFormat = settings.supportsDocumentFormatExt
+    ? `  <scan:DocumentFormatExt>${format}</scan:DocumentFormatExt>\n`
+    : '';
+  const duplexSetting = source === 'Flatbed'
+    ? ''
+    : `  <scan:Duplex>${duplex}</scan:Duplex>\n`;
   return `<?xml version="1.0" encoding="UTF-8"?>
-<scan:ScanSettings xmlns:scan="http://schemas.hp.com/imaging/escl/2011/05/03" xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm">
-  <pwg:Version>2.0</pwg:Version>
-  <scan:Intent>Document</scan:Intent>
-  <pwg:ScanRegions>
+<scan:ScanSettings xmlns:scan="${namespace}" xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm">
+  <pwg:Version>${version}</pwg:Version>
+${intent}  <pwg:ScanRegions>
     <pwg:ScanRegion>
-      <pwg:Height>3508</pwg:Height>
-      <pwg:Width>2550</pwg:Width>
+      <pwg:ContentRegionUnits>escl:ThreeHundredthsOfInches</pwg:ContentRegionUnits>
       <pwg:XOffset>0</pwg:XOffset>
       <pwg:YOffset>0</pwg:YOffset>
+      <pwg:Width>${width}</pwg:Width>
+      <pwg:Height>${height}</pwg:Height>
     </pwg:ScanRegion>
   </pwg:ScanRegions>
   <pwg:InputSource>${inputSource}</pwg:InputSource>
-  <scan:ColorMode>RGB24</scan:ColorMode>
-  <scan:XResolution>300</scan:XResolution>
-  <scan:YResolution>300</scan:YResolution>
+  <scan:ColorMode>${colorMode}</scan:ColorMode>
   <pwg:DocumentFormat>${format}</pwg:DocumentFormat>
-  <scan:DocumentFormatExt>${format}</scan:DocumentFormatExt>
-  ${duplex ? '<scan:Duplex>true</scan:Duplex>' : ''}
-</scan:ScanSettings>`;
+${extendedFormat}  <scan:XResolution>${resolution}</scan:XResolution>
+  <scan:YResolution>${resolution}</scan:YResolution>
+${duplexSetting}</scan:ScanSettings>`;
+}
+
+function preferredResolution(resolutions) {
+  if (!Array.isArray(resolutions) || resolutions.length === 0) return 300;
+  if (resolutions.includes(300)) return 300;
+  const atMost300 = resolutions.filter(value => value <= 300).sort((a, b) => b - a);
+  return atMost300[0] || Math.min(...resolutions);
 }
 
 async function fetchWithTimeout(url, init, timeoutMs, fetchImpl) {
@@ -304,6 +375,19 @@ function hasHeader(headers, name) {
 function xmlValue(xml, tag) {
   const match = xml.match(new RegExp(`<(?:[A-Za-z0-9_-]+:)?${tag}\\b[^>]*>([^<]*)<`, 'i'));
   return match ? decodeXml(match[1].trim()) : null;
+}
+
+function positiveIntegerXmlValue(xml, tag) {
+  const value = Number(xmlValue(xml, tag));
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function xmlBlock(xml, tag) {
+  const match = xml.match(new RegExp(
+    `<(?:[A-Za-z0-9_-]+:)?${tag}\\b[^>]*>([\\s\\S]*?)</(?:[A-Za-z0-9_-]+:)?${tag}>`,
+    'i',
+  ));
+  return match ? match[1] : '';
 }
 
 function decodeXml(value) {

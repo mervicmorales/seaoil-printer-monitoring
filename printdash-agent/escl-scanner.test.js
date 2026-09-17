@@ -12,6 +12,7 @@ const {
 
 const capabilities = `<?xml version="1.0"?>
 <scan:ScannerCapabilities xmlns:scan="http://schemas.hp.com/imaging/escl/2011/05/03" xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm">
+  <pwg:Version>2.0</pwg:Version>
   <pwg:MakeAndModel>Brother MFC Test</pwg:MakeAndModel>
   <pwg:SerialNumber>ABC123</pwg:SerialNumber>
   <scan:Platen><scan:PlatenInputCaps /></scan:Platen>
@@ -19,15 +20,70 @@ const capabilities = `<?xml version="1.0"?>
   <scan:DocumentFormatExt>application/pdf</scan:DocumentFormatExt>
 </scan:ScannerCapabilities>`;
 
+const legacyHpCapabilities = `<?xml version="1.0"?>
+<scan:ScannerCapabilities xmlns:scan="http://schemas.hp.com/imaging/escl/2011/02/08" xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm">
+  <pwg:Version>1.0</pwg:Version>
+  <pwg:MakeAndModel>HP LaserJet Pro MFP M225dn</pwg:MakeAndModel>
+  <scan:ColorProfile>
+    <scan:ColorReference>RGB24</scan:ColorReference>
+    <scan:Formats><pwg:DocumentFormat>image/jpeg</pwg:DocumentFormat></scan:Formats>
+  </scan:ColorProfile>
+  <scan:Platen>
+    <scan:PlatenInputCaps>
+      <scan:MaxWidth>2550</scan:MaxWidth>
+      <scan:MaxHeight>3508</scan:MaxHeight>
+      <scan:XResolution>200</scan:XResolution>
+      <scan:XResolution>300</scan:XResolution>
+    </scan:PlatenInputCaps>
+  </scan:Platen>
+</scan:ScannerCapabilities>`;
+
 test('parses useful eSCL scanner capabilities', () => {
-  assert.deepEqual(parseScannerCapabilities(capabilities), {
-    model: 'Brother MFC Test',
-    serialNumber: 'ABC123',
-    formats: ['application/pdf'],
-    hasPlaten: true,
-    hasAdf: true,
-    hasDuplexAdf: false,
+  const parsed = parseScannerCapabilities(capabilities);
+  assert.equal(parsed.model, 'Brother MFC Test');
+  assert.equal(parsed.serialNumber, 'ABC123');
+  assert.deepEqual(parsed.formats, ['application/pdf']);
+  assert.equal(parsed.hasPlaten, true);
+  assert.equal(parsed.hasAdf, true);
+  assert.equal(parsed.hasDuplexAdf, false);
+  assert.equal(parsed.scanSettings.namespace, 'http://schemas.hp.com/imaging/escl/2011/05/03');
+  assert.equal(parsed.scanSettings.version, '2.0');
+  assert.equal(parsed.scanSettings.supportsDocumentFormatExt, true);
+});
+
+test('builds a capability-aware scan ticket for a legacy HP CloudScan device', () => {
+  const parsed = parseScannerCapabilities(legacyHpCapabilities);
+  const xml = buildScanSettings({
+    source: 'Flatbed',
+    format: 'image/jpeg',
+    settings: parsed.scanSettings,
   });
+
+  assert.equal(parsed.scanSettings.version, '1.0');
+  assert.equal(parsed.scanSettings.supportsDocumentFormatExt, false);
+  assert.match(xml, /xmlns:scan="http:\/\/schemas\.hp\.com\/imaging\/escl\/2011\/02\/08"/);
+  assert.match(xml, /<pwg:Version>1\.0<\/pwg:Version>/);
+  assert.match(xml, /<pwg:ContentRegionUnits>escl:ThreeHundredthsOfInches<\/pwg:ContentRegionUnits>/);
+  assert.match(xml, /<pwg:Width>2550<\/pwg:Width>/);
+  assert.match(xml, /<pwg:Height>3508<\/pwg:Height>/);
+  assert.match(xml, /<scan:XResolution>300<\/scan:XResolution>/);
+  assert.doesNotMatch(xml, /DocumentFormatExt/);
+  assert.doesNotMatch(xml, /<scan:Intent>/);
+  assert.ok(xml.indexOf('<pwg:DocumentFormat>') < xml.indexOf('<scan:XResolution>'));
+});
+
+test('keeps modern Brother and Canon eSCL options in their scan ticket', () => {
+  const parsed = parseScannerCapabilities(capabilities);
+  const xml = buildScanSettings({
+    source: 'Flatbed',
+    format: 'application/pdf',
+    settings: parsed.scanSettings,
+  });
+
+  assert.match(xml, /xmlns:scan="http:\/\/schemas\.hp\.com\/imaging\/escl\/2011\/05\/03"/);
+  assert.match(xml, /<pwg:Version>2\.0<\/pwg:Version>/);
+  assert.match(xml, /<scan:DocumentFormatExt>application\/pdf<\/scan:DocumentFormatExt>/);
+  assert.match(xml, /<pwg:ContentRegionUnits>escl:ThreeHundredthsOfInches<\/pwg:ContentRegionUnits>/);
 });
 
 test('discovers assigned eSCL printers without a SANE installation', async () => {
