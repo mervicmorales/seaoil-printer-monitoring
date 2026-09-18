@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "scanners": {
+    "EXAMPLE123": {
+      "windows": {
+        "provider": "naps2",
+        "driver": "wia",
+        "device": "Example Office Scanner - EXAMPLE123"
+      },
+      "macos": {
+        "provider": "naps2",
+        "driver": "apple",
+        "device": "Example Office Scanner - EXAMPLE123"
+      }
+    }
+  }
+}

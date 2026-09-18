@@ -181,12 +181,30 @@ monitoring uploads. Configure `SEAOIL_SNMP_COMMUNITY` explicitly in production.
 | `PORT` | `3003` | Local PrintDash dashboard port |
 | `PRINTDASH_LISTEN_ADDRESS` | `0.0.0.0` | Agent HTTP listener; the Windows service template uses `127.0.0.1` |
 | `SEAOIL_ENV_FILE` | Normal dotenv lookup | Optional explicit `.env` path used by Windows service deployments |
+| `PRINT_BACKEND` | Platform default | `cups` on Linux/macOS, `windows` on Windows, or `remote-cups` for a site CUPS gateway |
+| `CUPS_SERVER_URL` | `http://127.0.0.1:631` | CUPS gateway URL used by the `remote-cups` backend; credentials in the URL are rejected |
 | `USERS_FILE` | `./users.json` | Path to the users/auth file |
 | `DATA_FILE` | `./printers.json` | Path to the printers list |
 | `SEAOIL_CONFIG_CACHE_FILE` | Beside `DATA_FILE` | Agent-managed last-known central configuration |
 | `SETTINGS_FILE` | `./settings.json` | Path to settings data |
 | `SCAN_DIR` | `/opt/scans` | Directory where scan files are saved |
 | `UPLOAD_DIR` | `/tmp/printdash-uploads` | Temp directory for print job uploads |
+| `NAPS2_CONSOLE_PATH` | Platform default | Optional absolute path to the externally installed NAPS2 Console |
+| `SCANNER_DEVICE_MAP_FILE` | Platform default | Serial-number scanner mapping; a missing file disables native mappings only |
+
+### Native scanner providers
+
+The dashboard and PostgreSQL remain containerized. At a site that needs native
+Windows WIA/TWAIN scanning, run `printdash-agent` as the Windows service instead
+of running a second Linux agent. A valid serial-number NAPS2 mapping is preferred,
+then compatible eSCL, then the existing SANE fallback. Legacy HP CloudScan
+devices are exposed only through a verified native mapping because sending them
+modern eSCL settings can cause HTTP 400 responses.
+
+Only the agent computer needs the reviewed NAPS2 installation and manufacturer
+scanner drivers. Start from `scanner-devices.example.json`; never commit the
+site's real ProgramData mapping. See
+[windows/service/README.md](windows/service/README.md) for setup and diagnostics.
 
 ### Remote office network requirements
 

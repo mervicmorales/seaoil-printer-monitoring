@@ -18,7 +18,20 @@ const crypto  = require('crypto');
 const { buildLpArgs } = require('./print-options');
 const { runCupsAdminCommand } = require('./cups-admin');
 const { readPrinterMacAddress } = require('./mac-address');
-const { discoverEsclDevices, runEsclScan } = require('./escl-scanner');
+const { createScannerManager } = require('./scanner-providers');
+const {
+  listAssignedWindowsPrinterTargets,
+  printWindowsBuffer,
+  resolveWindowsPrinterQueue,
+} = require('./windows-printer');
+const {
+  buildRemoteCupsPrinterTargets,
+  listAssignedRemoteCupsPrinterTargets,
+  listRemoteCupsQueues,
+  printRemoteCupsBuffer,
+  resolvePrintBackend,
+  resolveRemoteCupsPrinterQueue,
+} = require('./remote-cups');
 const {
   createHealthPayload,
   createShutdownCoordinator,
@@ -31,6 +44,7 @@ const app  = express();
 const runtimeSettings = getRuntimeSettings();
 const PORT = runtimeSettings.port;
 const BIND_ADDRESS = runtimeSettings.bindAddress;
+const PRINT_BACKEND = resolvePrintBackend(process.env.PRINT_BACKEND, process.platform);
 const PROCESS_STARTED_AT = Date.now();
 let lifecycleState = 'starting';
 // other existing imports...
@@ -266,6 +280,13 @@ function savePrinters() {
 let LOCAL_PRINTERS = loadPrinters();
 const cachedCentralConfig = loadCachedMonitoringConfig();
 let PRINTERS = cachedCentralConfig.ok ? cachedCentralConfig.targets : [...LOCAL_PRINTERS];
+const scannerManager = createScannerManager({
+  scanDirectory: SCAN_DIR,
+  getPrinters: () => PRINTERS,
+  assignedPrinterIdForScanner,
+  mappingFile: process.env.SCANNER_DEVICE_MAP_FILE || undefined,
+  naps2ConsolePath: process.env.NAPS2_CONSOLE_PATH || undefined,
+});
 let centralConfigActive = cachedCentralConfig.ok;
 let centralConfigSignature = cachedCentralConfig.ok
   ? JSON.stringify(cachedCentralConfig.targets.map(p => [p.id, p.ip, p.name, p.location]))
@@ -802,6 +823,46 @@ async function processCentralDiscoveryJob() {
 }
 
 async function printOpsSnapshot() {
+  if (PRINT_BACKEND === 'remote-cups') {
+    const [queues, scanDevices] = await Promise.all([
+      listRemoteCupsQueues(),
+      listScanDevices(),
+    ]);
+    const printerTargets = buildRemoteCupsPrinterTargets(PRINTERS, queues);
+    return {
+      cupsPrinters: queues.map(queue => queue.name),
+      printerTargets,
+      printers: queues.map(queue => ({
+        name: queue.name,
+        state: queue.state,
+        accepting: queue.accepting,
+        reasons: queue.reasons,
+      })),
+      defaultPrinter: null,
+      activeJobs: [],
+      completedJobs: [],
+      scanDevices,
+      scans: listScans().slice(0, 25),
+      capturedAt: new Date().toISOString(),
+    };
+  }
+  if (PRINT_BACKEND === 'windows') {
+    const [printerTargets, scanDevices] = await Promise.all([
+      Promise.resolve(listAssignedWindowsPrinterTargets(PRINTERS)),
+      listScanDevices(),
+    ]);
+    return {
+      cupsPrinters: printerTargets.map(target => target.queue),
+      printerTargets,
+      printers: printerTargets.map(target => ({ name: target.queue, state: 'ready' })),
+      defaultPrinter: null,
+      activeJobs: [],
+      completedJobs: [],
+      scanDevices,
+      scans: listScans().slice(0, 25),
+      capturedAt: new Date().toISOString(),
+    };
+  }
   const [cupsPrinters, printerTargets, printerDetail, activeJobs, completedJobs, scanDevices] = await Promise.all([
     listCupsPrinters(),
     listAssignedCupsPrinterTargets(),
@@ -835,7 +896,7 @@ async function executePrintOpsCommand(command) {
       printer = await resolveAssignedPrinterQueue(assignedPrinter);
     } else {
       const legacyPrinter = String(payload.printer||'');
-      const printerTargets = await listAssignedCupsPrinterTargets();
+      const printerTargets = await listAssignedPrinterTargets();
       if (!printerTargets.some(target => target.queue === legacyPrinter)) {
         throw new Error('The selected printer is not assigned to this agent');
       }
@@ -924,6 +985,9 @@ async function processCentralPrintOpsCommand() {
 async function startMonitoringLoops() {
   if (lifecycleState === 'stopping') return;
   purgeExpiredLocalScans();
+  await scannerManager.logDiagnostics().catch(error => {
+    console.warn(`[Scanner] Startup diagnostics failed: ${safeError(error)}`);
+  });
   await syncCentralPrinterConfig();
   if (lifecycleState === 'stopping') return;
   await refreshAll();
@@ -1016,6 +1080,8 @@ async function listAssignedCupsPrinterTargets() {
 }
 
 async function resolveAssignedPrinterQueue(printer) {
+  if (PRINT_BACKEND === 'remote-cups') return resolveRemoteCupsPrinterQueue(printer);
+  if (PRINT_BACKEND === 'windows') return resolveWindowsPrinterQueue(printer);
   const targets = await listAssignedCupsPrinterTargets();
   const existing = targets.find(target => target.printerId === printer.id);
   if (existing) return existing.queue;
@@ -1027,6 +1093,12 @@ async function resolveAssignedPrinterQueue(printer) {
   } catch (error) {
     throw new Error(`Could not configure the selected online printer in CUPS: ${error?.message || 'IPP is unavailable'}`);
   }
+}
+
+function listAssignedPrinterTargets() {
+  if (PRINT_BACKEND === 'remote-cups') return listAssignedRemoteCupsPrinterTargets(PRINTERS);
+  if (PRINT_BACKEND === 'windows') return Promise.resolve(listAssignedWindowsPrinterTargets(PRINTERS));
+  return listAssignedCupsPrinterTargets();
 }
 
 function printFile(filePath, printerName, copies, duplex) {
@@ -1044,6 +1116,27 @@ function printFile(filePath, printerName, copies, duplex) {
 }
 
 function printBuffer(fileBuffer, fileName, mimeType, printerName, copies, duplex, printOptions) {
+  if (PRINT_BACKEND === 'remote-cups') {
+    return printRemoteCupsBuffer({
+      fileBuffer,
+      fileName,
+      printerName,
+      copies: copies || 1,
+      duplex,
+      printOptions,
+    });
+  }
+  if (PRINT_BACKEND === 'windows') {
+    return printWindowsBuffer({
+      fileBuffer,
+      fileName,
+      mimeType,
+      printerName,
+      copies: copies || 1,
+      duplex,
+      printOptions,
+    });
+  }
   return new Promise((resolve,reject) => {
     const args = buildLpArgs({
       printerName,
@@ -1245,61 +1338,13 @@ function purgeExpiredLocalScans() {
   }
 }
 
-// ── Scanner discovery and capture (native eSCL plus SANE fallback) ─────────────
-function listSaneScanDevices() {
-  return new Promise(resolve => {
-    exec('scanimage -L 2>/dev/null', (err, stdout) => {
-      const devices = [];
-      (stdout || '').split('\n').forEach(line => {
-        const m = line.match(/device `([^']+)' is a (.+)/);
-        if (m) devices.push({
-          id: m[1],
-          label: m[2],
-          kind: 'sane',
-          printerId: assignedPrinterIdForScanner(m[1], m[2]),
-          sources: ['Flatbed', 'ADF', 'ADF Duplex'],
-        });
-      });
-      resolve(devices);
-    });
-  });
-}
-
+// ── Scanner discovery and capture (mapped native, eSCL, then SANE fallback) ───
 async function listScanDevices() {
-  const [saneDevices, esclDevices] = await Promise.all([
-    listSaneScanDevices(),
-    discoverEsclDevices(PRINTERS),
-  ]);
-  const devices = [];
-  const printerIds = new Set();
-  for (const device of esclDevices) {
-    devices.push(device);
-    if (device.printerId) printerIds.add(device.printerId);
-  }
-  for (const device of saneDevices) {
-    if (device.printerId && printerIds.has(device.printerId)) continue;
-    devices.push(device);
-  }
-  return devices;
+  return scannerManager.listDevices();
 }
 
 async function resolveSelectedScanDevice(deviceId) {
-  const esclMatch = String(deviceId).match(/^escl:(\d+)$/);
-  if (esclMatch) {
-    const printerId = Number(esclMatch[1]);
-    const printer = PRINTERS.find(item => Number(item.id) === printerId);
-    if (!printer) throw new Error('The selected scanner is no longer assigned to this agent');
-    const [device] = await discoverEsclDevices([printer], { timeoutMs: 12_000 });
-    if (!device) {
-      throw new Error('The scanner did not respond in time. Wake the printer, confirm it is online, and try again.');
-    }
-    return device;
-  }
-
-  const saneDevices = await listSaneScanDevices();
-  const device = saneDevices.find(item => item.id === deviceId);
-  if (!device) throw new Error('The selected scanner is no longer available');
-  return device;
+  return scannerManager.resolveDevice(deviceId);
 }
 
 function assignedPrinterIdForScanner(deviceId, label) {
@@ -1315,27 +1360,10 @@ function assignedPrinterIdForScanner(deviceId, label) {
 
 async function triggerScan(deviceOrId, source) {
   const device = typeof deviceOrId === 'string'
-    ? (await listScanDevices()).find(item => item.id === deviceOrId)
+    ? await resolveSelectedScanDevice(deviceOrId)
     : deviceOrId;
   if (!device) throw new Error('The selected scanner is not available');
-  if (device.kind === 'escl') {
-    const scan = await runEsclScan(device, source);
-    const name = `scan-${Date.now()}.${scan.extension}`;
-    fs.writeFileSync(path.join(SCAN_DIR, name), scan.buffer);
-    return { name, mimeType: scan.mimeType };
-  }
-
-  return new Promise((resolve, reject) => {
-    const deviceId = device.id;
-    if (!deviceId) return reject(new Error('No scanner device specified'));
-    const file = path.join(SCAN_DIR, `scan-${Date.now()}.pdf`);
-    const args = ['-d', deviceId, '--format=pdf', '-o', file];
-    if (source && source !== 'Flatbed') args.push('--source', source);
-    execFile('scanimage', args, { timeout: 120000 }, (err, stdout, stderr) => {
-      if (err) return reject(new Error(stderr || err.message));
-      resolve({ name: path.basename(file), mimeType: 'application/pdf' });
-    });
-  });
+  return scannerManager.scan(device, source);
 }
 
 // ── API routes ────────────────────────────────────────────────────────────────
@@ -1373,8 +1401,20 @@ app.delete('/api/printers/:id', (req,res) => {
 
 // Print jobs
 app.get('/api/cups/printers', async (_req,res) => {
-  const list = await listCupsPrinters();
-  res.json({printers:list});
+  try {
+    if (PRINT_BACKEND === 'remote-cups') {
+      const queues = await listRemoteCupsQueues();
+      return res.json({printers:queues.map(queue => queue.name)});
+    }
+    if (PRINT_BACKEND === 'windows') {
+      const targets = listAssignedWindowsPrinterTargets(PRINTERS);
+      return res.json({printers:targets.map(target => target.queue)});
+    }
+    const list = await listCupsPrinters();
+    res.json({printers:list});
+  } catch (error) {
+    res.status(500).json({error:error.message});
+  }
 });
 app.get('/api/cups/jobs', async (_req,res) => {
   const jobs = await getJobStatus();
@@ -1385,7 +1425,16 @@ app.post('/api/print', upload.single('file'), async (req,res) => {
   const {printer, copies, duplex} = req.body;
   if (!printer) return res.status(400).json({error:'printer name required'});
   try {
-    const result = await printFile(req.file.path, printer, copies||1, duplex||'none');
+    const result = PRINT_BACKEND === 'cups'
+      ? await printFile(req.file.path, printer, copies||1, duplex||'none')
+      : await printBuffer(
+        fs.readFileSync(req.file.path),
+        req.file.originalname,
+        req.file.mimetype,
+        printer,
+        copies||1,
+        duplex||'none',
+      );
     res.json({ok:true,...result});
   } catch(e) {
     res.status(500).json({error:e.message});
@@ -2586,6 +2635,7 @@ function startHttpServer() {
     console.log(`  PrintDash v${agentConfig.version} -> http://${BIND_ADDRESS}:${PORT}`);
     console.log('  Scan folder  -> '+SCAN_DIR);
     console.log('  Upload dir   -> '+UPLOAD_DIR);
+    console.log('  Print backend-> '+PRINT_BACKEND);
     console.log('  Telegram     -> '+(SETTINGS.telegram.enabled?'enabled':'disabled (configure in Settings tab)'));
     logAgentStartup();
     console.log('=======================================');

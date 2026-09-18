@@ -7,13 +7,16 @@
     "start": "node server.js",
     "test:cups-admin": "node --test cups-admin.test.js",
     "test:print-options": "node --test print-options.test.js",
+    "test:remote-cups": "node --test remote-cups.test.js",
+    "test:windows-print": "node --test windows-printer.test.js",
     "test:snmp-safety": "node --test snmp-safety.test.js",
     "test:mac": "node --test mac-address.test.js",
-    "test:scanner": "node --test escl-scanner.test.js",
+    "test:scanner": "node --test escl-scanner.test.js scanner-providers.test.js",
     "test:metadata": "node --test agent-metadata.test.js",
     "test:service": "node --test service-runtime.test.js"
   },
   "dependencies": {
+    "@sealsystems/ipp": "2.11.0",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
     "feral-blob": "^0.1.0",

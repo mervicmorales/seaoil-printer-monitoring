@@ -123,6 +123,52 @@ script restricts `agent.env` to LocalSystem read access and local Administrators
 full control. If a dedicated service account is introduced later, explicitly
 grant that identity read access before changing the SCM logon account.
 
+### Native scanner mapping
+
+Install an organization-approved pinned NAPS2 release and the manufacturer's
+WIA/WSD driver on the agent computer. List devices without starting a scan:
+
+```powershell
+& 'C:\Program Files\NAPS2\NAPS2.Console.exe' --version
+& 'C:\Program Files\NAPS2\NAPS2.Console.exe' --noprofile --listdevices --driver wia
+& 'C:\Program Files\NAPS2\NAPS2.Console.exe' --noprofile --listdevices --driver twain
+```
+
+Copy `scanner-devices.example.json` to this local-only path and replace its
+placeholder with each printer's physical serial and exact listed device name:
+
+```text
+C:\ProgramData\SEAOIL\PrinterAgent\config\scanner-devices.json
+```
+
+The mapping contains no credentials but is machine-specific and must not be
+committed. Legacy HP devices that advertise the old CloudScan namespace should
+use WIA or TWAIN rather than the NAPS2 eSCL driver. If a device appears for the
+interactive administrator but not in service diagnostics, verify that its
+driver is installed machine-wide and visible to LocalSystem.
+
+### Printing backends
+
+The recommended site architecture uses the local CUPS gateway. Create queues
+named `PrintOps_<central printer ID>`, then add these local-only settings to
+`agent.env`:
+
+```dotenv
+PRINT_BACKEND=remote-cups
+CUPS_SERVER_URL=http://127.0.0.1:631
+```
+
+CUPS owns printer protocol and certificate workarounds, while the Windows agent
+submits print jobs to deterministic queues. Keep CUPS bound to localhost when it
+runs on the same computer through WSL. The agent never creates queues remotely.
+
+The rollback backend is `PRINT_BACKEND=windows`. For that mode, install a
+reviewed SumatraPDF build at
+`C:\ProgramData\SEAOIL\PrinterAgent\tools\SumatraPDF\SumatraPDF.exe` and copy
+`printer-queues.example.json` to
+`C:\ProgramData\SEAOIL\PrinterAgent\config\printer-queues.json`. Map physical
+serial numbers to exact Windows queue names and keep the real mapping local.
+
 The service binds the local dashboard and `/health` endpoint to
 `127.0.0.1:3003`. This avoids exposing local administration endpoints to the
 branch network. Interactive `npm start` retains the existing `0.0.0.0` default
@@ -266,6 +312,10 @@ Use a spare Windows laptop on the printer network.
   fallback during central outages.
 - **No printer readings:** confirm the service identity can reach printer SNMP
   UDP 161 and any local print/scan dependencies.
+- **Legacy HP scan returns HTTP 400:** install the machine-wide WIA/WSD driver
+  and configure a serial-number WIA or TWAIN mapping. Do not force modern eSCL.
+- **Remote CUPS queue missing:** confirm the assigned printer ID has an accepting
+  `PrintOps_<ID>` queue and that `CUPS_SERVER_URL` is reachable from the service.
 - **Repository checkout access denied:** LocalSystem may not be able to read a
   checkout inside a tightly restricted user profile. Grant only the required
   read/execute access or test from the intended Program Files layout.
@@ -281,11 +331,9 @@ application database (the agent has none).
 
 An actual Windows host is still required to validate SCM signals, service-account
 access to printers/scanners, firewall policy, and the explicit Node runtime.
-The existing CUPS/SANE command integrations are Unix-oriented; Windows service
-support in this milestone guarantees SNMP monitoring and central communication,
-not native Windows print-driver or scanner integration. WinSW remains an
-externally acquired dependency that should be code-signed/approved as part of
-the future installer release process.
+WinSW, NAPS2, SumatraPDF, and printer drivers remain externally acquired
+dependencies that should be pinned, verified, and approved as part of the
+future installer release process.
 
 This milestone does not include an installer, bundled Node runtime, registration,
 remote commands, or any updater functionality.

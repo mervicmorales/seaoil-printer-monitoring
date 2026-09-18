@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "printers": {
+    "PRINTER-SERIAL-NUMBER": {
+      "windows": {
+        "queue": "Exact Windows printer queue name"
+      }
+    }
+  }
+}
