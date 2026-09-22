@@ -9,6 +9,7 @@ export default function RequestTonerModal() {
       showTitle={false}
       pageHeaderInModal
       hideScrollbar
+      variant="right-panel"
     >
       <RequestTonerPage embedded />
     </ModalShell>

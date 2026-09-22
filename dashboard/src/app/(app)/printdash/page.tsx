@@ -293,6 +293,7 @@ export default async function PrintDashPage({
           <RefreshControl
             refreshedAtLabel={formatDateTime(renderedAt)}
             intervalSeconds={AUTO_REFRESH_SECONDS}
+            iconOnly
           />
         }
       />
@@ -309,14 +310,14 @@ export default async function PrintDashPage({
 
       <CollapsibleFilterPanel activeFilterCount={activeFilterCount} className="mt-6">
         <AutoSubmitFilterForm
-          resetKey={[query, status, locationId ?? ""].join("|")}
+          resetKey={[status, locationId ?? ""].join("|")}
           className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))_auto]"
         >
           <SearchInput
-            key={query}
             label="Search printers"
             name="q"
             defaultValue={query}
+            submitOnChange
             placeholder="Name, model, serial, IP, location…"
             aria-label="Search monitored printers"
           />

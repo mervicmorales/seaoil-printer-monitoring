@@ -122,25 +122,50 @@ export default function PrinterStatusSelect({
 
   return (
     <>
-      <div className={`flex flex-col ${compact ? "gap-1" : "gap-1.5"}`}>
-        <label htmlFor="printer-status" className="text-xs font-medium text-slate-600">
-          Asset Status
-        </label>
-        <select
-          id="printer-status"
-          name="status"
-          form={formId}
-          value={status}
-          onChange={(event) => openDialog(event.target.value)}
-          disabled={isPending || nextStatus !== null}
-          required
-          className={`${compact ? "min-w-32 px-3 py-2 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-xl border font-semibold shadow-sm outline-none transition focus:ring-2 disabled:cursor-wait disabled:opacity-70 ${statusColor}`}
-        >
-          {PRINTER_STATUSES.map((item) => (
-            <option key={item} value={item}>{item}</option>
-          ))}
-        </select>
-      </div>
+      {compact ? (
+        <div className={`flex h-8 shrink-0 items-center overflow-hidden rounded-lg border shadow-sm transition focus-within:ring-2 ${statusColor}`}>
+          <label
+            htmlFor="printer-status"
+            className="flex h-full items-center border-r border-current/15 px-2 text-[9px] font-bold uppercase tracking-[0.09em] opacity-75"
+          >
+            Asset status
+          </label>
+          <select
+            id="printer-status"
+            name="status"
+            form={formId}
+            value={status}
+            onChange={(event) => openDialog(event.target.value)}
+            disabled={isPending || nextStatus !== null}
+            required
+            className="h-full min-w-28 bg-transparent px-2.5 text-xs font-bold outline-none disabled:cursor-wait disabled:opacity-70"
+          >
+            {PRINTER_STATUSES.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="printer-status" className="text-xs font-medium text-slate-600">
+            Asset Status
+          </label>
+          <select
+            id="printer-status"
+            name="status"
+            form={formId}
+            value={status}
+            onChange={(event) => openDialog(event.target.value)}
+            disabled={isPending || nextStatus !== null}
+            required
+            className={`min-w-48 rounded-xl border px-3.5 py-2.5 text-sm font-semibold shadow-sm outline-none transition focus:ring-2 disabled:cursor-wait disabled:opacity-70 ${statusColor}`}
+          >
+            {PRINTER_STATUSES.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {nextStatus && createPortal(
         <div

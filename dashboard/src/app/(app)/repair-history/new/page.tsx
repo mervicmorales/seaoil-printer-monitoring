@@ -19,14 +19,14 @@ export default async function ReportIssuePage({ embedded = false }: { embedded?:
           <PrimaryButton
             type="submit"
             form="report-printer-issue-form"
-            className="px-3 py-1.5 text-xs"
+            className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
           >
             <IconGlyph icon={Send} size={14} />
             Submit Report
           </PrimaryButton>
         ) : undefined}
       />
-      <Card className="p-5 sm:p-6">
+      <Card className={embedded ? "!border-0 p-0" : "p-5 sm:p-6"}>
         <ReportIssueForm
           action={createReportAction}
           locations={locations}

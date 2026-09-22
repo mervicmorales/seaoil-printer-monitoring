@@ -2,10 +2,8 @@ import Link from "next/link";
 import {
   BarChart3,
   Building2,
-  CalendarDays,
   CircleDollarSign,
   Droplets,
-  Filter,
   MapPin,
   PackageCheck,
   ReceiptText,
@@ -20,7 +18,6 @@ import {
   tonerTransactions,
   tonerTypes,
 } from "@/db/schema";
-import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
 import { Card, EmptyState, IconGlyph, PageHeader, StatCard } from "@/components/ui";
 import TonerExpenseExportDialog from "@/app/(app)/toner-expenses/TonerExpenseExportDialog";
 import { tonerExpenseExportPreview } from "@/lib/toner-expense-export";
@@ -35,7 +32,6 @@ export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | undefined>;
 type LookupFilter = number | "unassigned" | null;
-type LookupOption = { id: number; name: string };
 
 const currencyFormatter = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -109,15 +105,6 @@ export default async function TonerExpensesPage({
   const priceCoverage = summary.requestLines
     ? Math.round((summary.pricedRequestLines / summary.requestLines) * 100)
     : 0;
-  const activeFilterCount = [
-    departmentFilter,
-    locationFilter,
-    tonerTypeFilter,
-    itsNameFilter,
-    dateFrom && dateFrom !== `${today.slice(0, 4)}-01-01` ? dateFrom : "",
-    dateTo && dateTo !== today ? dateTo : "",
-    isAllTime ? "all-time" : "",
-  ].filter(Boolean).length;
   const chartDepartments = summary.departments.slice(0, 8);
   const chartMonths = summary.months.slice(-12);
 
@@ -173,29 +160,6 @@ export default async function TonerExpensesPage({
         <StatCard compact label="Request records" value={numberFormatter.format(summary.requestLines)} accent="#7c3aed" icon={ReceiptText} />
         <StatCard compact label="Price coverage" value={`${priceCoverage}%`} accent={priceCoverage === 100 ? "#059669" : "#d97706"} icon={Droplets} />
       </section>
-
-      <CollapsibleFilterPanel activeFilterCount={activeFilterCount} defaultOpen={false} className="my-5">
-        <form method="get" className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <DateField name="dateFrom" label="Date from" value={dateFrom} />
-            <DateField name="dateTo" label="Date to" value={dateTo} />
-            <FilterSelect name="department" label="Department" value={lookupValue(departmentFilter)} options={allDepartments} includeUnassigned />
-            <FilterSelect name="location" label="Location" value={lookupValue(locationFilter)} options={allLocations} includeUnassigned />
-            <FilterSelect name="tonerType" label="Toner type" value={lookupValue(tonerTypeFilter)} options={allTonerTypes} />
-            <FilterSelect name="itsName" label="ITS name" value={lookupValue(itsNameFilter)} options={allItsNames} includeUnassigned />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-            <div className="flex flex-wrap gap-2">
-              <Link href="/toner-expenses" className="inline-flex h-9 items-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Current year</Link>
-              <Link href="/toner-expenses?allTime=1" className="inline-flex h-9 items-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">All time</Link>
-            </div>
-            <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#012c50]">
-              <IconGlyph icon={Filter} size={15} />
-              Apply filters
-            </button>
-          </div>
-        </form>
-      </CollapsibleFilterPanel>
 
       {summary.requestLines === 0 ? (
         <Card><EmptyState message="No toner requests match the selected filters." /></Card>
@@ -390,43 +354,6 @@ function MonthlyChart({ rows }: { rows: ExpenseBreakdown[] }) {
         <span>{formatMonth(rows[rows.length - 1].key, true)}</span>
       </div>
     </div>
-  );
-}
-
-function DateField({ name, label, value }: { name: string; label: string; value: string }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>
-      <span className="relative block">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><IconGlyph icon={CalendarDays} size={15} /></span>
-        <input type="date" name={name} defaultValue={value} className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15" />
-      </span>
-    </label>
-  );
-}
-
-function FilterSelect({
-  name,
-  label,
-  value,
-  options,
-  includeUnassigned = false,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: LookupOption[];
-  includeUnassigned?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>
-      <select name={name} defaultValue={value} className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15">
-        <option value="">All {label.toLowerCase()}s</option>
-        {includeUnassigned && <option value="unassigned">Unassigned</option>}
-        {options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-      </select>
-    </label>
   );
 }
 

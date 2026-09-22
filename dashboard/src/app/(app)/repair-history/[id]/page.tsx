@@ -70,26 +70,26 @@ export default async function ViewTicketPage({
           </>
         ) : undefined}
       />
-      <Card className="overflow-hidden">
-        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+      <Card className={embedded ? "overflow-hidden !border-0" : "overflow-hidden"}>
+        <div className={`flex items-center gap-2.5 rounded-lg bg-slate-100 ${embedded ? "mx-4 mt-4 px-3.5 py-2.5" : "mx-5 mt-5 px-4 py-3"}`}>
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm">
             <IconGlyph icon={ClipboardList} size={17} />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-[#014171]">Ticket information</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Printer, assignment, and service dates for this repair request.</p>
+            <h2 className="text-sm font-semibold text-slate-900">General information</h2>
+            <p className="mt-0.5 text-[11px] text-slate-500">Printer, assignment, and service dates for this repair request.</p>
           </div>
         </div>
-        <dl className="grid grid-cols-1 gap-3 bg-slate-50/60 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
+        <dl className={embedded ? "px-7 py-3" : "px-8 py-4"}>
           <Field label="Requested Date" value={formatDate(t.requestedDate)} />
           <Field label="Department" value={record.departmentName || "—"} />
           <Field label="Location" value={record.locationName || "—"} />
           <Field label="Vendor" value={record.vendorName || "—"} />
           <Field label="Date Closed" value={formatDate(t.dateClosed)} />
           {!access.repair && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Ticket Status</p>
-              <p className="mt-1"><Badge color={statusBadgeColor(t.status)}>{t.status}</Badge></p>
+            <div className="grid min-w-0 grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)] items-start gap-4 py-2">
+              <dt className="text-sm font-medium text-slate-500">Ticket Status</dt>
+              <dd><Badge color={statusBadgeColor(t.status)}>{t.status}</Badge></dd>
             </div>
           )}
         </dl>
@@ -107,7 +107,7 @@ export default async function ViewTicketPage({
             showActions={!embedded}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 border-t border-slate-200 bg-white p-5 sm:p-6 lg:grid-cols-2">
+          <dl className={`border-t border-slate-200 bg-white ${embedded ? "px-7 py-3" : "px-8 py-4"}`}>
             <Field label="Concern" value={t.problem} />
             <div>
               <Field label="Resolution" value={t.resolution || "—"} />
@@ -122,7 +122,7 @@ export default async function ViewTicketPage({
                 </a>
               )}
             </div>
-          </div>
+          </dl>
         )}
       </Card>
     </div>
@@ -131,9 +131,9 @@ export default async function ViewTicketPage({
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</dt>
-      <dd className="mt-1.5 break-words text-sm font-semibold text-slate-800">{value}</dd>
+    <div className="grid min-w-0 grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)] items-start gap-4 py-2">
+      <dt className="text-sm font-medium text-slate-500">{label}</dt>
+      <dd className="break-words text-sm font-semibold text-slate-900">{value}</dd>
     </div>
   );
 }

@@ -11,7 +11,11 @@ export function normalizePrinterReturnTo(value?: string | null) {
   try {
     const url = new URL(value, "http://printer-monitoring.local");
     const route = PRINTER_RETURN_ROUTES.find((candidate) => candidate === url.pathname);
-    return route ? `${route}${url.search}` : "/printers";
+    if (route) return `${route}${url.search}`;
+    if (/^\/contracts\/\d+$/.test(url.pathname)) {
+      return `${url.pathname}${url.search}`;
+    }
+    return "/printers";
   } catch {
     return "/printers";
   }

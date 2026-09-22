@@ -25,7 +25,7 @@ export default async function NewUserPage({
           <PrimaryButton
             type="submit"
             form="user-create-form"
-            className="px-3 py-1.5 text-xs"
+            className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
           >
             <IconGlyph icon={UserPlus} size={14} />
             Create Account

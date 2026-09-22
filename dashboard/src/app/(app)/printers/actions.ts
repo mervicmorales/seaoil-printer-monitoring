@@ -17,6 +17,7 @@ import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 import { normalizeMacAddress } from "@/lib/mac-address";
+import { hasAdminPrivileges } from "@/lib/roles";
 
 function num(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -52,7 +53,7 @@ export async function updatePrinterStatusAction(
 
   revalidatePath("/printers");
   revalidatePath(`/printers/${printerId}`);
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   revalidatePath("/printdash");
   return { success: true };
 }
@@ -170,7 +171,7 @@ export async function createPrinterAction(
   }
 
   revalidatePath("/printers");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   revalidatePath("/printdash");
   redirect(`${returnTo}?success=${encodeURIComponent("Printer added successfully.")}`);
 }
@@ -186,12 +187,34 @@ export async function updatePrinterAction(
   const returnTo = normalizePrinterReturnTo(str(formData.get("returnTo")));
 
   const tonerTypeIds = formData.getAll("tonerTypeIds").map((v) => Number(v)).filter((n) => !Number.isNaN(n));
+  const newSerialNumber = str(formData.get("newSerialNumber"));
+  const replacementDate = str(formData.get("replacementDate"));
+  const replacementModel = str(formData.get("replacementModel"));
   const fieldErrors: Record<string, string> = {};
   const monitoring = await validateMonitoringAssignment(formData, fieldErrors, {
     allowTextAddress: true,
     maxAddressLength: 20,
   });
   if (Object.keys(fieldErrors).length) return { fieldErrors };
+
+  if (newSerialNumber && !hasAdminPrivileges(session.role)) {
+    return { error: "Only administrators can record printer replacements." };
+  }
+  if (newSerialNumber && !replacementDate) {
+    return { error: "Select a replacement date before saving the new serial number." };
+  }
+
+  const [replacementSource] = newSerialNumber
+    ? await db
+        .select({ serialNumber: printers.serialNumber, model: printers.model })
+        .from(printers)
+        .where(eq(printers.id, id))
+        .limit(1)
+    : [];
+  if (newSerialNumber && !replacementSource) return { error: "Printer not found." };
+  if (newSerialNumber && newSerialNumber === replacementSource?.serialNumber) {
+    return { error: "Enter a different serial number for the replacement unit." };
+  }
 
   try {
     await db.transaction(async (tx) => {
@@ -224,6 +247,26 @@ export async function updatePrinterAction(
             .insert(printerTonerTypes)
             .values(tonerTypeIds.map((tonerTypeId) => ({ printerId: id, tonerTypeId })));
         }
+
+        if (newSerialNumber && replacementDate && replacementSource) {
+          const nextModel = replacementModel || replacementSource.model;
+          await tx.insert(replacementHistory).values({
+            printerId: id,
+            replacementDate,
+            oldSerialNumber: replacementSource.serialNumber,
+            newSerialNumber,
+            model: nextModel,
+          });
+          await tx
+            .update(printers)
+            .set({
+              serialNumber: newSerialNumber,
+              model: nextModel,
+              macAddress: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(printers.id, id));
+        }
       }
 
       if (monitoring.enabled && monitoring.agentId) {
@@ -247,10 +290,11 @@ export async function updatePrinterAction(
 
   revalidatePath("/printers");
   revalidatePath(`/printers/${id}`);
-  revalidatePath("/dashboard");
+  revalidatePath(`/printers/${id}/edit`);
+  revalidatePath("/overview");
   revalidatePath("/printdash");
   redirect(
-    `/printers/${id}?success=${encodeURIComponent("Printer updated successfully.")}&returnTo=${encodeURIComponent(returnTo)}`,
+    `/printers/${id}?success=${encodeURIComponent(newSerialNumber ? "Printer updated and replacement recorded successfully." : "Printer updated successfully.")}&returnTo=${encodeURIComponent(returnTo)}`,
   );
 }
 
@@ -260,7 +304,7 @@ export async function deletePrinterAction(formData: FormData) {
   if (!id) return;
   await db.delete(printers).where(eq(printers.id, id));
   revalidatePath("/printers");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   redirect("/printers?success=Printer deleted.");
 }
 

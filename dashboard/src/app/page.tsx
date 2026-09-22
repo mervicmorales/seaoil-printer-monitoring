@@ -8,7 +8,7 @@ export default async function RootPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.role === "employee") redirect("/portal");
-  if (hasAdminPrivileges(session.role)) redirect("/dashboard");
+  if (hasAdminPrivileges(session.role)) redirect("/overview");
   const access = await getModuleAccessMap(session.id, session.role);
   const firstModule = NAVIGABLE_MODULES.find((module) => access[module]);
   redirect(firstModule ? MODULE_PATHS[firstModule] : "/access-denied");

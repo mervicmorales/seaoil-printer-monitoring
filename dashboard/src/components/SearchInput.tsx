@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useId,
   useRef,
   useState,
@@ -8,6 +9,7 @@ import {
   type InputHTMLAttributes,
   type KeyboardEvent,
 } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LoaderCircle, Search, X } from "lucide";
 import { MorphIcon } from "morphicons/react";
 
@@ -22,6 +24,8 @@ type SearchInputProps = Omit<
   error?: string | null;
   containerClassName?: string;
   submitOnClear?: boolean;
+  submitOnChange?: boolean;
+  debounceMs?: number;
   onValueChange?: (value: string) => void;
   onClear?: () => void;
 };
@@ -34,6 +38,8 @@ export default function SearchInput({
   error,
   containerClassName = "",
   submitOnClear = true,
+  submitOnChange = false,
+  debounceMs = 300,
   onValueChange,
   onClear,
   onChange,
@@ -47,8 +53,39 @@ export default function SearchInput({
   const inputId = id ?? generatedId;
   const errorId = `${inputId}-error`;
   const inputRef = useRef<HTMLInputElement>(null);
+  const submitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [internalValue, setInternalValue] = useState(defaultValue);
   const query = value ?? internalValue;
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => () => {
+    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (value === undefined && document.activeElement !== inputRef.current) {
+      setInternalValue(defaultValue);
+    }
+  }, [defaultValue, value]);
+
+  function scheduleSubmit(nextValue: string, delay = debounceMs) {
+    if (!submitOnChange) return;
+    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    submitTimerRef.current = setTimeout(() => {
+      const fieldName = typeof inputProps.name === "string" ? inputProps.name : "";
+      if (!fieldName) {
+        inputRef.current?.form?.requestSubmit();
+        return;
+      }
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextValue) params.set(fieldName, nextValue);
+      else params.delete(fieldName);
+      const next = params.toString();
+      router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+    }, delay);
+  }
 
   function updateValue(nextValue: string) {
     if (value === undefined) setInternalValue(nextValue);
@@ -60,7 +97,9 @@ export default function SearchInput({
     onClear?.();
     inputRef.current?.focus();
 
-    if (submitOnClear) {
+    if (submitOnChange) {
+      scheduleSubmit("", 0);
+    } else if (submitOnClear) {
       const form = inputRef.current?.form;
       requestAnimationFrame(() => form?.requestSubmit());
     }
@@ -69,6 +108,7 @@ export default function SearchInput({
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     updateValue(event.target.value);
     onChange?.(event);
+    scheduleSubmit(event.target.value, event.target.value ? debounceMs : 0);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -78,6 +118,9 @@ export default function SearchInput({
     if (event.key === "Escape" && query) {
       event.preventDefault();
       clearSearch();
+    } else if (event.key === "Enter" && submitTimerRef.current) {
+      clearTimeout(submitTimerRef.current);
+      submitTimerRef.current = null;
     }
   }
 

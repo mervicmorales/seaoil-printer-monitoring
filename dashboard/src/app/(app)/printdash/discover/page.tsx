@@ -97,6 +97,7 @@ export default async function DiscoverPrintersPage({
           <RefreshControl
             refreshedAtLabel={formatDateTime(renderedAt)}
             intervalSeconds={10}
+            iconOnly
           />
         }
       />

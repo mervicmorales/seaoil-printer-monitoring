@@ -32,7 +32,7 @@ export async function PrintOpsScanPageContent({
   const session = employeeMode
     ? await requireSession()
     : await requireModuleFullAccess("printops");
-  if (employeeMode && session.role !== "employee") redirect("/dashboard");
+  if (employeeMode && session.role !== "employee") redirect("/overview");
 
   const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
@@ -82,9 +82,10 @@ export async function PrintOpsScanPageContent({
   return (
     <div>
       <PageHeader
-        title={`${employeeMode ? "Printer Services" : "PrintOps"} · Scan`}
+        parentTitle="Printer Services"
+        title="Scan"
         subtitle="Start a scan on an office scanner and download the completed file securely."
-        actions={<RefreshControl refreshedAtLabel={formatTime(renderedAt)} intervalSeconds={5} />}
+        actions={<RefreshControl refreshedAtLabel={formatDateTime(renderedAt)} intervalSeconds={5} iconOnly />}
       />
       <PrintOpsFeedback success={params.success} error={params.error} />
       <LatestScanAutoPreview scan={recentCompletedScan} />

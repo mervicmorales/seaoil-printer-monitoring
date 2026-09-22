@@ -50,13 +50,9 @@ export default function PermissionsPanel({
     return (
       <div
         key={item.module}
-        className={`overflow-hidden rounded-xl border bg-white transition ${
-          isExpanded
-            ? "border-[#7DA8D0]/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
-            : "border-slate-200 hover:border-slate-300"
-        }`}
+        className={`border-b border-slate-200 transition last:border-b-0 ${isExpanded ? "bg-sky-50/30" : "bg-white"}`}
       >
-        <label className="flex min-h-12 cursor-pointer items-center gap-3 px-3.5 text-sm font-semibold text-slate-700 sm:px-4">
+        <label className="flex min-h-12 cursor-pointer items-center gap-3 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
           {permissionCheckbox(item.module)}
           <span>{MODULE_LABELS[item.module]}</span>
           {hasChildren && (
@@ -70,11 +66,11 @@ export default function PermissionsPanel({
         </label>
 
         {hasChildren && isExpanded && (
-          <div className={`grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2.5 sm:p-3 ${childColumns}`}>
+          <div className={`grid gap-px border-t border-slate-200 bg-slate-200 ${childColumns}`}>
             {item.children?.map((child) => (
               <label
                 key={child}
-                className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-[0_1px_1px_rgba(15,23,42,0.02)] transition hover:border-[#7DA8D0] hover:text-slate-800"
+                className="flex min-h-10 cursor-pointer items-center gap-2.5 bg-white px-4 text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-800"
               >
                 {permissionCheckbox(child)}
                 {MODULE_LABELS[child]}
@@ -93,40 +89,35 @@ export default function PermissionsPanel({
   );
 
   return (
-    <div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
           {isSuperAdmin(role) ? (
-            <p className="text-xs text-slate-500">Super Admins always have full access to every module.</p>
+            <p className="bg-slate-50/60 px-4 py-3 text-xs text-slate-500">Super Admins always have full access to every module.</p>
           ) : role === "employee" ? (
-            <p className="text-xs text-slate-500">
+            <p className="bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
               Employees use the Employee Portal. Department printers are automatic, and additional grants are configured below.
             </p>
           ) : role === "admin" && !isSuperAdmin(actorRole) ? (
-            <p className="text-xs text-slate-500">Only a Super Admin can configure an Admin account&apos;s module permissions.</p>
+            <p className="bg-slate-50/60 px-4 py-3 text-xs text-slate-500">Only a Super Admin can configure an Admin account&apos;s module permissions.</p>
           ) : (
-            <form action={action} className="space-y-4">
+            <form action={action}>
               <input type="hidden" name="userId" value={userId} />
-              <p className="text-sm text-slate-500">
+              <p className="border-b border-slate-200 bg-slate-50/60 px-4 py-3 text-xs leading-5 text-slate-500">
                 Select a module to grant access. Printer and toner pages can be controlled individually from their submenu lists.
               </p>
 
-              <div className="space-y-2.5">
+              <div>
                 {dashboardPermission && permissionItem(dashboardPermission)}
                 {groupedPermissions.map(permissionItem)}
-
-                <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
-                  {remainingPermissions.map(permissionItem)}
-                </div>
+                {remainingPermissions.map(permissionItem)}
               </div>
 
-              <div className="flex justify-end border-t border-slate-200 pt-4">
+              <div className="flex justify-end bg-slate-50/60 px-4 py-3">
                 <PrimaryButton type="submit" className="min-w-36 text-xs">
                   Save Permissions
                 </PrimaryButton>
               </div>
             </form>
           )}
-        </div>
     </div>
   );
 }

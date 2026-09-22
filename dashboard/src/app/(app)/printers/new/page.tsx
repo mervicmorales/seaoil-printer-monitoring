@@ -1,4 +1,5 @@
-import { PageHeader, Card, PrimaryButton } from "@/components/ui";
+import { Plus } from "lucide";
+import { PageHeader, Card, PrimaryButton, IconGlyph } from "@/components/ui";
 import {
   getContracts,
   getDepartments,
@@ -48,13 +49,14 @@ export default async function NewPrinterPage({
         title="Add Printer"
         subtitle="Register a new printer asset into the monitoring system."
         actions={embedded ? (
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex items-center gap-2">
             <CreatePrinterStatusSelect formId="printer-create-form" compact />
             <PrimaryButton
               type="submit"
               form="printer-create-form"
-              className="px-3 py-1.5 text-xs"
+              className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
             >
+              <IconGlyph icon={Plus} size={14} />
               Add Printer
             </PrimaryButton>
           </div>
@@ -73,7 +75,7 @@ export default async function NewPrinterPage({
             macAddress: value("macAddress", 17) || null,
             serialNumber: value("serial", 255),
             model: value("model", 255) || null,
-            monthlyRate: "0",
+            monthlyRate: null,
             locationId: null,
             departmentId: null,
             vendorId: null,

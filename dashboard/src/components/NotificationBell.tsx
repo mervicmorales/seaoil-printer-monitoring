@@ -16,7 +16,13 @@ type Notif = {
   createdAt: string | Date;
 };
 
-export default function NotificationBell({ notifications }: { notifications: Notif[] }) {
+export default function NotificationBell({
+  notifications,
+  bare = false,
+}: {
+  notifications: Notif[];
+  bare?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
@@ -34,7 +40,9 @@ export default function NotificationBell({ notifications }: { notifications: Not
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#014171] shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+        className={bare
+          ? "relative flex size-10 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100"
+          : "relative flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#014171] shadow-sm transition hover:border-slate-300 hover:bg-slate-50"}
         aria-label="Notifications"
       >
         <MorphIcon icon={Bell} size={18} strokeWidth={2} reducedMotion="user" />

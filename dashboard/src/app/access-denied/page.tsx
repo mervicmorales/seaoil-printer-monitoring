@@ -13,10 +13,10 @@ export default function AccessDeniedPage() {
           system administrator if you believe this is an error.
         </p>
         <Link
-          href="/dashboard"
+          href="/overview"
           className="mt-6 inline-flex items-center justify-center rounded-lg bg-[#014171] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#012c50]"
         >
-          Back to Dashboard
+          Back to Overview
         </Link>
       </div>
     </main>

@@ -187,6 +187,7 @@ export default async function PrinterViewPage({
     <div>
       {!embedded && (
         <PageHeader
+          parentTitle="Printers"
           title={`${record.locationName || "—"} / ${record.departmentName || "—"}`}
           subtitle={`${p.serialNumber} / ${p.ipAddress || "—"}`}
           actions={

@@ -8,35 +8,20 @@ import {
   departments,
   itsNames,
 } from "@/db/schema";
-import { and, asc, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
-import { CalendarDays, Droplets, Filter, PackagePlus, Pencil, Send, X } from "lucide";
+import { and, asc, desc, eq, ilike } from "drizzle-orm";
+import { Droplets, PackagePlus, Pencil, Send } from "lucide";
 import { PageHeader, Card, TableCard, Badge, statusBadgeColor, EmptyState, IconGlyph } from "@/components/ui";
 import SuccessBanner from "@/components/SuccessBanner";
 import DeleteButton from "@/components/DeleteButton";
 import { deleteTransactionAction } from "./actions";
 import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
 import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
-import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
-import SearchInput from "@/components/SearchInput";
+import Search from "@/components/Search";
+import RecordTableToolbar from "@/components/RecordTableToolbar";
+import PrinterColumnFilter, { type PrinterColumnFilterOption } from "@/app/(app)/printers/PrinterColumnFilter";
 
 export const dynamic = "force-dynamic";
-
-function toArray(v: string | string[] | undefined) {
-  if (!v) return [];
-  return Array.isArray(v) ? v : [v];
-}
-
-function todayInManila() {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  return `${value("year")}-${value("month")}-${value("day")}`;
-}
+const BLANK_FILTER_VALUE = "__blank__";
 
 function formatTonerDate(value: string | Date | null | undefined) {
   if (!value) return "—";
@@ -67,43 +52,17 @@ export default async function TonerMonitoringPage({
   const access = await getModuleAccessMap(session.id, session.role);
   const sp = await searchParams;
 
-  const statusFilters = toArray(sp.status);
-  const tonerTypeFilters = toArray(sp.tonerType).map(Number);
-  const locationFilters = toArray(sp.location).map(Number);
-  const departmentFilters = toArray(sp.department).map(Number);
-  const itsNameFilters = toArray(sp.itsName).map(Number);
-  const ticket = typeof sp.ticket === "string" ? sp.ticket.trim() : "";
-  const today = todayInManila();
-  const currentYearStart = `${today.slice(0, 4)}-01-01`;
-  const dateFrom = typeof sp.dateFrom === "string"
-    ? sp.dateFrom
-    : sp.dateFrom === undefined
-      ? currentYearStart
-      : "";
-  const dateTo = typeof sp.dateTo === "string"
-    ? sp.dateTo
-    : sp.dateTo === undefined
-      ? today
-      : "";
-  const activeFilterCount =
-    [ticket, dateFrom, dateTo].filter(Boolean).length +
-    statusFilters.length +
-    tonerTypeFilters.length +
-    locationFilters.length +
-    departmentFilters.length +
-    itsNameFilters.length;
+  const ticket = firstParam(sp.ticket).trim();
+  const statusFilters = paramList(sp.status);
+  const dateFilters = paramList(sp.date);
+  const tonerFilters = paramList(sp.toner);
+  const departmentFilters = paramList(sp.department);
+  const sort = firstParam(sp.sort);
 
   const conditions = [];
-  if (statusFilters.length) conditions.push(inArray(tonerTransactions.type, statusFilters));
-  if (tonerTypeFilters.length) conditions.push(inArray(tonerTransactions.tonerTypeId, tonerTypeFilters));
-  if (locationFilters.length) conditions.push(inArray(tonerTransactions.locationId, locationFilters));
-  if (departmentFilters.length) conditions.push(inArray(tonerTransactions.departmentId, departmentFilters));
-  if (itsNameFilters.length) conditions.push(inArray(tonerTransactions.itsNameId, itsNameFilters));
   if (ticket) conditions.push(ilike(tonerTransactions.ticketReference, `%${ticket}%`));
-  if (dateFrom) conditions.push(gte(tonerTransactions.date, dateFrom));
-  if (dateTo) conditions.push(lte(tonerTransactions.date, dateTo));
 
-  const [inventoryRows, txnRows, allTonerTypes, allLocations, allDepartments, allItsNames] = await Promise.all([
+  const [inventoryRows, baseTxnRows] = await Promise.all([
     db
       .select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock, threshold: tonerInventory.lowStockThreshold, criticalThreshold: tonerInventory.criticalStockThreshold })
       .from(tonerTypes)
@@ -130,37 +89,29 @@ export default async function TonerMonitoringPage({
       .leftJoin(itsNames, eq(tonerTransactions.itsNameId, itsNames.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(tonerTransactions.createdAt), desc(tonerTransactions.id)),
-    db.select().from(tonerTypes).orderBy(asc(tonerTypes.name)),
-    db.select().from(locations).orderBy(asc(locations.name)),
-    db.select().from(departments).orderBy(asc(departments.name)),
-    db.select().from(itsNames).orderBy(asc(itsNames.name)),
   ]);
+
+  const statusOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: row.type, label: row.type })));
+  const dateOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: dateFilterValue(row.date), label: formatTonerDate(row.date) })));
+  const tonerOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: row.tonerTypeName, label: row.tonerTypeName })));
+  const departmentOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({
+    value: row.departmentName?.trim() || BLANK_FILTER_VALUE,
+    label: row.departmentName?.trim() || "(Blanks)",
+  })));
+  const txnRows = baseTxnRows
+    .filter((row) => (
+      matchesSelected(row.type, statusFilters)
+      && matchesSelected(dateFilterValue(row.date), dateFilters)
+      && matchesSelected(row.tonerTypeName, tonerFilters)
+      && matchesSelected(row.departmentName?.trim() || BLANK_FILTER_VALUE, departmentFilters)
+    ))
+    .sort((left, right) => compareTonerRows(left, right, sort));
 
   return (
     <div>
       <PageHeader
+        parentTitle="Toners"
         title="Toner Monitoring"
-        subtitle="Track toner inventory levels, deliveries and requests."
-        actions={
-          access.toner_monitoring ? (
-            <>
-              <Link
-                href="/toner-monitoring/delivery"
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012c50] hover:shadow-md"
-              >
-                <IconGlyph icon={PackagePlus} size={16} />
-                Add Toner
-              </Link>
-              <Link
-                href="/toner-monitoring/request"
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
-              >
-                <IconGlyph icon={Send} size={15} />
-                Request Toner
-              </Link>
-            </>
-          ) : undefined
-        }
       />
       <SuccessBanner
         message={typeof sp.success === "string" ? sp.success : undefined}
@@ -171,7 +122,6 @@ export default async function TonerMonitoringPage({
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Inventory</p>
           <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">Current toner stock</h2>
-          <p className="mt-1 text-xs text-slate-500">On-hand quantities and stock health by toner type.</p>
         </div>
         <span className="hidden rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm sm:inline-flex">
           {inventoryRows.length} toner types
@@ -220,87 +170,41 @@ export default async function TonerMonitoringPage({
         })}
       </section>
 
-      <CollapsibleFilterPanel activeFilterCount={activeFilterCount} defaultOpen={false}>
-        <AutoSubmitFilterForm
-          method="get"
-          resetKey={[
-            ticket,
-            dateFrom,
-            dateTo,
-            statusFilters.join(","),
-            tonerTypeFilters.join(","),
-            locationFilters.join(","),
-            departmentFilters.join(","),
-            itsNameFilters.join(","),
-          ].join("|")}
-          className="space-y-4"
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
-            <SearchInput
-              key={ticket}
-              label="Ticket or P.O reference"
-              name="ticket"
-              defaultValue={ticket}
-              placeholder="Search by Ticket and P.O Number"
-              aria-label="Search toner transactions"
-            />
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Date from</span>
-              <span className="relative block">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><IconGlyph icon={CalendarDays} size={15} /></span>
-                <input type="date" name="dateFrom" defaultValue={dateFrom} className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15" />
-              </span>
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Date to</span>
-              <span className="relative block">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><IconGlyph icon={CalendarDays} size={15} /></span>
-                <input type="date" name="dateTo" defaultValue={dateTo} className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15" />
-              </span>
-            </label>
-            <div className="flex items-end">
-              <Link href="/toner-monitoring" className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 lg:w-auto">
-                <IconGlyph icon={X} size={14} />
-                Clear
+      <TableCard className="mt-7 flex flex-col overflow-hidden">
+        <RecordTableToolbar count={txnRows.length} label="transaction">
+          <AutoSubmitFilterForm
+            method="get"
+            resetKey={[statusFilters.join(","), dateFilters.join(","), tonerFilters.join(","), departmentFilters.join(","), sort].join("|")}
+          >
+            {statusFilters.map((value) => <input key={`status-${value}`} type="hidden" name="status" value={value} />)}
+            {dateFilters.map((value) => <input key={`date-${value}`} type="hidden" name="date" value={value} />)}
+            {tonerFilters.map((value) => <input key={`toner-${value}`} type="hidden" name="toner" value={value} />)}
+            {departmentFilters.map((value) => <input key={`department-${value}`} type="hidden" name="department" value={value} />)}
+            {sort && <input type="hidden" name="sort" value={sort} />}
+            <Search name="ticket" defaultValue={ticket} placeholder="Ticket or P.O number" ariaLabel="Search toner transactions" />
+          </AutoSubmitFilterForm>
+          {access.toner_monitoring && (
+            <>
+              <Link
+                href="/toner-monitoring/delivery"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#00365f]"
+              >
+                <IconGlyph icon={PackagePlus} size={15} />
+                Add Toner
               </Link>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-sky-50 text-[#014171]">
-                <IconGlyph icon={Filter} size={15} />
-              </span>
-              <div>
-                <p className="text-sm font-bold text-[#014171]">Filter options</p>
-                <p className="text-xs text-slate-500">Select one or more values in each category.</p>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <FilterGroup title="Status" name="status" options={[{ id: "Delivery", name: "Delivery" }, { id: "Request", name: "Request" }]} selected={statusFilters} />
-              <FilterGroup title="Toner Type" name="tonerType" options={allTonerTypes} selected={tonerTypeFilters.map(String)} />
-              <FilterGroup title="Location" name="location" options={allLocations} selected={locationFilters.map(String)} />
-              <FilterGroup title="Department" name="department" options={allDepartments} selected={departmentFilters.map(String)} />
-              <FilterGroup title="ITS Names" name="itsName" options={allItsNames} selected={itsNameFilters.map(String)} />
-            </div>
-          </div>
-
-        </AutoSubmitFilterForm>
-      </CollapsibleFilterPanel>
-
-      <div className="mb-3 mt-7 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Activity</p>
-          <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">Toner transactions</h2>
-        </div>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
-          {txnRows.length} records
-        </span>
-      </div>
-
-      <TableCard>
+              <Link
+                href="/toner-monitoring/request"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
+              >
+                <IconGlyph icon={Send} size={15} />
+                Request Toner
+              </Link>
+            </>
+          )}
+        </RecordTableToolbar>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         {txnRows.length === 0 ? (
-          <EmptyState message="No toner transactions match your filters." />
+          <EmptyState message="No toner transactions found" />
         ) : (
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
@@ -346,30 +250,42 @@ export default async function TonerMonitoringPage({
           </div>
 
           <div className="hidden lg:block">
-          <table className="w-full min-w-[1360px] table-fixed text-left text-sm">
+          <table className="w-full table-fixed text-left text-sm">
             <caption className="sr-only">Toner delivery and request records</caption>
             <colgroup>
-              <col className="w-[110px]" />
-              <col className="w-[130px]" />
-              <col className="w-[140px]" />
-              <col className="w-[150px]" />
-              <col className="w-[100px]" />
-              <col className="w-[210px]" />
-              <col className="w-[130px]" />
-              <col />
-              <col className="w-[170px]" />
+              <col className="w-[10%]" />
+              <col className="w-[11%]" />
+              <col className="w-[12%]" />
+              <col className="w-[13%]" />
+              <col className="w-[9%]" />
+              <col className="w-[20%]" />
+              <col className="w-[25%]" />
             </colgroup>
             <thead className="border-b border-slate-200 bg-slate-50/95 text-[11px] uppercase tracking-[0.055em] text-slate-500 backdrop-blur-sm">
               <tr className="whitespace-nowrap">
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Status">
+                    <PrinterColumnFilter label="Status" paramName="status" options={statusOptions} selectedValues={statusFilters} currentSort={sort} sortAscValue="status_asc" sortDescValue="status_desc" />
+                  </FilterableHeading>
+                </th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Date">
+                    <PrinterColumnFilter label="Date" paramName="date" options={dateOptions} selectedValues={dateFilters} currentSort={sort} sortAscValue="date_asc" sortDescValue="date_desc" sortAscLabel="Oldest first" sortDescLabel="Newest first" />
+                  </FilterableHeading>
+                </th>
                 <th className="px-4 py-3">Ticket &amp; P.O</th>
-                <th className="px-4 py-3">Toner</th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Toner">
+                    <PrinterColumnFilter label="Toner" paramName="toner" options={tonerOptions} selectedValues={tonerFilters} currentSort={sort} sortAscValue="toner_asc" sortDescValue="toner_desc" />
+                  </FilterableHeading>
+                </th>
                 <th className="px-4 py-3 text-center">Quantity</th>
-                <th className="px-4 py-3">Location / Department</th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Location / Department">
+                    <PrinterColumnFilter label="Department" paramName="department" options={departmentOptions} selectedValues={departmentFilters} currentSort={sort} sortAscValue="department_asc" sortDescValue="department_desc" />
+                  </FilterableHeading>
+                </th>
                 <th className="px-4 py-3">ITS Name</th>
-                <th className="px-4 py-3">Remarks</th>
-                <th className="w-px whitespace-nowrap px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -404,18 +320,15 @@ export default async function TonerMonitoringPage({
                       <p className="mt-0.5 line-clamp-1 text-xs leading-4 text-slate-400" title={t.departmentName}>{t.departmentName}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3.5 font-medium text-slate-700">{t.itsName || <span className="text-slate-300">—</span>}</td>
-                  <td className="px-4 py-3.5">
-                    <p className="line-clamp-2 break-words text-xs leading-5 text-slate-600" title={t.remarks || ""}>
-                      {t.remarks || <span className="text-slate-300">—</span>}
-                    </p>
-                  </td>
-                  <td className="w-px whitespace-nowrap px-4 py-3.5">
+                  <td className="px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate font-medium text-slate-700">
+                        {t.itsName || <span className="text-slate-300">—</span>}
+                      </span>
                     {access.toner_monitoring && (
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/toner-monitoring/${t.id}/edit`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
-                          <IconGlyph icon={Pencil} size={13} />
-                          Edit
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Link href={`/toner-monitoring/${t.id}/edit`} aria-label={`Edit ${t.tonerTypeName} transaction`} className="inline-flex size-10 items-center justify-center rounded-lg text-[#014171] transition hover:bg-slate-100">
+                          <IconGlyph icon={Pencil} size={16} />
                         </Link>
                         <DeleteButton
                           action={deleteTransactionAction}
@@ -426,6 +339,7 @@ export default async function TonerMonitoringPage({
                         />
                       </div>
                     )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -434,36 +348,60 @@ export default async function TonerMonitoringPage({
           </div>
           </>
         )}
+        </div>
       </TableCard>
     </div>
   );
 }
 
-function FilterGroup({
-  title,
-  name,
-  options,
-  selected,
-}: {
-  title: string;
-  name: string;
-  options: { id: number | string; name: string }[];
-  selected: string[];
-}) {
+function FilterableHeading({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <fieldset className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-      <legend className="px-1 text-[10px] font-bold uppercase tracking-[0.09em] text-slate-500">{title}</legend>
-      <div className="mt-1 max-h-32 space-y-1.5 overflow-y-auto pr-1">
-        {options.length === 0 && <p className="text-xs text-slate-400">None</p>}
-        {options.map((o) => (
-          <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-white">
-            <input className="size-3.5 rounded border-slate-300" type="checkbox" name={name} value={o.id} defaultChecked={selected.includes(String(o.id))} />
-            <span className="min-w-0 truncate" title={o.name}>{o.name}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <div className="flex min-w-0 items-center justify-between gap-2">
+      <span className="min-w-0 leading-4">{label}</span>
+      {children}
+    </div>
   );
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function paramList(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+function uniqueFilterOptions(options: PrinterColumnFilterOption[]) {
+  return [...new Map(options.map((option) => [option.value, option])).values()]
+    .sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
+}
+
+function matchesSelected(value: string, selected: string[]) {
+  return selected.length === 0 || selected.includes(value);
+}
+
+function dateFilterValue(value: string | Date) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
+function compareTonerRows(
+  left: { type: string; date: string | Date; tonerTypeName: string; departmentName: string | null; id: number },
+  right: { type: string; date: string | Date; tonerTypeName: string; departmentName: string | null; id: number },
+  sort: string,
+) {
+  const values: Record<string, [string, string]> = {
+    status_asc: [left.type, right.type],
+    status_desc: [right.type, left.type],
+    date_asc: [dateFilterValue(left.date), dateFilterValue(right.date)],
+    date_desc: [dateFilterValue(right.date), dateFilterValue(left.date)],
+    toner_asc: [left.tonerTypeName, right.tonerTypeName],
+    toner_desc: [right.tonerTypeName, left.tonerTypeName],
+    department_asc: [left.departmentName ?? "", right.departmentName ?? ""],
+    department_desc: [right.departmentName ?? "", left.departmentName ?? ""],
+  };
+  const pair = values[sort];
+  return pair ? pair[0].localeCompare(pair[1], undefined, { numeric: true }) || right.id - left.id : 0;
 }
 
 function TransactionField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {

@@ -59,7 +59,7 @@ export async function AvailablePrintersPageContent({
     ? await requireModuleFullAccess("printops")
     : await requireSession();
   if (session.role !== accountRole) {
-    redirect(session.role === "employee" ? "/portal" : "/dashboard");
+    redirect(session.role === "employee" ? "/portal" : "/overview");
   }
 
   const [employee] = await db.select({

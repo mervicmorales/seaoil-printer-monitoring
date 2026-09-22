@@ -2,13 +2,14 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { tonerTransactions } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { PageHeader, Card } from "@/components/ui";
+import { Save } from "lucide";
+import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import { getDepartments, getItsNames, getLocations, getTonerTypes } from "@/lib/lookups";
 import EditTransactionForm from "./EditTransactionForm";
 import { updateTransactionAction } from "../../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 
-export default async function EditTransactionPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditTransactionPage({ params, embedded = false }: { params: Promise<{ id: string }>; embedded?: boolean }) {
   await requireModuleFullAccess("toner_monitoring");
   const { id } = await params;
   const rows = await db.select().from(tonerTransactions).where(eq(tonerTransactions.id, Number(id))).limit(1);
@@ -24,7 +25,20 @@ export default async function EditTransactionPage({ params }: { params: Promise<
 
   return (
     <div>
-      <PageHeader title="Edit Toner Transaction" subtitle="Update transaction details. Inventory is recalculated automatically." />
+      <PageHeader
+        title="Edit Toner Transaction"
+        subtitle="Update transaction details. Inventory is recalculated automatically."
+        actions={embedded ? (
+          <PrimaryButton
+            type="submit"
+            form="toner-transaction-edit-form"
+            className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
+          >
+            <IconGlyph icon={Save} size={14} />
+            Save Changes
+          </PrimaryButton>
+        ) : undefined}
+      />
       <Card className="p-5 sm:p-6">
         <EditTransactionForm
           action={updateTransactionAction}
@@ -33,6 +47,7 @@ export default async function EditTransactionPage({ params }: { params: Promise<
           locations={locations}
           departments={departments}
           itsNames={itsNames}
+          showActions={!embedded}
         />
       </Card>
     </div>

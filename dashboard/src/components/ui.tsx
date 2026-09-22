@@ -1,22 +1,46 @@
 import { createElement, type CSSProperties, type ReactNode } from "react";
-import { Inbox, type IconNode } from "lucide";
+import { ChevronRight, Inbox, type IconNode } from "lucide";
 import { PageHeaderPortal } from "@/components/PageHeaderPortal";
+
+function pageHeaderSection(title: string) {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("printer services") || normalized.includes("printops") || normalized.includes("available printers")) return "Printer Services";
+  if (normalized.includes("toner")) return "Toners";
+  if (normalized.includes("contract")) return "Contracts";
+  if (normalized.includes("registration")) return "Registrations";
+  if (normalized.includes("account") || normalized.includes("user management")) return "User Management";
+  if (normalized.includes("overview")) return "Dashboard";
+  if (normalized.includes("system")) return "Administration";
+  if (["printer", "repair", "ticket", "monitoring agent", "monitoring alert", "discover"].some((value) => normalized.includes(value))) return "Printers";
+  return "PrintOps";
+}
 
 export function PageHeader({
   title,
-  subtitle,
   actions,
+  parentTitle,
 }: {
   title: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  parentTitle?: string;
 }) {
   return (
     <PageHeaderPortal>
       <div className="flex flex-col justify-between gap-2.5 sm:flex-row sm:items-center sm:gap-5">
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-bold tracking-[-0.02em] text-[#014171] sm:text-2xl">{title}</h1>
-          {subtitle && <p className="mt-0.5 text-xs leading-5 text-slate-500 sm:text-[13px]">{subtitle}</p>}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-[11px]">
+              {parentTitle || pageHeaderSection(title)}
+            </span>
+            <span className="shrink-0 text-slate-400" aria-hidden="true">
+              <IconGlyph icon={ChevronRight} size={13} />
+            </span>
+            <h1 className="truncate text-sm font-medium tracking-[-0.01em] text-slate-800 sm:text-[15px]">
+              {title}
+            </h1>
+          </div>
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
@@ -32,7 +56,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={`app-card rounded-2xl border border-[#dfe6ee] bg-white ${className}`}>
+    <div className={`app-card rounded-lg border border-[#dfe6ee] bg-white ${className}`}>
       {children}
     </div>
   );
@@ -69,13 +93,8 @@ export function StatCard({
 
   return (
     <Card
-      className={`relative h-full min-w-0 overflow-hidden ${compact ? "p-4" : "p-5"}`}
+      className={`h-full min-w-0 ${compact ? "p-4" : "p-5"}`}
     >
-      <span
-        aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-0.5 bg-[var(--metric-accent)]"
-        style={style}
-      />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase leading-4 tracking-[0.075em] text-slate-500">{label}</p>
@@ -87,18 +106,13 @@ export function StatCard({
         </div>
         {icon && (
           <span
-            className={`${compact ? "size-8 rounded-lg" : "size-10 rounded-xl"} flex shrink-0 items-center justify-center`}
-            style={{ backgroundColor: `${accent}14`, color: accent }}
+            className="flex shrink-0 items-center justify-center opacity-70"
+            style={{ color: accent }}
           >
             <IconGlyph icon={icon} size={compact ? 16 : 19} />
           </span>
         )}
       </div>
-      <span
-        aria-hidden="true"
-        className="absolute bottom-0 right-0 size-20 translate-x-8 translate-y-8 rounded-full opacity-[0.06]"
-        style={{ backgroundColor: accent }}
-      />
     </Card>
   );
 }
@@ -158,8 +172,35 @@ export function statusBadgeColor(status: string): "green" | "yellow" | "red" | "
   return "gray";
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string; required?: boolean }) {
-  const { label, error, required, className, ...rest } = props;
+export function Input(props: React.InputHTMLAttributes<HTMLInputElement> & {
+  label?: string;
+  error?: string;
+  required?: boolean;
+  floatingLabel?: boolean;
+}) {
+  const { label, error, required, className, floatingLabel = false, ...rest } = props;
+  const inputId = rest.id ?? (typeof rest.name === "string" ? `field-${rest.name}` : undefined);
+
+  if (floatingLabel && label) {
+    return (
+      <div>
+        <div className="add-printer-floating-field">
+          <input
+            {...rest}
+            id={inputId}
+            required={required}
+            placeholder=" "
+            className={`h-12 w-full rounded-xl border border-slate-300 bg-white px-3.5 pb-1 pt-4 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#040273] focus:ring-2 focus:ring-[#040273]/15 disabled:bg-slate-100 disabled:text-slate-500 ${className || ""}`}
+          />
+          <label htmlFor={inputId}>
+            {label} {required && <span className="text-red-500">*</span>}
+          </label>
+        </div>
+        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      </div>
+    );
+  }
+
   return (
     <div>
       {label && (

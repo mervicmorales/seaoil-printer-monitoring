@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Download,
@@ -45,6 +45,7 @@ export default function TonerExpenseExportDialog({
   itsNames: LookupOption[];
 }) {
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
   const [format, setFormat] = useState<TonerExpenseExportFormat>("xlsx");
   const [preview, setPreview] = useState(initialPreview);
@@ -54,19 +55,36 @@ export default function TonerExpenseExportDialog({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const query = useMemo(() => buildQuery(filters), [filters]);
   useBodyScrollLock(open);
 
+  const closeDialog = useCallback((force = false) => {
+    if (exporting && !force) return;
+    setVisible(false);
+    setError("");
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      triggerRef.current?.focus();
+    }, 280);
+  }, [exporting]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
-    const focusFrame = window.requestAnimationFrame(() => closeRef.current?.focus());
+    const focusFrame = window.requestAnimationFrame(() => {
+      setVisible(true);
+      closeRef.current?.focus();
+    });
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !exporting) {
         event.preventDefault();
-        setOpen(false);
-        setError("");
-        window.requestAnimationFrame(() => triggerRef.current?.focus());
+        closeDialog();
         return;
       }
       if (event.key !== "Tab") return;
@@ -92,7 +110,7 @@ export default function TonerExpenseExportDialog({
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [exporting, open]);
+  }, [closeDialog, exporting, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -128,13 +146,6 @@ export default function TonerExpenseExportDialog({
     };
   }, [open, query]);
 
-  function closeDialog() {
-    if (exporting) return;
-    setOpen(false);
-    setError("");
-    window.requestAnimationFrame(() => triggerRef.current?.focus());
-  }
-
   function updateFilter<Key extends keyof FilterState>(key: Key, value: FilterState[Key]) {
     setFilters((current) => ({ ...current, [key]: value }));
   }
@@ -162,8 +173,7 @@ export default function TonerExpenseExportDialog({
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
-      setOpen(false);
-      window.requestAnimationFrame(() => triggerRef.current?.focus());
+      closeDialog(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The export could not be generated.");
     } finally {
@@ -181,6 +191,7 @@ export default function TonerExpenseExportDialog({
           setPreview(initialPreview);
           setFormat("xlsx");
           setError("");
+          setVisible(false);
           setOpen(true);
         }}
         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#012c50] focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] focus:ring-offset-2"
@@ -191,7 +202,7 @@ export default function TonerExpenseExportDialog({
 
       {open && createPortal(
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-5"
+          className={`fixed inset-0 z-[120] flex items-stretch justify-end bg-[#014171]/70 p-0 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeDialog();
           }}
@@ -202,37 +213,37 @@ export default function TonerExpenseExportDialog({
             aria-modal="true"
             aria-labelledby="toner-export-title"
             aria-describedby="toner-export-description"
-            className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.32)] sm:max-h-[calc(100vh-2.5rem)]"
+            className={`flex h-dvh w-full max-w-4xl flex-col overflow-hidden border-l border-white/20 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.32)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:m-3 sm:h-[calc(100dvh-1.5rem)] sm:rounded-3xl sm:border sm:border-slate-200 ${visible ? "translate-x-0" : "translate-x-full"}`}
           >
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/80 px-5 py-4 sm:px-6">
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#014171] text-white shadow-sm">
-                  <IconGlyph icon={FileSpreadsheet} size={18} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#507aa2]">Toner expenses</p>
-                  <h2 id="toner-export-title" className="mt-0.5 text-lg font-bold tracking-[-0.02em] text-[#014171]">Export report data</h2>
-                  <p id="toner-export-description" className="mt-0.5 text-xs leading-5 text-slate-500">Choose the scope and file type, then review the live totals before downloading.</p>
-                </div>
+            <div className="flex h-[55px] shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                <span className="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-[11px]">Toner Expenses</span>
+                <span className="text-slate-400" aria-hidden="true">›</span>
+                <h2 id="toner-export-title" className="truncate text-sm font-medium tracking-[-0.01em] text-slate-800 sm:text-[15px]">Export Data</h2>
+                <p id="toner-export-description" className="sr-only">Choose the export scope and file type, then review the live totals before downloading.</p>
               </div>
               <button
                 ref={closeRef}
                 type="button"
-                onClick={closeDialog}
+                onClick={() => closeDialog()}
                 disabled={exporting}
                 aria-label="Close export dialog"
-                className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <IconGlyph icon={X} size={17} />
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,0.8fr)]">
                 <div className="space-y-5">
                   <section aria-labelledby="export-scope-heading">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 id="export-scope-heading" className="text-sm font-bold text-slate-800">Export scope</h3>
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-100 px-3.5 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex size-7 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm"><IconGlyph icon={Info} size={15} /></span>
+                        <h3 id="export-scope-heading" className="text-sm font-semibold text-slate-900">Export scope</h3>
+                      </div>
                       <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
                         <input
                           type="checkbox"
@@ -257,7 +268,7 @@ export default function TonerExpenseExportDialog({
                         All recorded requests
                       </label>
                     </div>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 px-3 py-3 sm:grid-cols-2">
                       <Field label="Date from">
                         <input
                           type="date"
@@ -284,8 +295,11 @@ export default function TonerExpenseExportDialog({
                   </section>
 
                   <section aria-labelledby="file-type-heading">
-                    <h3 id="file-type-heading" className="text-sm font-bold text-slate-800">File type</h3>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="flex items-center gap-2.5 rounded-lg bg-slate-100 px-3.5 py-2.5">
+                      <span className="flex size-7 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm"><IconGlyph icon={FileSpreadsheet} size={15} /></span>
+                      <h3 id="file-type-heading" className="text-sm font-semibold text-slate-900">File type</h3>
+                    </div>
+                    <div className="grid gap-3 px-3 py-3 sm:grid-cols-2">
                       <FormatOption
                         active={format === "xlsx"}
                         icon={FileSpreadsheet}
@@ -305,12 +319,15 @@ export default function TonerExpenseExportDialog({
                 </div>
 
                 <aside className="space-y-4">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-bold text-slate-800">Live export preview</h3>
+                  <div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-100 px-3.5 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex size-7 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm"><IconGlyph icon={FileText} size={15} /></span>
+                        <h3 className="text-sm font-semibold text-slate-900">Live export preview</h3>
+                      </div>
                       {previewLoading && <IconGlyph icon={LoaderCircle} size={16} />}
                     </div>
-                    <div className={`mt-3 grid grid-cols-2 gap-2 transition-opacity ${previewLoading ? "opacity-55" : "opacity-100"}`}>
+                    <div className={`px-3 py-3 transition-opacity ${previewLoading ? "opacity-55" : "opacity-100"}`}>
                       <PreviewMetric label="Request records" value={numberFormatter.format(preview.recordCount)} />
                       <PreviewMetric label="Units" value={numberFormatter.format(preview.totalUnits)} />
                       <PreviewMetric label="Estimated expense" value={currencyFormatter.format(preview.totalExpenseCents / 100)} />
@@ -341,10 +358,9 @@ export default function TonerExpenseExportDialog({
               )}
             </div>
 
-            <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <p className="text-[11px] leading-4 text-slate-500">For internal SEAOIL use only.</p>
               <div className="flex items-center justify-end gap-2">
-                <button type="button" onClick={closeDialog} disabled={exporting} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
                 <button
                   type="button"
                   onClick={exportReport}
@@ -435,9 +451,9 @@ function FormatOption({
 
 function PreviewMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="text-[10px] font-bold uppercase leading-4 tracking-[0.06em] text-slate-500">{label}</p>
-      <p className="mt-1 whitespace-nowrap text-[13px] font-bold leading-5 tabular-nums text-[#014171] sm:text-sm">{value}</p>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 py-2">
+      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-900">{value}</p>
     </div>
   );
 }

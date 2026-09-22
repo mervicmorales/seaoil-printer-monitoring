@@ -130,7 +130,7 @@ function LoginFields({ state, nextPath }: { state: LoginState; nextPath: string 
   );
 }
 
-export default function LoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
+export default function LoginForm({ nextPath = "/overview" }: { nextPath?: string }) {
   const [state, formAction] = useActionState(loginAction, initialState);
 
   useEffect(() => {

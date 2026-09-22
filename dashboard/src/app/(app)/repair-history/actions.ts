@@ -114,7 +114,7 @@ export async function updateTicketDetailsAction(
       .where(eq(repairTickets.id, id));
     revalidatePath("/repair-history");
     revalidatePath(`/repair-history/${id}`);
-    revalidatePath("/dashboard");
+    revalidatePath("/overview");
     return { success: "Repair ticket status updated successfully." };
   }
 
@@ -154,7 +154,7 @@ export async function updateTicketDetailsAction(
 
   revalidatePath("/repair-history");
   revalidatePath(`/repair-history/${id}`);
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   return { success: "Repair ticket updated successfully." };
 }
 
@@ -192,7 +192,7 @@ export async function createReportAction(_prev: RepairFormState, formData: FormD
   await createNotification(`New repair ticket ${ticketNumber} reported for printer ${serialNumber}.`, "repair");
 
   revalidatePath("/repair-history");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   redirect(`/repair-history?success=Ticket ${ticketNumber} created with status Open.`);
 }
 

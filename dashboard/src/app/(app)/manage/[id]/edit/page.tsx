@@ -37,14 +37,14 @@ export default async function EditUserPage({
           <PrimaryButton
             type="submit"
             form="user-edit-form"
-            className="min-h-9 px-3 py-1.5 text-xs"
+            className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
           >
             <IconGlyph icon={Save} size={14} />
             Save Changes
           </PrimaryButton>
         ) : undefined}
       />
-      <Card className="p-5 sm:p-6">
+      <Card className={embedded ? "overflow-hidden !border-0 p-0" : "p-5 sm:p-6"}>
         <UserForm
           mode="edit"
           action={updateUserAction}
@@ -52,6 +52,7 @@ export default async function EditUserPage({
           locations={locations}
           departments={departments}
           showActions={!embedded}
+          fitPanel={embedded}
           actorRole={actor.role}
         />
       </Card>

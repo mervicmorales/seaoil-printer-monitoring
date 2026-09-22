@@ -13,8 +13,13 @@ export default function ViewContractModal({
       title="Contract Details"
       closeHref="/contracts"
       showTitle={false}
+      pageHeaderInModal
+      variant="right-panel"
+      hideScrollbar
+      panelClassName="max-w-5xl"
+      contentClassName="flex-1 !overflow-hidden !p-4 sm:!p-5"
     >
-      <ViewContractPage params={params} searchParams={searchParams} />
+      <ViewContractPage params={params} searchParams={searchParams} embedded />
     </ModalShell>
   );
 }

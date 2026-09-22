@@ -15,7 +15,7 @@ export type LoginState = {
 
 function safeRedirectPath(value: string) {
   if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) {
-    return "/dashboard";
+    return "/overview";
   }
   return value;
 }
@@ -27,7 +27,7 @@ export async function loginAction(
   const identifier = String(formData.get("identifier") || "").trim();
   const normalizedEmail = identifier.toLowerCase();
   const password = String(formData.get("password") || "");
-  const requestedRedirect = safeRedirectPath(String(formData.get("next") || "/dashboard"));
+  const requestedRedirect = safeRedirectPath(String(formData.get("next") || "/overview"));
 
   const fieldErrors: Record<string, string> = {};
   if (!identifier) fieldErrors.identifier = "Email or username is required.";
@@ -106,7 +106,7 @@ export async function loginAction(
     : user.role === "support"
       ? "/"
     : requestedRedirect === "/portal"
-      ? "/dashboard"
+      ? "/overview"
       : requestedRedirect;
   redirect(redirectTo);
 }

@@ -23,8 +23,34 @@ export default function CreatePrinterStatusSelect({
   const [status, setStatus] = useState("Active");
   const statusColor = STATUS_COLORS[statusBadgeColor(status)];
 
+  if (compact) {
+    return (
+      <div className={`flex h-8 shrink-0 items-center overflow-hidden rounded-lg border shadow-sm transition focus-within:ring-2 ${statusColor}`}>
+        <label
+          htmlFor="new-printer-status"
+          className="flex h-full items-center border-r border-current/15 px-2 text-[9px] font-bold uppercase tracking-[0.09em] opacity-75"
+        >
+          Asset status
+        </label>
+        <select
+          id="new-printer-status"
+          name="status"
+          form={formId}
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          required
+          className="h-full min-w-28 bg-transparent px-2.5 text-xs font-bold outline-none"
+        >
+          {PRINTER_STATUSES.map((item) => (
+            <option key={item} value={item}>{item}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex flex-col ${compact ? "gap-1" : "gap-1.5"}`}>
+    <div className="flex flex-col gap-1.5">
       <label htmlFor="new-printer-status" className="text-xs font-medium text-slate-600">
         Asset Status
       </label>
@@ -35,7 +61,7 @@ export default function CreatePrinterStatusSelect({
         value={status}
         onChange={(event) => setStatus(event.target.value)}
         required
-        className={`${compact ? "min-w-32 px-3 py-1.5 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-lg border font-semibold outline-none transition focus:ring-2 ${statusColor}`}
+        className={`min-w-48 rounded-lg border px-3.5 py-2.5 text-sm font-semibold outline-none transition focus:ring-2 ${statusColor}`}
       >
         {PRINTER_STATUSES.map((item) => (
           <option key={item} value={item}>{item}</option>

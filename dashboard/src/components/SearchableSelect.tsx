@@ -16,6 +16,7 @@ export default function SearchableSelect({
   defaultValue,
   onValueChange,
   disabled = false,
+  floatingLabel = false,
 }: {
   label: string;
   name: string;
@@ -26,6 +27,7 @@ export default function SearchableSelect({
   defaultValue?: number | null;
   onValueChange?: (value: number | null) => void;
   disabled?: boolean;
+  floatingLabel?: boolean;
 }) {
   const inputId = useId();
   const listboxId = `${inputId}-listbox`;
@@ -48,11 +50,13 @@ export default function SearchableSelect({
 
   return (
     <div className="relative">
-      <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-slate-700">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      {!floatingLabel && (
+        <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-slate-700">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
       <input type="hidden" name={name} value={selectedId ?? ""} />
-      <div className="relative">
+      <div className={floatingLabel ? "add-printer-floating-field" : "relative"}>
         <input
           id={inputId}
           type="text"
@@ -65,7 +69,7 @@ export default function SearchableSelect({
           required={required}
           disabled={disabled}
           value={query}
-          placeholder={placeholder}
+          placeholder={floatingLabel ? " " : placeholder}
           onFocus={() => setOpen(true)}
           onBlur={() => window.setTimeout(() => setOpen(false), 100)}
           onChange={(event) => {
@@ -81,8 +85,17 @@ export default function SearchableSelect({
               select(filteredOptions[0]);
             }
           }}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+          className={`w-full rounded-xl border border-slate-300 bg-white px-3.5 pr-10 text-sm shadow-sm outline-none transition hover:border-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${
+            floatingLabel
+              ? "h-12 pb-1 pt-4 focus:border-[#040273] focus:ring-2 focus:ring-[#040273]/15"
+              : "py-2.5 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
+          }`}
         />
+        {floatingLabel && (
+          <label htmlFor={inputId}>
+            {label} {required && <span className="text-red-500">*</span>}
+          </label>
+        )}
         <button
           type="button"
           disabled={disabled}

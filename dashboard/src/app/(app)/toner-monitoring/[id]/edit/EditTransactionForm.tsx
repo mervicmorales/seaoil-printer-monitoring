@@ -4,10 +4,9 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { ClipboardList, Pencil, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { Input, Select, PrimaryButton, SecondaryButton, Textarea } from "@/components/ui";
+import { Input, Select, PrimaryButton, Textarea } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { TonerFormState } from "../../actions";
-import Link from "next/link";
 
 type Lookup = { id: number; name: string };
 
@@ -40,6 +39,7 @@ export default function EditTransactionForm({
   locations,
   departments,
   itsNames,
+  showActions = true,
 }: {
   action: (prev: TonerFormState, formData: FormData) => Promise<TonerFormState>;
   txn: Txn;
@@ -47,11 +47,12 @@ export default function EditTransactionForm({
   locations: Lookup[];
   departments: Lookup[];
   itsNames: Lookup[];
+  showActions?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form id="toner-transaction-edit-form" action={formAction} className="space-y-6">
       <input type="hidden" name="id" value={txn.id} />
       {state.error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>
@@ -111,9 +112,8 @@ export default function EditTransactionForm({
           <Textarea label="Remarks" name="remarks" defaultValue={txn.remarks ?? ""} rows={3} />
         </div>
       </section>
-      <div className="flex gap-3 border-t border-slate-200 pt-5">
+      <div className={showActions ? "flex justify-end border-t border-slate-200 pt-5" : "hidden"}>
         <SubmitButton />
-        <Link href="/toner-monitoring"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>
     </form>
   );

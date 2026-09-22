@@ -20,35 +20,37 @@ import {
 } from "../actions";
 import { canManageRole, hasAdminPrivileges, roleLabel } from "@/lib/roles";
 import { getPrintOpsAgents } from "../../printops/data";
-import { KeyRound, MapPin, Printer, UserRound, type IconNode } from "lucide";
+import { KeyRound, Printer, UserRound, type IconNode } from "lucide";
 
 function DetailSection({
   icon,
   title,
   description,
   details,
+  compact = false,
 }: {
   icon: IconNode;
   title: string;
   description: string;
   details: Array<[string, string | null]>;
+  compact?: boolean;
 }) {
   return (
     <section>
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
-          <IconGlyph icon={icon} size={17} />
+      <div className={`flex items-center rounded-lg bg-slate-100 ${compact ? "gap-2.5 px-3.5 py-2.5" : "gap-3 px-4 py-3"}`}>
+        <span className={`flex shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm ${compact ? "size-7" : "size-8"}`}>
+          <IconGlyph icon={icon} size={compact ? 15 : 17} />
         </span>
         <div>
-          <h3 className="text-sm font-bold text-[#014171]">{title}</h3>
-          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          {description && <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>}
         </div>
       </div>
-      <dl className="mt-4 grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+      <dl className={compact ? "px-3 py-2" : "px-4 py-3 sm:px-5"}>
         {details.map(([label, value]) => (
-          <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</dt>
-            <dd className="mt-1.5 break-words text-sm font-semibold text-slate-800">{value || "—"}</dd>
+          <div key={label} className={`grid min-w-0 grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)] items-start gap-4 ${compact ? "py-2" : "py-2.5"}`}>
+            <dt className="text-sm font-medium text-slate-500">{label}</dt>
+            <dd className="break-words text-sm font-semibold text-slate-900">{value || "—"}</dd>
           </div>
         ))}
       </dl>
@@ -138,6 +140,7 @@ export default async function ViewUserPage({
     <div>
       {!embedded && (
         <PageHeader
+          parentTitle="User Management"
           title={user.fullName}
           subtitle="Account Details"
           actions={<Link href="/manage"><SecondaryButton>Back to User Management</SecondaryButton></Link>}
@@ -148,20 +151,22 @@ export default async function ViewUserPage({
         errorMessage={messages.error}
         showInline={false}
       />
-      <div className="space-y-5">
+      <div className={embedded ? "" : "space-y-5"}>
         <Tabs
+          variant="segmented"
           tabs={[
             {
               key: "account",
               label: "Account Details",
               icon: UserRound,
               content: (
-                <Card className="overflow-hidden">
-                  <div className="space-y-6 p-5 sm:p-6">
+                <Card className="overflow-hidden !border-0">
+                  <div className={embedded ? "space-y-4 p-4" : "space-y-6 p-5 sm:p-6"}>
                     <DetailSection
+                      compact={embedded}
                       icon={UserRound}
-                      title="Account details"
-                      description="Identity, sign-in, role, and account status"
+                      title="General information"
+                      description="Identity, sign-in, status, and organizational assignment"
                       details={[
                         ["Full Name", user.fullName],
                         ["Employee ID", user.employeeId],
@@ -169,13 +174,6 @@ export default async function ViewUserPage({
                         ["Username", user.username],
                         ["Role", roleLabel(user.role)],
                         ["Status", user.accountStatus],
-                      ]}
-                    />
-                    <DetailSection
-                      icon={MapPin}
-                      title="Assignment details"
-                      description="Primary organizational location and department"
-                      details={[
                         ["Location", record.location],
                         ["Department", record.department],
                       ]}
@@ -189,13 +187,14 @@ export default async function ViewUserPage({
               label: "Page Permissions",
               icon: KeyRound,
               content: (
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden !border-0">
                   <PanelHeader
+                    compact={embedded}
                     icon={KeyRound}
                     title="Page Permissions"
                     description="Control which management pages and actions this account can access"
                   />
-                  <div className="p-5 sm:p-6">
+                  <div className={embedded ? "p-4" : "p-5 sm:p-6"}>
                     <PermissionsPanel
                       userId={user.id}
                       role={user.role}
@@ -212,13 +211,14 @@ export default async function ViewUserPage({
               label: "Printer Permissions",
               icon: Printer,
               content: (
-                <Card className="overflow-hidden">
+                <Card className="overflow-hidden !border-0">
                   <PanelHeader
+                    compact={embedded}
                     icon={Printer}
                     title="Printer Permissions"
                     description="Department printers are automatic; grant persistent access to requested printers from other departments"
                   />
-                  <div className="p-5 sm:p-6">
+                  <div className={embedded ? "p-4" : "p-5 sm:p-6"}>
                     <PrinterPermissionsPanel
                       userId={user.id}
                       locationName={record.location}
@@ -298,19 +298,21 @@ function PanelHeader({
   icon,
   title,
   description,
+  compact = false,
 }: {
   icon: IconNode;
   title: string;
   description: string;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
-        <IconGlyph icon={icon} size={18} />
+    <div className={`flex shrink-0 items-center rounded-lg bg-slate-100 ${compact ? "mx-4 mt-4 gap-2.5 px-3.5 py-2.5" : "mx-5 mt-5 gap-3 px-4 py-3"}`}>
+      <span className={`flex shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm ${compact ? "size-7" : "size-8"}`}>
+        <IconGlyph icon={icon} size={compact ? 15 : 18} />
       </span>
       <div>
-        <h2 className="font-bold text-[#014171]">{title}</h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>
       </div>
     </div>
   );

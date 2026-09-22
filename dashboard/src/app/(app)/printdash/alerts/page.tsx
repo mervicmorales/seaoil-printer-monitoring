@@ -12,6 +12,9 @@ import {
 import { db } from "@/db";
 import { Badge, IconGlyph, PageHeader, TableCard } from "@/components/ui";
 import { requireModuleFullAccess } from "@/lib/server-utils";
+import PrinterColumnFilter, {
+  type PrinterColumnFilterOption,
+} from "@/app/(app)/printers/PrinterColumnFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -42,19 +45,18 @@ type AlertSummaryRow = {
 export default async function MonitoringAlertsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireModuleFullAccess("monitoring_alerts");
   const params = await searchParams;
   const status: AlertFilter =
-    params.status === "resolved" ? "resolved" : "active";
+    firstParam(params.status) === "resolved" ? "resolved" : "active";
+  const locationFilters = paramList(params.location);
+  const agentFilters = paramList(params.agent);
   const statusCondition =
     status === "active"
       ? sql`where printer_alerts.resolved_at is null`
       : sql`where printer_alerts.resolved_at is not null`;
-  const alertsReturnTo = status === "resolved"
-    ? "/printdash/alerts?status=resolved"
-    : "/printdash/alerts";
 
   const [alertsResult, summaryResult] = await Promise.all([
     db.execute<AlertRow>(sql`
@@ -92,58 +94,55 @@ export default async function MonitoringAlertsPage({
     `),
   ]);
   const summary = summaryResult.rows[0] ?? { active: 0, resolved: 0 };
+  const locationOptions = uniqueFilterOptions(alertsResult.rows.map((alert) => ({
+    value: alert.location_name?.trim() || "__blank__",
+    label: alert.location_name?.trim() || "Not assigned",
+  })));
+  const agentOptions = uniqueFilterOptions(alertsResult.rows.map((alert) => ({
+    value: alert.agent_name?.trim() || "__blank__",
+    label: alert.agent_name?.trim() || "Not available",
+  })));
+  const filteredAlerts = alertsResult.rows.filter((alert) => (
+    matchesSelected(alert.location_name?.trim() || "__blank__", locationFilters)
+    && matchesSelected(alert.agent_name?.trim() || "__blank__", agentFilters)
+  ));
+  const activeHref = alertStatusHref("active", locationFilters, agentFilters);
+  const resolvedHref = alertStatusHref("resolved", locationFilters, agentFilters);
+  const alertsReturnTo = alertStatusHref(status, locationFilters, agentFilters);
 
   return (
-    <div className="flex h-[calc(100dvh-7rem)] min-h-[36rem] flex-col">
+    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col overflow-hidden sm:h-[calc(100dvh-111px)]">
       <PageHeader
         title="Monitoring Alerts"
         subtitle="Active and resolved printer monitoring alerts reported by PrintDash agents."
       />
 
-      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <AlertFilterLink
-          href="/printdash/alerts?status=active"
-          active={status === "active"}
-          icon={TriangleAlert}
-          label="Active alerts"
-          count={summary.active}
-          description="Requires attention"
-          accent="red"
-        />
-        <AlertFilterLink
-          href="/printdash/alerts?status=resolved"
-          active={status === "resolved"}
-          icon={CircleCheckBig}
-          label="Resolved alerts"
-          count={summary.resolved}
-          description="Recorded recoveries"
-          accent="green"
-        />
-      </div>
-
-      <div className="mb-3 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Monitoring activity</p>
-          <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">
-            {status === "active" ? "Active alerts" : "Resolved alerts"}
-          </h2>
+      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex shrink-0 flex-col gap-2.5 border-b border-slate-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <nav aria-label="Alert status" className="inline-flex w-fit items-center rounded-lg border border-slate-200 bg-slate-50 p-1">
+            <AlertFilterLink href={activeHref} active={status === "active"} icon={TriangleAlert} label="Active" count={summary.active} accent="red" />
+            <AlertFilterLink href={resolvedHref} active={status === "resolved"} icon={CircleCheckBig} label="Resolved" count={summary.resolved} accent="green" />
+          </nav>
+          <span className="text-xs font-semibold tabular-nums text-slate-500">
+            {filteredAlerts.length === alertsResult.rows.length
+              ? `${filteredAlerts.length} records`
+              : `${filteredAlerts.length} of ${alertsResult.rows.length} records`}
+          </span>
         </div>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
-          {alertsResult.rows.length} records
-        </span>
-      </div>
 
-      <TableCard className="min-h-0 flex-1 overflow-x-auto overflow-y-scroll overscroll-contain">
-        {alertsResult.rows.length === 0 ? (
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+        {filteredAlerts.length === 0 ? (
           <div className="flex min-h-64 flex-col items-center justify-center px-5 text-center">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <IconGlyph icon={status === "active" ? BellRing : CircleCheckBig} size={22} />
             </span>
             <p className="mt-4 text-sm font-semibold text-slate-700">
-              {`No ${status} monitoring alerts`}
+              {alertsResult.rows.length === 0 ? `No ${status} monitoring alerts` : "No alerts match the selected filters"}
             </p>
             <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
-              {status === "active"
+              {alertsResult.rows.length > 0
+                ? "Clear or change the Location and Agent filters in the table header."
+                : status === "active"
                 ? "New printer monitoring issues will appear here when reported by a PrintDash agent."
                 : "Resolved printer monitoring events will appear here for reference."}
             </p>
@@ -151,35 +150,43 @@ export default async function MonitoringAlertsPage({
         ) : (
           <>
             <div className="divide-y divide-slate-100 lg:hidden">
-              {alertsResult.rows.map((alert) => (
+              {filteredAlerts.map((alert) => (
                 <AlertCard key={alert.id} alert={alert} returnTo={alertsReturnTo} />
               ))}
             </div>
 
             <div className="hidden lg:block">
-              <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
+              <table className="w-full table-fixed text-left text-sm">
                 <colgroup>
-                  <col className="w-[95px]" />
-                  <col className="w-[250px]" />
-                  <col className="w-[180px]" />
-                  <col className="w-[200px]" />
-                  <col className="w-[145px]" />
-                  <col className="w-[125px]" />
-                  <col className="w-[125px]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[11%]" />
                 </colgroup>
-                <thead className="bg-slate-50/95 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-bold uppercase tracking-[0.05em] text-slate-500 backdrop-blur-sm">
                   <tr>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Alert</th>
                     <th className="px-4 py-3">Model / SN:</th>
-                    <th className="px-4 py-3">Location / Department</th>
-                    <th className="px-4 py-3">Agent</th>
+                    <th className="px-4 py-2.5">
+                      <FilterableHeading label="Location / Department">
+                        <PrinterColumnFilter label="Location" paramName="location" options={locationOptions} selectedValues={locationFilters} />
+                      </FilterableHeading>
+                    </th>
+                    <th className="px-4 py-2.5">
+                      <FilterableHeading label="Agent">
+                        <PrinterColumnFilter label="Agent" paramName="agent" options={agentOptions} selectedValues={agentFilters} />
+                      </FilterableHeading>
+                    </th>
                     <th className="px-4 py-3">Started</th>
                     <th className="px-4 py-3">Resolved</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {alertsResult.rows.map((alert) => (
+                  {filteredAlerts.map((alert) => (
                     <tr key={alert.id} className="group align-top transition hover:bg-slate-50/70">
                       <td className="px-4 py-4">
                         <Badge color={alert.resolved_at ? "gray" : "red"}>
@@ -227,6 +234,7 @@ export default async function MonitoringAlertsPage({
             </div>
           </>
         )}
+        </div>
       </TableCard>
     </div>
   );
@@ -238,7 +246,6 @@ function AlertFilterLink({
   icon,
   label,
   count,
-  description,
   accent,
 }: {
   href: string;
@@ -246,34 +253,34 @@ function AlertFilterLink({
   icon: IconNode;
   label: string;
   count: number;
-  description: string;
   accent: "red" | "green";
 }) {
-  const accentClasses = accent === "red"
-    ? "bg-red-50 text-red-600"
-    : "bg-emerald-50 text-emerald-600";
+  const activeClasses = accent === "red"
+    ? "bg-white text-red-700 shadow-sm"
+    : "bg-white text-emerald-700 shadow-sm";
+  const countClasses = accent === "red"
+    ? "bg-red-50 text-red-700"
+    : "bg-emerald-50 text-emerald-700";
 
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3.5 shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#014171]/20 ${
-        active
-          ? "border-[#014171] bg-[#014171] text-white shadow-md"
-          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-md"
-      }`}
+      className={`inline-flex h-9 min-w-0 items-center gap-2 rounded-md px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#014171]/20 ${active ? activeClasses : "text-slate-500 hover:bg-white hover:text-slate-700"}`}
     >
-      <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${active ? "bg-white/10 text-white" : accentClasses}`}>
-        <IconGlyph icon={icon} size={18} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={`block text-[10px] font-bold uppercase tracking-[0.12em] ${active ? "text-sky-100" : "text-slate-500"}`}>
-          {label}
-        </span>
-        <span className="mt-1 block text-xs font-medium opacity-80">{description}</span>
-      </span>
-      <span className="shrink-0 text-2xl font-bold tracking-[-0.04em]">{count}</span>
+      <IconGlyph icon={icon} size={14} />
+      <span>{label}</span>
+      <span className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${countClasses}`}>{count}</span>
     </Link>
+  );
+}
+
+function FilterableHeading({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-2">
+      <span className="min-w-0 leading-4">{label}</span>
+      {children}
+    </div>
   );
 }
 
@@ -378,4 +385,30 @@ function formatDateTime(value: DatabaseTimestamp) {
     timeStyle: "short",
     timeZone: "Asia/Manila",
   });
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function paramList(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+function matchesSelected(value: string, selected: string[]) {
+  return selected.length === 0 || selected.includes(value);
+}
+
+function uniqueFilterOptions(options: PrinterColumnFilterOption[]) {
+  return [...new Map(options.map((option) => [option.value, option])).values()]
+    .sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
+}
+
+function alertStatusHref(status: AlertFilter, locations: string[], agents: string[]) {
+  const params = new URLSearchParams();
+  params.set("status", status);
+  locations.forEach((value) => params.append("location", value));
+  agents.forEach((value) => params.append("agent", value));
+  return `/printdash/alerts?${params.toString()}`;
 }

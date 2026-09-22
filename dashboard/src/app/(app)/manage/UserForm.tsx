@@ -60,6 +60,7 @@ export default function UserForm({
   returnTo = "/manage",
   employeeOnly = false,
   showActions = true,
+  fitPanel = false,
   actorRole,
 }: {
   mode: "create" | "edit";
@@ -70,6 +71,7 @@ export default function UserForm({
   returnTo?: "/manage" | "/manage/registrations";
   employeeOnly?: boolean;
   showActions?: boolean;
+  fitPanel?: boolean;
   actorRole: UserRole;
 }) {
   const [state, formAction] = useActionState(action, {});
@@ -77,32 +79,34 @@ export default function UserForm({
   const [showPassword, setShowPassword] = useState(false);
   const employeeRequired = role === "employee";
   const assignmentRequired = employeeRequired || role === "support";
+  const insetEditStyle = fitPanel && mode === "edit";
 
   return (
     <form
       id={mode === "create" ? "user-create-form" : "user-edit-form"}
       action={formAction}
-      className="space-y-5"
+      className={insetEditStyle ? "space-y-4" : fitPanel ? "flex h-full min-h-0 flex-col" : "space-y-5"}
     >
       {mode === "edit" && user && <input type="hidden" name="id" value={user.id} />}
       {mode === "create" && <input type="hidden" name="returnTo" value={returnTo} />}
       {state.error && (
-        <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-5 text-red-700">
+        <div role="alert" className={`flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-5 text-red-700 ${fitPanel ? "mb-3" : ""}`}>
           <MorphIcon icon={AlertCircle} size={18} strokeWidth={2} reducedMotion="user" className="mt-0.5 shrink-0" />
           <span>{state.error}</span>
         </div>
       )}
-      <div className="space-y-5">
-        <section>
+      <div className={insetEditStyle ? "space-y-4" : fitPanel ? "grid min-h-0 flex-1 grid-rows-2 gap-3" : "space-y-5"}>
+        <section className={fitPanel && !insetEditStyle ? "flex min-h-0 flex-col" : ""}>
           <FormSectionHeader
             icon={UserRound}
             title="Account details"
             description="Identity, sign-in information, and system role"
+            insetStyle={insetEditStyle}
           />
-          <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5">
-            <Input label="Full Name" name="fullName" autoComplete="name" required defaultValue={user?.fullName ?? ""} error={state.fieldErrors?.fullName} />
-            <Input label="Email Address" name="email" type="email" autoComplete="email" required defaultValue={user?.email ?? ""} error={state.fieldErrors?.email} />
-            <Input label="Username" name="username" autoComplete="username" required defaultValue={user?.username ?? ""} error={state.fieldErrors?.username} />
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${insetEditStyle ? "gap-3 px-3 py-3" : fitPanel ? "mt-3 min-h-0 flex-1 content-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/35 p-3.5" : "mt-4 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5"}`}>
+            <Input label="Full Name" floatingLabel name="fullName" autoComplete="name" required defaultValue={user?.fullName ?? ""} error={state.fieldErrors?.fullName} />
+            <Input label="Email Address" floatingLabel name="email" type="email" autoComplete="email" required defaultValue={user?.email ?? ""} error={state.fieldErrors?.email} />
+            <Input label="Username" floatingLabel name="username" autoComplete="username" required defaultValue={user?.username ?? ""} error={state.fieldErrors?.username} />
             <Select label="Role" name="role" value={role} onChange={(event) => setRole(event.target.value)} required>
               <option value="employee">Employee</option>
               {!employeeOnly && <option value="support">Support</option>}
@@ -113,15 +117,17 @@ export default function UserForm({
           {state.fieldErrors?.role && <p className="mt-1 text-xs text-red-600">{state.fieldErrors.role}</p>}
         </section>
 
-        <section>
+        <section className={fitPanel && !insetEditStyle ? "flex min-h-0 flex-col" : ""}>
           <FormSectionHeader
             icon={MapPin}
             title="Assignment details"
             description="Employee record and primary organizational assignment"
+            insetStyle={insetEditStyle}
           />
-          <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${insetEditStyle ? "gap-3 px-3 py-3" : fitPanel ? "mt-3 gap-3 rounded-2xl border border-slate-200 bg-slate-50/35 p-3.5" : "mt-4 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5"}`}>
             <Input
               label="Employee ID"
+              floatingLabel
               name="employeeId"
               required={employeeRequired}
               defaultValue={user?.employeeId ?? ""}
@@ -129,6 +135,7 @@ export default function UserForm({
             />
             <SearchableSelect
               label="Location"
+              floatingLabel
               name="primaryLocationId"
               options={locations}
               placeholder="Search location..."
@@ -138,6 +145,7 @@ export default function UserForm({
             />
             <SearchableSelect
               label="Department"
+              floatingLabel
               name="departmentId"
               options={departments}
               placeholder="Search department..."
@@ -146,7 +154,7 @@ export default function UserForm({
               error={state.fieldErrors?.departmentId}
             />
           </div>
-          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-3 text-xs leading-5 text-sky-800">
+          <div className={`mt-3 flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 ${fitPanel ? "px-3 py-2 leading-4" : "px-3.5 py-3 leading-5"}`}>
             <span className="mt-0.5 shrink-0 text-[#014171]"><MorphIcon icon={KeyRound} size={14} strokeWidth={2} reducedMotion="user" /></span>
             <span>
               {role === "employee"
@@ -167,20 +175,19 @@ export default function UserForm({
             description="Set the initial password for the new account"
           />
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5">
-            <label htmlFor="user-password" className="mb-1.5 block text-sm font-medium text-slate-700">
-              Password<span className="text-red-500"> *</span>
-            </label>
-            <div className="relative">
+            <div className="add-printer-floating-field relative">
               <input
                 id="user-password"
                 name="password"
                 type={showPassword ? "text" : "password"}
+                placeholder=" "
                 autoComplete="new-password"
                 required
                 aria-invalid={Boolean(state.fieldErrors?.password) || undefined}
                 aria-describedby={state.fieldErrors?.password ? "user-password-error" : undefined}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 pr-11 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
+                className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3.5 pb-1 pt-4 pr-11 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#040273] focus:ring-2 focus:ring-[#040273]/15"
               />
+              <label htmlFor="user-password">Password <span className="text-red-500">*</span></label>
               <button
                 type="button"
                 onClick={() => setShowPassword((visible) => !visible)}
@@ -223,11 +230,27 @@ function FormSectionHeader({
   icon,
   title,
   description,
+  insetStyle = false,
 }: {
   icon: IconNode;
   title: string;
   description: string;
+  insetStyle?: boolean;
 }) {
+  if (insetStyle) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg bg-slate-100 px-3.5 py-2.5">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm">
+          <MorphIcon icon={icon} size={15} strokeWidth={2} reducedMotion="user" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">

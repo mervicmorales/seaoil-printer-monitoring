@@ -9,6 +9,7 @@ export default function DeliveryTonerModal() {
       showTitle={false}
       pageHeaderInModal
       hideScrollbar
+      variant="right-panel"
     >
       <DeliveryTonerPage embedded />
     </ModalShell>

@@ -106,7 +106,11 @@ export default function ReportIssueForm({
   }
 
   return (
-    <form id="report-printer-issue-form" action={formAction} className="space-y-5">
+    <form
+      id="report-printer-issue-form"
+      action={formAction}
+      className={showActions ? "space-y-5" : "space-y-4"}
+    >
       {state.error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>
       )}
@@ -115,8 +119,9 @@ export default function ReportIssueForm({
           icon={Printer}
           title="Printer and assignment"
           description="Find the printer by serial number to populate its service assignment"
+          insetStyle={!showActions}
         />
-        <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${showActions ? "mt-4 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5" : "gap-3 px-3 py-3"}`}>
         <SearchInput
           label="Printer Serial Number"
           name="serialNumber"
@@ -172,10 +177,11 @@ export default function ReportIssueForm({
           icon={ClipboardList}
           title="Issue details"
           description="Describe the reported concern and include any supporting notes"
+          insetStyle={!showActions}
         />
-        <div className="mt-4 grid grid-cols-1 gap-5 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5 lg:grid-cols-2">
-          <Textarea label="Concern" name="problem" rows={4} required error={state.fieldErrors?.problem} />
-          <Textarea label="Remarks" name="remarks" rows={4} />
+        <div className={`grid grid-cols-1 lg:grid-cols-2 ${showActions ? "mt-4 gap-5 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5" : "gap-3 px-3 py-3 [&_textarea]:min-h-24 [&_textarea]:resize-y"}`}>
+          <Textarea label="Concern" name="problem" rows={showActions ? 4 : 3} required error={state.fieldErrors?.problem} />
+          <Textarea label="Remarks" name="remarks" rows={showActions ? 4 : 3} />
         </div>
       </section>
       <div className={showActions ? "flex gap-3 border-t border-slate-200 pt-5" : "hidden"}>
@@ -190,11 +196,27 @@ function FormSectionHeader({
   icon,
   title,
   description,
+  insetStyle = false,
 }: {
   icon: IconNode;
   title: string;
   description: string;
+  insetStyle?: boolean;
 }) {
+  if (insetStyle) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg bg-slate-100 px-3.5 py-2.5">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm">
+          <MorphIcon icon={icon} size={15} strokeWidth={2} reducedMotion="user" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">

@@ -29,7 +29,7 @@ export async function PrintOpsPrintPageContent({
   const session = employeeMode
     ? await requireSession()
     : await requireModuleFullAccess("printops");
-  if (employeeMode && session.role !== "employee") redirect("/dashboard");
+  if (employeeMode && session.role !== "employee") redirect("/overview");
 
   const access = await getModuleAccessMap(session.id, session.role);
   const params = await searchParams;
@@ -68,9 +68,10 @@ export async function PrintOpsPrintPageContent({
   return (
     <div>
       <PageHeader
-        title={`${employeeMode ? "Printer Services" : "PrintOps"} · Print`}
+        parentTitle="Printer Services"
+        title="Print"
         subtitle="Send documents to assigned printers through authenticated office agents."
-        actions={<RefreshControl refreshedAtLabel={formatTime(renderedAt)} intervalSeconds={5} />}
+        actions={<RefreshControl refreshedAtLabel={formatDateTime(renderedAt)} intervalSeconds={5} iconOnly />}
       />
       <PrintOpsFeedback success={params.success} error={params.error} />
       {showAgentControls && (

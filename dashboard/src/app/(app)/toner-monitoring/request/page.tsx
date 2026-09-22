@@ -28,7 +28,7 @@ export default async function RequestTonerPage({
           <PrimaryButton
             type="submit"
             form="toner-request-form"
-            className="px-3 py-1.5 text-xs"
+            className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
           >
             <IconGlyph icon={Send} size={14} />
             Save Request

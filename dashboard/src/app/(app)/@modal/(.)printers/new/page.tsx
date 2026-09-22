@@ -18,6 +18,7 @@ export default async function NewPrinterModal({
       closeHref={returnTo}
       showTitle={false}
       pageHeaderInModal
+      variant="right-panel"
     >
       <NewPrinterPage
         searchParams={Promise.resolve(resolvedSearchParams)}

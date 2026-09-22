@@ -1,0 +1,83 @@
+.search {
+  position: relative;
+  display: block;
+  width: 56px;
+  max-width: min(230px, calc(100vw - 2rem));
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 7%);
+  cursor: text;
+  transition:
+    width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+/* Clicking anywhere inside this label focuses the search input. */
+.search:hover,
+.search:focus-within,
+.search:has(.field:not(:placeholder-shown)) {
+  width: 230px;
+  border-color: var(--seaoil-blue);
+  box-shadow: 0 0 0 3px rgb(1 65 113 / 10%);
+}
+
+.lens {
+  position: absolute;
+  z-index: 1;
+  left: 18px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  translate: 0 -50%;
+  fill: none;
+  stroke: #64748b;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  pointer-events: none;
+  transition: stroke 160ms ease;
+}
+
+.search:hover .lens,
+.search:focus-within .lens {
+  stroke: #014171;
+}
+
+.field {
+  width: 228px;
+  height: 100%;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 14px 0 48px;
+  color: #10243a;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  opacity: 0;
+  transition: opacity 160ms ease 60ms;
+}
+
+.search:hover .field,
+.search:focus-within .field,
+.search:has(.field:not(:placeholder-shown)) .field {
+  opacity: 1;
+}
+
+.field::placeholder {
+  color: #94a3b8;
+}
+
+.field::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search,
+  .field {
+    transition-duration: 0.01ms;
+  }
+}

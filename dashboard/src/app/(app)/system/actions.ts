@@ -32,7 +32,7 @@ function num(v: FormDataEntryValue | null) {
 
 function revalidateAll() {
   revalidatePath("/system");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   revalidatePath("/printers");
   revalidatePath("/toner-monitoring");
   revalidatePath("/toner-expenses");

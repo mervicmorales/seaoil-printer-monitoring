@@ -12,7 +12,7 @@ import type { RepairFormState } from "../actions";
 function SubmitButton({ label = "Save Changes" }: { label?: string }) {
   const { pending } = useFormStatus();
   return (
-    <PrimaryButton type="submit" disabled={pending}>
+    <PrimaryButton type="submit" disabled={pending} className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none">
       {pending ? "Saving..." : label}
     </PrimaryButton>
   );
@@ -64,26 +64,30 @@ export default function TicketDetailsForm({
   }, []);
 
   return (
-    <form id="repair-ticket-details-form" action={formAction} className="border-t border-slate-200 bg-white p-5 sm:p-6">
+    <form
+      id="repair-ticket-details-form"
+      action={formAction}
+      className={`border-t border-slate-200 bg-white ${showActions ? "p-5 sm:p-6" : "p-4"}`}
+    >
       <input type="hidden" name="id" value={ticketId} />
-      <div className="mb-5 flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+      <div className={`flex items-center gap-2.5 rounded-lg bg-slate-100 ${showActions ? "mb-5 px-4 py-3" : "mb-3 px-3.5 py-2.5"}`}>
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm">
           <MorphIcon icon={ClipboardCheck} size={17} strokeWidth={2} reducedMotion="user" />
         </span>
         <div>
-          <h2 className="text-sm font-bold text-[#014171]">Issue and resolution</h2>
-          <p className="mt-0.5 text-xs text-slate-500">Review the reported concern and document the work completed.</p>
+          <h2 className="text-sm font-semibold text-slate-900">Issue and resolution</h2>
+          <p className="mt-0.5 text-[11px] text-slate-500">Review the reported concern and document the work completed.</p>
         </div>
       </div>
 
       {(state.error || state.fieldErrors?.status) && (
-        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+        <div className={`rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ${showActions ? "mb-5" : "mb-3"}`} role="alert">
           {state.error || state.fieldErrors?.status}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+      <div className={`grid grid-cols-1 lg:grid-cols-2 ${showActions ? "gap-5" : "gap-3 px-3"}`}>
+        <div className={showActions ? "rounded-2xl border border-slate-200 bg-slate-50/50 p-4" : "min-w-0 py-2"}>
           <Textarea
             label="Concern"
             name="problem"
@@ -92,10 +96,10 @@ export default function TicketDetailsForm({
             required
             readOnly={statusOnly}
             error={state.fieldErrors?.problem}
-            className="min-h-28 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
+            className="min-h-24 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
           />
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+        <div className={showActions ? "rounded-2xl border border-slate-200 bg-slate-50/50 p-4" : "min-w-0 py-2"}>
           <Textarea
             label="Resolution"
             name="resolution"
@@ -104,20 +108,20 @@ export default function TicketDetailsForm({
             required={!statusOnly && selectedStatus === "Closed"}
             readOnly={statusOnly}
             error={state.fieldErrors?.resolution}
-            className="min-h-28 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
+            className="min-h-24 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
           />
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+        <div className={showActions ? "rounded-2xl border border-slate-200 bg-slate-50/50 p-4" : "min-w-0 py-2"}>
           <Textarea
             label="Remarks"
             name="remarks"
             rows={4}
             defaultValue={remarks ?? ""}
             readOnly={statusOnly}
-            className="min-h-28 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
+            className="min-h-24 resize-y bg-white read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-600"
           />
         </div>
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-4">
+        <div className={showActions ? "min-h-0 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-4" : "min-w-0 py-2"}>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700" htmlFor="resolution-attachment">
             <MorphIcon icon={Paperclip} size={16} strokeWidth={2} reducedMotion="user" />
             Resolution Attachment

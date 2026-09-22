@@ -20,6 +20,7 @@ export default async function EditPrinterModal({
       closeHref={detailsHref}
       showTitle={false}
       pageHeaderInModal
+      variant="right-panel"
     >
       <EditPrinterPage
         params={Promise.resolve({ id })}

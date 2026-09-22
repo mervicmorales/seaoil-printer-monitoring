@@ -3,7 +3,8 @@
 import {
   createContext,
   useContext,
-  useSyncExternalStore,
+  useEffect,
+  useState,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -11,10 +12,8 @@ import { createPortal } from "react-dom";
 type PageHeaderPlacementValue = "app" | "inline" | "modal";
 
 const PageHeaderPlacementContext = createContext<PageHeaderPlacementValue>("app");
-const subscribeToHeaderTarget = () => () => {};
 const getAppHeaderTarget = () => document.getElementById("app-page-header-slot");
 const getModalHeaderTarget = () => document.getElementById("modal-page-header-slot");
-const getServerHeaderTarget = () => null;
 
 export function PageHeaderPlacement({
   inAppHeader,
@@ -36,11 +35,20 @@ export function PageHeaderPlacement({
 
 export function PageHeaderPortal({ children }: { children: ReactNode }) {
   const placement = useContext(PageHeaderPlacementContext);
-  const target = useSyncExternalStore(
-    subscribeToHeaderTarget,
-    placement === "modal" ? getModalHeaderTarget : getAppHeaderTarget,
-    getServerHeaderTarget,
-  );
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (placement === "inline") return;
+
+    let frame = 0;
+    const resolveTarget = () => {
+      const nextTarget = placement === "modal" ? getModalHeaderTarget() : getAppHeaderTarget();
+      if (nextTarget) setTarget(nextTarget);
+      else frame = window.requestAnimationFrame(resolveTarget);
+    };
+    frame = window.requestAnimationFrame(resolveTarget);
+    return () => window.cancelAnimationFrame(frame);
+  }, [placement]);
 
   if (placement === "inline") {
     return <div className="mb-6">{children}</div>;

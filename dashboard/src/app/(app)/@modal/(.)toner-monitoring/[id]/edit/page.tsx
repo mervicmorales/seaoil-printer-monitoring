@@ -13,8 +13,9 @@ export default function EditTonerTransactionModal({
       showTitle={false}
       pageHeaderInModal
       hideScrollbar
+      variant="right-panel"
     >
-      <EditTransactionPage params={params} />
+      <EditTransactionPage params={params} embedded />
     </ModalShell>
   );
 }

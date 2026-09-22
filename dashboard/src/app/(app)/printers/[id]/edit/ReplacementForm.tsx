@@ -1,62 +1,32 @@
-"use client";
-
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import Link from "next/link";
-import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
-import type { PrinterFormState } from "../../actions";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <PrimaryButton type="submit" disabled={pending}>
-      {pending ? "Saving..." : "Save Replacement"}
-    </PrimaryButton>
-  );
-}
+import { Input } from "@/components/ui";
 
 export default function ReplacementForm({
-  action,
-  printerId,
   oldSerialNumber,
   model,
   today,
-  returnTo,
 }: {
-  action: (prev: PrinterFormState, formData: FormData) => Promise<PrinterFormState>;
-  printerId: number;
   oldSerialNumber: string;
   model: string;
   today: string;
-  returnTo: string;
 }) {
-  const [state, formAction] = useActionState(action, {});
-
   return (
-    <form action={formAction} className="space-y-5">
-      <input type="hidden" name="printerId" value={printerId} />
-      <input type="hidden" name="returnTo" value={returnTo} />
-      {state.error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</div>
-      )}
-      <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
-        <Input label="Replacement Date" name="replacementDate" type="date" defaultValue={today} required />
+    <div className="space-y-4 p-4 sm:p-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input label="Replacement Date" floatingLabel name="replacementDate" type="date" defaultValue={today} />
         <Input
-          label="OLD Serial Number"
+          label="Current Serial Number"
+          floatingLabel
           value={oldSerialNumber}
           readOnly
           disabled
           className="bg-slate-100 text-slate-500"
         />
-        <Input label="New Serial Number" name="newSerialNumber" placeholder="Enter new serial number" required />
-        <Input label="Model" name="model" defaultValue={model} />
+        <Input label="New Serial Number" floatingLabel name="newSerialNumber" placeholder="Enter new serial number" />
+        <Input label="Replacement Model" floatingLabel name="replacementModel" defaultValue={model} />
       </div>
-      <div className="flex gap-3">
-        <SubmitButton />
-        <Link href={`/printers/${printerId}?returnTo=${encodeURIComponent(returnTo)}`}>
-          <SecondaryButton type="button">Cancel</SecondaryButton>
-        </Link>
+      <div className="rounded-xl border border-sky-100 bg-sky-50/70 px-3.5 py-2.5 text-xs leading-5 text-slate-600">
+        Leave the new serial number empty when no replacement is being recorded.
       </div>
-    </form>
+    </div>
   );
 }

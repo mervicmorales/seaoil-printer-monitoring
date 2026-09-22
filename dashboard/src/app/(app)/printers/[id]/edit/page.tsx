@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { printerMonitoringAssignments, printers, printerTonerTypes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
-import { RefreshCw } from "lucide";
+import { RefreshCw, Save } from "lucide";
 import {
   getContracts,
   getDepartments,
@@ -13,7 +13,7 @@ import {
   getVendors,
 } from "@/lib/lookups";
 import PrinterForm from "../../PrinterForm";
-import { addReplacementAction, updatePrinterAction } from "../../actions";
+import { updatePrinterAction } from "../../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 import { todayISO } from "@/lib/format";
 import ReplacementForm from "./ReplacementForm";
@@ -67,7 +67,7 @@ export default async function EditPrinterPage({
         title="Edit Printer"
         subtitle={`Serial Number: ${printer.serialNumber}`}
         actions={embedded ? (
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex items-center gap-2">
             {hasAdminPrivileges(session.role) && (
               <PrinterStatusSelect
                 currentStatus={printer.status}
@@ -79,8 +79,9 @@ export default async function EditPrinterPage({
             <PrimaryButton
               type="submit"
               form="printer-edit-form"
-              className="px-3 py-1.5 text-xs"
+              className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
             >
+              <IconGlyph icon={Save} size={14} />
               Save Changes
             </PrimaryButton>
           </div>
@@ -112,26 +113,25 @@ export default async function EditPrinterPage({
             limitedSupport={session.role === "support"}
             showActions={!embedded}
             replacementContent={
-              <div className="space-y-5">
-                <div className="flex items-start gap-3 border-b border-slate-200 pb-4">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/40">
+                <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                  <div className="flex items-start gap-3">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
                     <IconGlyph icon={RefreshCw} size={17} />
                   </span>
                   <div>
-                  <h3 className="text-sm font-bold text-[#014171]">Record Replacement</h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Replacing this unit preserves the old serial number in Replacement History.
-                  </p>
+                    <h3 className="text-sm font-bold text-[#014171]">Record replacement</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Register the new unit while preserving this printer&apos;s replacement history.
+                    </p>
+                  </div>
                   </div>
                 </div>
                 {hasAdminPrivileges(session.role) ? <ReplacementForm
-                  action={addReplacementAction}
-                  printerId={printer.id}
                   oldSerialNumber={printer.serialNumber}
                   model={printer.model || ""}
                   today={todayISO()}
-                  returnTo={returnTo}
-                /> : <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Replacement history is view-only for Support users. Open the printer details page to review past replacements.</p>}
+                /> : <p className="m-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:m-5">Replacement history is view-only for Support users. Open the printer details page to review past replacements.</p>}
               </div>
             }
           />

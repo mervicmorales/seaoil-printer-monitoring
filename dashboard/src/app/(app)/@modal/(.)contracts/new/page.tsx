@@ -7,8 +7,12 @@ export default function UploadContractModal() {
       title="Upload Contract"
       closeHref="/contracts"
       showTitle={false}
+      pageHeaderInModal
+      variant="right-panel"
+      hideScrollbar
+      contentClassName="flex-1 !overflow-hidden !p-4 sm:!p-5"
     >
-      <NewContractPage />
+      <NewContractPage embedded />
     </ModalShell>
   );
 }

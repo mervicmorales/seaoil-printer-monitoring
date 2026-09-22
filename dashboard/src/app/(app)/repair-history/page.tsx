@@ -1,30 +1,35 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { repairTickets, locations, departments } from "@/db/schema";
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { Eye, Plus, Wrench, X } from "lucide";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { Eye, Plus, Wrench } from "lucide";
 import { PageHeader, TableCard, Badge, statusBadgeColor, EmptyState, IconGlyph } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import SuccessBanner from "@/components/SuccessBanner";
-import { REPAIR_STATUSES } from "@/lib/constants";
 import { getModuleAccessMap, requireModuleFullAccess } from "@/lib/server-utils";
 import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
-import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
-import SearchInput from "@/components/SearchInput";
+import Search from "@/components/Search";
+import RecordTableToolbar from "@/components/RecordTableToolbar";
+import PrinterColumnFilter, { type PrinterColumnFilterOption } from "@/app/(app)/printers/PrinterColumnFilter";
 
 export const dynamic = "force-dynamic";
+const BLANK_FILTER_VALUE = "__blank__";
 
 export default async function RepairHistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | undefined>>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await requireModuleFullAccess("repair");
   const access = await getModuleAccessMap(session.id, session.role);
   const sp = await searchParams;
 
   const conditions = [];
-  const searchTerm = (sp.q || sp.ticket || sp.serial || "").trim();
+  const searchTerm = (firstParam(sp.q) || firstParam(sp.ticket) || firstParam(sp.serial)).trim();
+  const requestedDateFilters = paramList(sp.requestedDate);
+  const departmentFilters = paramList(sp.department);
+  const statusFilters = paramList(sp.status);
+  const sort = firstParam(sp.sort);
   if (searchTerm) {
     conditions.push(
       or(
@@ -33,10 +38,8 @@ export default async function RepairHistoryPage({
       ),
     );
   }
-  if (sp.status) conditions.push(eq(repairTickets.status, sp.status));
-  if (sp.location) conditions.push(eq(repairTickets.locationId, Number(sp.location)));
 
-  const rows = await db
+  const baseRows = await db
     .select({
       id: repairTickets.id,
       ticketNumber: repairTickets.ticketNumber,
@@ -57,104 +60,53 @@ export default async function RepairHistoryPage({
       desc(repairTickets.updatedAt),
       desc(repairTickets.createdAt),
     );
-
-  const allLocations = await db.select().from(locations).orderBy(asc(locations.name));
-  const activeFilterCount = [
-    searchTerm,
-    sp.status,
-    sp.location,
-  ].filter(Boolean).length;
+  const requestedDateOptions = uniqueFilterOptions(baseRows.map((row) => ({
+    value: dateFilterValue(row.requestedDate),
+    label: formatDate(row.requestedDate),
+  })));
+  const departmentOptions = uniqueFilterOptions(baseRows.map((row) => ({
+    value: row.departmentName?.trim() || BLANK_FILTER_VALUE,
+    label: row.departmentName?.trim() || "(Blanks)",
+  })));
+  const statusOptions = uniqueFilterOptions(baseRows.map((row) => ({ value: row.status, label: row.status })));
+  const rows = baseRows
+    .filter((row) => (
+      matchesSelected(dateFilterValue(row.requestedDate), requestedDateFilters)
+      && matchesSelected(row.departmentName?.trim() || BLANK_FILTER_VALUE, departmentFilters)
+      && matchesSelected(row.status, statusFilters)
+    ))
+    .sort((left, right) => compareRepairRows(left, right, sort));
 
   return (
-    <div className="flex h-[calc(100dvh-7rem)] min-h-[36rem] flex-col">
+    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col sm:h-[calc(100dvh-111px)]">
       <PageHeader
+        parentTitle="Printers"
         title="Repair History"
-        subtitle={`${rows.length} ticket(s) in the repair summary`}
-        actions={
-          access.repair ? (
-            <Link
-              href="/repair-history/new"
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#012c50] hover:shadow-md"
-            >
-              <IconGlyph icon={Plus} size={16} />
+      />
+      <SuccessBanner message={firstParam(sp.success) || undefined} showInline={false} />
+
+      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <RecordTableToolbar count={rows.length} label="repair ticket">
+          <AutoSubmitFilterForm
+            method="get"
+            resetKey={[requestedDateFilters.join(","), departmentFilters.join(","), statusFilters.join(","), sort].join("|")}
+          >
+            {requestedDateFilters.map((value) => <input key={`requested-date-${value}`} type="hidden" name="requestedDate" value={value} />)}
+            {departmentFilters.map((value) => <input key={`department-${value}`} type="hidden" name="department" value={value} />)}
+            {statusFilters.map((value) => <input key={`status-${value}`} type="hidden" name="status" value={value} />)}
+            {sort && <input type="hidden" name="sort" value={sort} />}
+            <Search name="q" defaultValue={searchTerm} placeholder="Ticket or serial number" ariaLabel="Search repair tickets" />
+          </AutoSubmitFilterForm>
+          {access.repair && (
+            <Link href="/repair-history/new" className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#014171] px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#00365f]">
+              <IconGlyph icon={Plus} size={15} />
               Report Printer
             </Link>
-          ) : undefined
-        }
-      />
-      <SuccessBanner message={sp.success} showInline={false} />
-
-      <CollapsibleFilterPanel activeFilterCount={activeFilterCount}>
-            <AutoSubmitFilterForm
-              method="get"
-              resetKey={[
-                sp.q,
-                sp.status,
-                sp.location,
-              ].join("|")}
-              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(18rem,2fr)_minmax(12rem,1fr)_minmax(11rem,1fr)_auto] lg:items-end"
-            >
-              <SearchInput
-                key={searchTerm}
-                label="Ticket or serial number"
-                name="q"
-                defaultValue={searchTerm}
-                placeholder="Search Ticket or Serial Number"
-                aria-label="Search repair tickets"
-              />
-              <label className="block min-w-0">
-                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Location</span>
-                <select
-                  name="location"
-                  defaultValue={sp.location || ""}
-                  aria-label="Filter repair tickets by location"
-                  className="h-10 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 hover:bg-slate-50 focus:border-[#0b4f7c] focus:ring-2 focus:ring-[#0b4f7c]/15"
-                >
-                  <option value="">All Locations</option>
-                  {allLocations.map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block min-w-0">
-                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ticket status</span>
-                <select
-                  name="status"
-                  defaultValue={sp.status || ""}
-                  aria-label="Filter repair tickets by status"
-                  className="h-10 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 hover:bg-slate-50 focus:border-[#0b4f7c] focus:ring-2 focus:ring-[#0b4f7c]/15"
-                >
-                  <option value="">All Statuses</option>
-                  {REPAIR_STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="flex sm:justify-start lg:justify-end">
-                <Link
-                  href="/repair-history"
-                  className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b4f7c]/20 sm:w-auto lg:min-w-20"
-                >
-                  <IconGlyph icon={X} size={14} />
-                  Clear
-                </Link>
-              </div>
-            </AutoSubmitFilterForm>
-      </CollapsibleFilterPanel>
-
-      <div className="mb-3 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Service activity</p>
-          <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">Repair tickets</h2>
-        </div>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
-          {rows.length} records
-        </span>
-      </div>
-
-      <TableCard className="min-h-0 flex-1 overflow-x-auto overflow-y-scroll overscroll-contain">
+          )}
+        </RecordTableToolbar>
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
         {rows.length === 0 ? (
-          <EmptyState message="No repair tickets found." />
+          <EmptyState message="No repair tickets found" />
         ) : (
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
@@ -191,21 +143,33 @@ export default async function RepairHistoryPage({
 
           <div className="hidden lg:block">
           <table className="w-full min-w-[950px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-              <tr>
+            <thead className="bg-slate-50/95 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-3">Ticket #</th>
-                <th className="px-4 py-3">Requested Date</th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Requested Date">
+                    <PrinterColumnFilter label="Requested date" paramName="requestedDate" options={requestedDateOptions} selectedValues={requestedDateFilters} currentSort={sort} sortAscValue="requested_date_asc" sortDescValue="requested_date_desc" sortAscLabel="Oldest first" sortDescLabel="Newest first" />
+                  </FilterableHeading>
+                </th>
                 <th className="px-4 py-3">Serial Number</th>
-                <th className="px-4 py-3">Location / Department</th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Location / Department">
+                    <PrinterColumnFilter label="Department" paramName="department" options={departmentOptions} selectedValues={departmentFilters} currentSort={sort} sortAscValue="department_asc" sortDescValue="department_desc" />
+                  </FilterableHeading>
+                </th>
                 <th className="px-4 py-3">Concern</th>
                 <th className="px-4 py-3">Date Closed</th>
-                <th className="px-4 py-3">Ticket Status</th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Ticket Status">
+                    <PrinterColumnFilter label="Ticket status" paramName="status" options={statusOptions} selectedValues={statusFilters} currentSort={sort} sortAscValue="status_asc" sortDescValue="status_desc" />
+                  </FilterableHeading>
+                </th>
                 <th className="w-px whitespace-nowrap px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((t) => (
-                <tr key={t.id}>
+                <tr key={t.id} className="transition-colors hover:bg-slate-50/80">
                   <td className="px-4 py-3 font-mono text-xs font-bold text-[#014171]">{t.ticketNumber}</td>
                   <td className="px-4 py-3">{formatDate(t.requestedDate)}</td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-600">{t.serialNumber}</td>
@@ -218,9 +182,8 @@ export default async function RepairHistoryPage({
                   <td className="px-4 py-3"><Badge color={statusBadgeColor(t.status)}>{t.status}</Badge></td>
                   <td className="w-px whitespace-nowrap px-4 py-3">
                     <div className="flex justify-end gap-2">
-                      <Link href={`/repair-history/${t.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
-                        <IconGlyph icon={Eye} size={13} />
-                        View
+                      <Link href={`/repair-history/${t.id}`} aria-label={`View ticket ${t.ticketNumber}`} className="inline-flex size-8 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100">
+                        <IconGlyph icon={Eye} size={16} />
                       </Link>
                     </div>
                   </td>
@@ -231,6 +194,7 @@ export default async function RepairHistoryPage({
           </div>
           </>
         )}
+        </div>
       </TableCard>
     </div>
   );
@@ -243,4 +207,52 @@ function TicketField({ label, value, mono = false }: { label: string; value: str
       <dd className={`mt-1 line-clamp-2 text-xs font-medium text-slate-700 ${mono ? "font-mono" : ""}`}>{value}</dd>
     </div>
   );
+}
+
+function FilterableHeading({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-2">
+      <span className="min-w-0 leading-4">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function paramList(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+function uniqueFilterOptions(options: PrinterColumnFilterOption[]) {
+  return [...new Map(options.map((option) => [option.value, option])).values()]
+    .sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
+}
+
+function matchesSelected(value: string, selected: string[]) {
+  return selected.length === 0 || selected.includes(value);
+}
+
+function dateFilterValue(value: string | Date) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
+function compareRepairRows(
+  left: { requestedDate: string | Date; departmentName: string | null; status: string },
+  right: { requestedDate: string | Date; departmentName: string | null; status: string },
+  sort: string,
+) {
+  const values: Record<string, [string, string]> = {
+    requested_date_asc: [dateFilterValue(left.requestedDate), dateFilterValue(right.requestedDate)],
+    requested_date_desc: [dateFilterValue(right.requestedDate), dateFilterValue(left.requestedDate)],
+    department_asc: [left.departmentName ?? "", right.departmentName ?? ""],
+    department_desc: [right.departmentName ?? "", left.departmentName ?? ""],
+    status_asc: [left.status, right.status],
+    status_desc: [right.status, left.status],
+  };
+  const pair = values[sort];
+  return pair ? pair[0].localeCompare(pair[1], undefined, { numeric: true }) : 0;
 }

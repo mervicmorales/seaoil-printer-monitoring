@@ -4,7 +4,6 @@ import {
   CircleCheckBig,
   KeyRound,
   Mail,
-  MapPin,
   ShieldCheck,
   TriangleAlert,
   X,
@@ -31,9 +30,11 @@ type DetailValue = string | null;
 export default async function RegistrationDetailPage({
   params,
   searchParams,
+  embedded = false,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ success?: string; error?: string }>;
+  embedded?: boolean;
 }) {
   await requireModuleFullAccess("registrations");
   const { id } = await params;
@@ -88,8 +89,8 @@ export default async function RegistrationDetailPage({
         showInline={false}
       />
 
-      <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 sm:px-6">
+      <Card className="overflow-hidden !border-0">
+        <div className={`flex shrink-0 flex-wrap items-center justify-between border-b border-slate-200 bg-slate-50/70 ${embedded ? "gap-3 px-4 py-3" : "gap-4 px-5 py-4 sm:px-6"}`}>
           <div className="flex items-center gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
               <IconGlyph icon={KeyRound} size={18} />
@@ -117,38 +118,34 @@ export default async function RegistrationDetailPage({
           )}
         </div>
 
-        <div className="space-y-6 p-5 sm:p-6">
+        <div className={embedded ? "space-y-4 p-4" : "space-y-6 p-5 sm:p-6"}>
           <DetailSection
+            compact={embedded}
             icon={KeyRound}
-            title="Account details"
-            description="Identity, source, and sign-in verification"
-            details={accountDetails}
-          />
-          <DetailSection
-            icon={MapPin}
-            title="Assignment details"
-            description="Primary organizational placement and submission date"
-            details={assignmentDetails}
+            title="General information"
+            description="Registration identity and organizational assignment"
+            details={[...accountDetails, ...assignmentDetails]}
           />
           {reviewDetails.some(([, value]) => value) && (
             <DetailSection
+              compact={embedded}
               icon={ShieldCheck}
-              title="Review details"
+              title="Review information"
               description="Administrative decision and recorded reason"
               details={reviewDetails}
             />
           )}
 
           {request.status === "pending_email" && (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm leading-6 text-amber-800">
+            <div className={`flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 ${embedded ? "px-3 py-2.5 text-xs leading-5" : "px-4 py-3.5 text-sm leading-6"}`}>
               <span className="mt-0.5 shrink-0 text-amber-600"><IconGlyph icon={TriangleAlert} size={17} /></span>
               <p>Approving now bypasses email verification and grants the account immediate access. Use this only after confirming the user&apos;s identity.</p>
             </div>
           )}
 
           {awaitingDecision && (
-            <section className="border-t border-slate-200 pt-5">
-              <div className="mb-4 flex items-center gap-3">
+            <section className={`border-t border-slate-200 ${embedded ? "pt-3" : "pt-5"}`}>
+              <div className={`flex items-center gap-3 ${embedded ? "mb-3" : "mb-4"}`}>
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
                   <IconGlyph icon={ShieldCheck} size={17} />
                 </span>
@@ -158,14 +155,14 @@ export default async function RegistrationDetailPage({
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-end">
-                <form action={approveRegistrationAction} className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                <form action={approveRegistrationAction} className={`rounded-xl border border-emerald-200 bg-emerald-50/60 ${embedded ? "p-2.5" : "p-3"}`}>
                   <input type="hidden" name="id" value={request.id} />
                   <PrimaryButton type="submit" className="w-full sm:w-auto">
                     <IconGlyph icon={CircleCheckBig} size={15} />
                     {request.status === "pending_email" ? "Approve Immediately" : "Approve"}
                   </PrimaryButton>
                 </form>
-                <form action={rejectRegistrationAction} className="flex min-w-0 flex-col gap-2 rounded-xl border border-red-200 bg-red-50/50 p-3 sm:flex-row">
+                <form action={rejectRegistrationAction} className={`flex min-w-0 flex-col gap-2 rounded-xl border border-red-200 bg-red-50/50 sm:flex-row ${embedded ? "p-2.5" : "p-3"}`}>
                   <input type="hidden" name="id" value={request.id} />
                   <label className="min-w-0 flex-1">
                     <span className="sr-only">Rejection reason</span>
@@ -199,28 +196,32 @@ function DetailSection({
   title,
   description,
   details,
+  compact = false,
+  className = "",
 }: {
   icon: IconNode;
   title: string;
   description: string;
   details: Array<[string, DetailValue]>;
+  compact?: boolean;
+  className?: string;
 }) {
   return (
-    <section>
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
-          <IconGlyph icon={icon} size={17} />
+    <section className={className}>
+      <div className={`flex items-center rounded-lg bg-slate-100 ${compact ? "gap-2.5 px-3.5 py-2.5" : "gap-3 px-4 py-3"}`}>
+        <span className={`flex shrink-0 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm ${compact ? "size-7" : "size-8"}`}>
+          <IconGlyph icon={icon} size={compact ? 15 : 17} />
         </span>
         <div>
-          <h3 className="text-sm font-bold text-[#014171]">{title}</h3>
-          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          {description && <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>}
         </div>
       </div>
-      <dl className="mt-4 grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+      <dl className={compact ? "px-3 py-2" : "px-4 py-3 sm:px-5"}>
         {details.map(([label, value]) => (
-          <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</dt>
-            <dd className="mt-1.5 break-words text-sm font-semibold text-slate-800">{value || "—"}</dd>
+          <div key={label} className={`grid min-w-0 grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)] items-start gap-4 ${compact ? "py-2" : "py-2.5"}`}>
+            <dt className="text-sm font-medium text-slate-500">{label}</dt>
+            <dd className="break-words text-sm font-semibold text-slate-900">{value || "—"}</dd>
           </div>
         ))}
       </dl>

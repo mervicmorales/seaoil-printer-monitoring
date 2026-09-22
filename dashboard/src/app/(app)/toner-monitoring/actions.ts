@@ -93,7 +93,7 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
   }
 
   revalidatePath("/toner-monitoring");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   redirect("/toner-monitoring?success=Toner delivery recorded and inventory updated.");
 }
 
@@ -165,7 +165,7 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
   await Promise.all(tonerTypeIds.map((tonerTypeId) => processTonerInventoryAlert(tonerTypeId)));
 
   revalidatePath("/toner-monitoring");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   redirect("/toner-monitoring?success=Toner request recorded and inventory updated.");
 }
 
@@ -235,7 +235,7 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
   if (tonerTypeId !== existing.tonerTypeId) await processTonerInventoryAlert(tonerTypeId);
 
   revalidatePath("/toner-monitoring");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   redirect("/toner-monitoring?success=Transaction updated successfully.");
 }
 
@@ -252,6 +252,6 @@ export async function deleteTransactionAction(formData: FormData) {
     await processTonerInventoryAlert(existing.tonerTypeId);
   }
   revalidatePath("/toner-monitoring");
-  revalidatePath("/dashboard");
+  revalidatePath("/overview");
   redirect("/toner-monitoring?success=Transaction deleted.");
 }

@@ -64,7 +64,7 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: MODULE_LABELS.dashboard, icon: LayoutDashboard, module: "dashboard" },
+  { href: "/overview", label: MODULE_LABELS.dashboard, icon: LayoutDashboard, module: "dashboard" },
   {
     href: "/printers",
     label: MODULE_LABELS.printers,
@@ -379,7 +379,7 @@ export default function Sidebar({
           </div>
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2 py-4">
+        <nav className="scrollbar-hidden min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto px-2 py-4">
           {items.map((item) => {
             const active = pathname === item.href;
             const childRouteActive = item.children?.some(

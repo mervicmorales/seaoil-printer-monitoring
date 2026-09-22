@@ -14,7 +14,7 @@ import { SYSTEM_LOGO_URL } from "@/lib/branding";
 
 export default async function EmployeePortalLayout({ children }: { children: ReactNode }) {
   const session = await requireSession();
-  if (session.role !== "employee") redirect("/dashboard");
+  if (session.role !== "employee") redirect("/overview");
 
   const cookieStore = await cookies();
   const collapsedCookie = cookieStore.get("seaoil-sidebar-collapsed")?.value;

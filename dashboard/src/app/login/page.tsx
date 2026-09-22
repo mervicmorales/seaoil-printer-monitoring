@@ -108,7 +108,7 @@ export default async function LoginPage({
 
             <LoginStatusToasts notice={statusNotice} />
 
-            <LoginForm nextPath={params.next ?? "/dashboard"} />
+            <LoginForm nextPath={params.next ?? "/overview"} />
 
             <div className="mt-6 border-t border-slate-200 pt-5 text-center">
               <p className="text-sm text-slate-500">

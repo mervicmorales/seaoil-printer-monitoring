@@ -28,7 +28,7 @@ type Ticket = {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <PrimaryButton type="submit" disabled={pending}>
+    <PrimaryButton type="submit" disabled={pending} className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none">
       {pending ? "Saving..." : "Save Changes"}
     </PrimaryButton>
   );

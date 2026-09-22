@@ -1,15 +1,19 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ClipboardList, Droplets, PackagePlus, Send, type IconNode } from "lucide";
+import { Check, ClipboardList, Droplets, PackagePlus, Send, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { Input, Select, PrimaryButton, SecondaryButton, Textarea } from "@/components/ui";
+import { Input, PrimaryButton, SecondaryButton, Textarea } from "@/components/ui";
 import type { TonerFormState } from "./actions";
 import Link from "next/link";
 import SearchableSelect from "@/components/SearchableSelect";
 
 type Lookup = { id: number; name: string; stock?: number };
+
+const TONER_FACE_SIZE = 42;
+const TONER_FACE_GAP = 4;
 
 function SubmitButton({ label, disabled = false }: { label: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
@@ -81,14 +85,16 @@ export default function TonerDeliveryRequestForm({
           description={mode === "delivery" ? "Stock receipt and assignment information" : "Toner issue and destination information"}
         />
         <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
-        <Input label="Date" name="date" type="date" defaultValue={today} required error={state.fieldErrors?.date} />
+        <Input label="Date" floatingLabel name="date" type="date" defaultValue={today} required error={state.fieldErrors?.date} />
         <Input
           label="Ticket Reference"
+          floatingLabel
           name="ticketReference"
           placeholder="Enter ticket or P.O number"
         />
         <Input
           label="Quantity"
+          floatingLabel
           name="quantity"
           type="number"
           min="1"
@@ -98,28 +104,29 @@ export default function TonerDeliveryRequestForm({
           disabled={allRequestTonersOutOfStock || outOfStockToners.length > 0}
           error={state.fieldErrors?.quantity}
         />
-        {mode === "request" ? (
-          <SearchableSelect label="Location" name="locationId" options={locations} placeholder="Search location..." required error={state.fieldErrors?.locationId} />
-        ) : (
-          <Select label="Location" name="locationId" defaultValue={defaultLocationId ?? ""}>
-            <option value="">Select location</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
-          </Select>
-        )}
-        {mode === "request" ? (
-          <SearchableSelect label="Department" name="departmentId" options={departments} placeholder="Search department..." required error={state.fieldErrors?.departmentId} />
-        ) : (
-          <Select label="Department" name="departmentId" defaultValue={defaultDepartmentId ?? ""}>
-            <option value="">Select department</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </Select>
-        )}
+        <SearchableSelect
+          label="Location"
+          floatingLabel
+          name="locationId"
+          options={locations}
+          placeholder="Search location..."
+          required={mode === "request"}
+          defaultValue={mode === "delivery" ? defaultLocationId : undefined}
+          error={state.fieldErrors?.locationId}
+        />
+        <SearchableSelect
+          label="Department"
+          floatingLabel
+          name="departmentId"
+          options={departments}
+          placeholder="Search department..."
+          required={mode === "request"}
+          defaultValue={mode === "delivery" ? defaultDepartmentId : undefined}
+          error={state.fieldErrors?.departmentId}
+        />
         <SearchableSelect
           label="ITS Name"
+          floatingLabel
           name="itsNameId"
           options={itsNames}
           placeholder="Search ITS Name..."
@@ -135,20 +142,12 @@ export default function TonerDeliveryRequestForm({
           title="Toner types"
           description="Select one or more toner types for this transaction"
         />
-        <div className="mt-4 flex flex-wrap gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:p-5">
-          {tonerTypes.length === 0 && <p className="text-sm text-slate-400">No toner types configured yet.</p>}
-          {tonerTypes.map((t) => (
-            <label key={t.id} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${checked.includes(t.id) ? "border-sky-200 bg-sky-50 text-[#014171]" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}>
-              <input type="checkbox" name="tonerTypeIds" value={t.id} checked={checked.includes(t.id)} onChange={() => toggle(t.id)} />
-              <span>{t.name}</span>
-              {mode === "request" && (
-                <span className={(t.stock ?? 0) <= 0 ? "font-semibold text-red-600" : "text-xs text-slate-500"}>
-                  {(t.stock ?? 0) <= 0 ? "Out of stock" : `${t.stock} available`}
-                </span>
-              )}
-            </label>
-          ))}
-        </div>
+        <TonerTypePicker
+          mode={mode}
+          tonerTypes={tonerTypes}
+          checkedToners={checked}
+          onToggle={toggle}
+        />
         {state.fieldErrors?.tonerTypeIds && <p className="mt-1 text-xs text-red-600">{state.fieldErrors.tonerTypeIds}</p>}
         {allRequestTonersOutOfStock && (
           <p role="alert" className="mt-2 text-sm font-medium text-red-600">
@@ -184,6 +183,113 @@ export default function TonerDeliveryRequestForm({
       </div>
     </form>
   );
+}
+
+function TonerTypePicker({
+  mode,
+  tonerTypes,
+  checkedToners,
+  onToggle,
+}: {
+  mode: "delivery" | "request";
+  tonerTypes: Lookup[];
+  checkedToners: number[];
+  onToggle: (id: number) => void;
+}) {
+  const picked = tonerTypes.filter((toner) => checkedToners.includes(toner.id));
+  const visiblePicked = picked.slice(0, 4);
+  const railWidth = visiblePicked.length > 0
+    ? TONER_FACE_SIZE + (visiblePicked.length - 1) * (TONER_FACE_SIZE + TONER_FACE_GAP)
+    : 0;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/40">
+      {checkedToners.map((tonerId) => (
+        <input key={tonerId} type="hidden" name="tonerTypeIds" value={tonerId} />
+      ))}
+      <div className="flex min-h-[68px] flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Toner selection</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {picked.length === 0 ? "Select one or more toner types" : `${picked.length} toner type${picked.length === 1 ? "" : "s"} selected`}
+          </p>
+        </div>
+        <div
+          className="flex h-[52px] w-fit shrink-0 items-center gap-4 overflow-hidden rounded-full border border-slate-200 bg-slate-50 px-3"
+          aria-label={picked.length === 0 ? "No toner types selected" : `Selected toner types: ${picked.map((toner) => toner.name).join(", ")}`}
+        >
+          {picked.length === 0 ? (
+            <span className="text-xs font-medium text-slate-400">None selected</span>
+          ) : (
+            <>
+              <div className="pik-rail h-[42px] shrink-0" style={{ width: `${railWidth}px` }} aria-hidden="true">
+                {visiblePicked.map((toner, index) => (
+                  <span
+                    key={toner.id}
+                    title={toner.name}
+                    className={`pik-face ${tonerFaceColor(toner.name)}`}
+                    style={{ "--pik-x": `${index * (TONER_FACE_SIZE + TONER_FACE_GAP)}px` } as CSSProperties}
+                  >
+                    {tonerFaceLabel(toner.name)}
+                  </span>
+                ))}
+              </div>
+              <span className="flex size-[42px] shrink-0 items-center justify-center text-lg font-bold tabular-nums text-[#014171]">{picked.length}</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+        {tonerTypes.length === 0 && <p className="text-sm text-slate-400">No toner types configured yet.</p>}
+        {tonerTypes.map((toner) => {
+          const selected = checkedToners.includes(toner.id);
+          const unavailable = mode === "request" && (toner.stock ?? 0) <= 0;
+          return (
+            <button
+              key={toner.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onToggle(toner.id)}
+              className={`group flex min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[#014171]/35 ${
+                selected ? "border-[#014171]/25 bg-sky-50 text-[#014171] shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${tonerFaceColor(toner.name)}`}>{tonerFaceLabel(toner.name)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{toner.name}</span>
+                {mode === "request" && (
+                  <span className={`block text-[10px] ${unavailable ? "font-semibold text-red-600" : "text-slate-500"}`}>
+                    {unavailable ? "Out of stock" : `${toner.stock} available`}
+                  </span>
+                )}
+              </span>
+              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full transition ${selected ? "bg-[#014171] text-white" : "bg-slate-100 text-transparent group-hover:text-slate-300"}`}>
+                <MorphIcon icon={Check} size={12} strokeWidth={2.5} reducedMotion="user" />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function tonerFaceLabel(name: string) {
+  const normalized = name.trim();
+  if (/^CF/i.test(normalized)) return "CF";
+  const colorSuffix = normalized.match(/(?:^|\s)([BCMY])$/i)?.[1];
+  if (colorSuffix) return colorSuffix.toUpperCase();
+  if (/ribbon/i.test(normalized)) return "R";
+  return normalized.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase() || "T";
+}
+
+function tonerFaceColor(name: string) {
+  if (/(?:^|\s)C$/i.test(name)) return "bg-cyan-500 text-white";
+  if (/(?:^|\s)M$/i.test(name)) return "bg-fuchsia-500 text-white";
+  if (/(?:^|\s)Y$/i.test(name)) return "bg-yellow-300 text-slate-900";
+  if (/(?:^|\s)B$/i.test(name)) return "bg-slate-800 text-white";
+  if (/ribbon/i.test(name)) return "bg-violet-500 text-white";
+  return "bg-[#014171] text-white";
 }
 
 function FormSectionHeader({

@@ -20,7 +20,7 @@ export const MODULES = [
 export type ModuleName = (typeof MODULES)[number];
 
 export const MODULE_LABELS: Record<ModuleName, string> = {
-  dashboard: "Dashboard",
+  dashboard: "Overview",
   printers: "Printers",
   printer_records: "Printer Records",
   repair: "Repair History",
@@ -37,7 +37,7 @@ export const MODULE_LABELS: Record<ModuleName, string> = {
 };
 
 export const MODULE_PATHS: Record<ModuleName, string> = {
-  dashboard: "/dashboard",
+  dashboard: "/overview",
   printers: "/printers",
   printer_records: "/printers",
   repair: "/repair-history",
