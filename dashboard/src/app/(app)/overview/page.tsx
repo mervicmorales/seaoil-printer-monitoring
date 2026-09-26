@@ -15,37 +15,29 @@ import {
   Wrench,
   type IconNode,
 } from "lucide";
-import { and, asc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  departments,
   locations,
   printers,
   repairTickets,
   tonerInventory,
-  tonerTransactions,
   tonerTypes,
   userRegistrationRequests,
   users,
 } from "@/db/schema";
-import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
 import RefreshControl from "@/components/RefreshControl";
 import { Badge, IconGlyph, PageHeader } from "@/components/ui";
+import TonerExpensesPanel from "./TonerExpensesPanel";
 import { isAgentOnline } from "@/lib/agent-version";
 import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
-import {
-  parseOverviewScope,
-  resolveOverviewPeriod,
-  sortExpenseRows,
-  yearlyExpenseSeries,
-  type OverviewExpenseBreakdown,
-} from "@/lib/overview-analytics";
-import { amountToCents, summarizeTonerExpenses, type ExpenseBreakdown } from "@/lib/toner-expenses";
+import { parseOverviewScope } from "@/lib/overview-analytics";
+import { getOverviewExpenses } from "@/lib/overview-expenses";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export const dynamic = "force-dynamic";
 
 const AUTO_REFRESH_SECONDS = 60;
-const money = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 0 });
 const integer = new Intl.NumberFormat("en-PH");
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -68,19 +60,14 @@ type AgentRow = {
   assigned_printers: number;
 };
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  await requireModuleFullAccess("dashboard");
   const renderedAt = new Date();
   const params = await searchParams;
   const parsedScope = parseOverviewScope(params);
   const scope = { ...parsedScope, locationId: null, departmentId: null };
-  const today = manilaDate(renderedAt);
-  const period = resolveOverviewPeriod(scope.period, today);
   const staleSeconds = await getMonitoringStaleSeconds();
 
   const ticketConditions: SQL[] = [inArray(repairTickets.status, ["Open", "In Progress"])];
-
-  const tonerConditions: SQL[] = [eq(tonerTransactions.type, "Request")];
-  if (period.fromDate) tonerConditions.push(gte(tonerTransactions.date, period.fromDate));
-  tonerConditions.push(lte(tonerTransactions.date, period.toDate));
 
   const userConditions: SQL[] = [];
   const registrationConditions: SQL[] = [];
@@ -90,7 +77,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     monitoringResult,
     agentResult,
     inventoryRows,
-    tonerRequestRows,
+    expenses,
     userStatusRows,
     registrationStatusRows,
   ] = await Promise.all([
@@ -141,17 +128,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       order by ma.name, ma.id
     `),
     db.select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock, threshold: tonerInventory.lowStockThreshold, critical: tonerInventory.criticalStockThreshold }).from(tonerTypes).leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id)).where(eq(tonerTypes.showAlertCard, true)).orderBy(asc(tonerTypes.name)),
-    db.select({
-      date: tonerTransactions.date,
-      departmentId: tonerTransactions.departmentId,
-      departmentName: departments.name,
-      locationId: tonerTransactions.locationId,
-      locationName: locations.name,
-      tonerTypeId: tonerTransactions.tonerTypeId,
-      tonerTypeName: tonerTypes.name,
-      unitCost: tonerTypes.unitCost,
-      quantity: tonerTransactions.quantity,
-    }).from(tonerTransactions).innerJoin(tonerTypes, eq(tonerTransactions.tonerTypeId, tonerTypes.id)).leftJoin(departments, eq(tonerTransactions.departmentId, departments.id)).leftJoin(locations, eq(tonerTransactions.locationId, locations.id)).where(and(...tonerConditions)),
+    getOverviewExpenses(scope.period, renderedAt),
     db.select({ status: users.accountStatus, count: sql<number>`count(*)::int` }).from(users).where(userConditions.length ? and(...userConditions) : undefined).groupBy(users.accountStatus),
     db.select({ status: userRegistrationRequests.status, count: sql<number>`count(*)::int` }).from(userRegistrationRequests).where(registrationConditions.length ? and(...registrationConditions) : undefined).groupBy(userRegistrationRequests.status),
   ]);
@@ -189,20 +166,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const onHand = inventory.reduce((sum, row) => sum + row.stock, 0);
   const lowStock = inventory.filter((row) => row.stock <= row.threshold);
   const orderedInventory = [...inventory].sort((left, right) => stockSeverity(right) - stockSeverity(left) || left.stock - right.stock || left.name.localeCompare(right.name));
-
-  const expenseSummary = summarizeTonerExpenses(tonerRequestRows.map((row) => ({
-    date: row.date,
-    departmentId: row.departmentId,
-    departmentName: row.departmentName,
-    locationId: row.locationId,
-    locationName: row.locationName,
-    tonerTypeId: row.tonerTypeId,
-    tonerTypeName: row.tonerTypeName,
-    quantity: row.quantity,
-    unitCostCents: amountToCents(row.unitCost),
-  })));
-  const expenseRows = sortExpenseRows(expenseBreakdown(expenseSummary, scope.expenseBreakdown), scope.expenseSort).slice(0, 8);
-  const expenseTrend = scope.expenseGrain === "yearly" ? yearlyExpenseSeries(expenseSummary.months) : expenseSummary.months.slice(-12);
 
   const userCounts = new Map(userStatusRows.map((row) => [row.status, row.count]));
   const registrationCounts = new Map(registrationStatusRows.map((row) => [row.status, row.count]));
@@ -245,22 +208,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           </div>
         </section>
 
-        <section aria-labelledby="expense-heading" className="order-5 flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-8">
-          <FlatPanelHeader id="expense-heading" eyebrow="Cost analytics" title="Toner expenses" subtitle="Requested quantity × current configured unit cost" icon={Droplets} href="/toner-expenses" meta={period.label} />
-          <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-4 py-3 lg:grid-cols-[minmax(10rem,0.7fr)_minmax(0,2fr)] lg:items-end">
-            <div><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Estimated expense</p><p className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#014171]">{money.format(expenseSummary.totalExpenseCents / 100)}</p><p className="mt-0.5 text-[10px] text-slate-500">{integer.format(expenseSummary.totalUnits)} units · {integer.format(expenseSummary.requestLines)} request records</p></div>
-            <AutoSubmitFilterForm method="get" className="grid min-w-0 gap-2 sm:grid-cols-2" resetKey={`${scope.period}-${scope.expenseGrain}-${scope.expenseBreakdown}-${scope.expenseSort}`}>
-              <SmallSelect name="period" label="Reporting period" value={scope.period} options={[{ value: "30d", label: "Last 30 days" }, { value: "90d", label: "Last 90 days" }, { value: "12m", label: "Last 12 months" }, { value: "ytd", label: "Year to date" }, { value: "all", label: "All activity" }]} />
-              <SmallSelect name="expenseGrain" label="Trend" value={scope.expenseGrain} options={[{ value: "monthly", label: "Monthly" }, { value: "yearly", label: "Yearly" }]} />
-              <SmallSelect name="expenseBreakdown" label="Rank by" value={scope.expenseBreakdown} options={[{ value: "toner", label: "Toner type" }, { value: "location", label: "Location" }, { value: "department", label: "Department" }]} />
-              <SmallSelect name="expenseSort" label="Order" value={scope.expenseSort} options={[{ value: "desc", label: "Highest first" }, { value: "asc", label: "Lowest first" }]} />
-            </AutoSubmitFilterForm>
-          </div>
-          <div className="grid flex-1 lg:grid-cols-2">
-            <div className="flex flex-col border-b border-slate-200 p-4 lg:border-r lg:border-b-0"><h3 className="text-xs font-bold text-slate-800">{scope.expenseGrain === "monthly" ? "Monthly" : "Yearly"} expense trend</h3><p className="mt-0.5 text-[10px] text-slate-500">Amount within the selected reporting period</p><ColumnChart rows={expenseTrend} /></div>
-            <div className="p-4"><h3 className="text-xs font-bold text-slate-800">Expense by {breakdownLabel(scope.expenseBreakdown).toLowerCase()}</h3><p className="mt-0.5 text-[10px] text-slate-500">{scope.expenseSort === "asc" ? "Lowest to highest" : "Highest to lowest"} estimated amount</p><div className="mt-4 space-y-3">{expenseRows.length ? expenseRows.map((row, index) => <RankBar key={row.key} rank={index + 1} label={row.name} value={row.expenseCents} max={Math.max(...expenseRows.map((item) => item.expenseCents), 1)} formatted={money.format(row.expenseCents / 100)} color="#7c3aed" />) : <EmptyMessage>No expense records match this scope.</EmptyMessage>}</div></div>
-          </div>
-        </section>
+        <TonerExpensesPanel initialData={expenses} initialScope={scope} />
 
         <section aria-labelledby="inventory-heading" className="order-6 flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-4">
           <FlatPanelHeader id="inventory-heading" eyebrow="Inventory health" title="Toner inventory" subtitle={`${inventory.length} tracked toner types`} icon={Droplets} href="/toner-monitoring" />
@@ -292,12 +240,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   );
 }
 
-const selectClassName = "h-8 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/10";
-
-function SmallSelect({ name, label, value, options }: { name: string; label: string; value: string; options: { value: string; label: string }[] }) {
-  return <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.07em] text-slate-500">{label}</span><select name={name} defaultValue={value} className={selectClassName}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
-}
-
 function FlatPanelHeader({ id, eyebrow, title, subtitle, icon, href, meta, actions }: { id: string; eyebrow: string; title: string; subtitle: string; icon: IconNode; href?: string; meta?: string; actions?: ReactNode }) {
   return <div className="flex min-h-[4.25rem] flex-col justify-between gap-3 border-t-2 border-t-[#7c3aed] border-b border-slate-200 px-4 py-2.5 sm:flex-row sm:items-center"><div className="flex min-w-0 items-center gap-2.5"><span className="shrink-0 text-[#014171]"><IconGlyph icon={icon} size={16} /></span><div className="min-w-0"><div className="flex items-center gap-2"><p className="text-[9px] font-bold uppercase tracking-[0.13em] text-[#4f7fa9]">{eyebrow}</p>{meta && <span className="truncate text-[9px] text-slate-400">· {meta}</span>}</div><h2 id={id} className="truncate text-sm font-bold text-slate-800">{title}</h2><p className="truncate text-[10px] text-slate-500">{subtitle}</p></div></div><div className="shrink-0">{actions ?? (href && <Link href={href} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={10} /></Link>)}</div></div>;
 }
@@ -326,18 +268,6 @@ function StockLevel({ name, stock, threshold, critical }: { name: string; stock:
   return <div className={`flex flex-col justify-center px-4 py-2.5 ${styles.row}`}><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="truncate text-xs font-bold text-slate-800">{name}</p><p className="mt-0.5 text-[9px] text-slate-500">Critical {critical} · Low {threshold}</p></div><div className="flex shrink-0 items-center gap-2"><p className="text-sm font-bold tabular-nums text-[#014171]">{integer.format(stock)}</p><span className={`inline-flex rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.05em] ${styles.badge}`}>{styles.label}</span></div></div><div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/80"><div className={`h-full rounded-full ${styles.bar}`} style={{ width: `${fill}%` }} /></div></div>;
 }
 
-function RankBar({ rank, label, value, max, formatted, color = "#0b70a8" }: { rank: number; label: string; value: number; max: number; formatted: string; color?: string }) {
-  return <div><div className="flex items-center justify-between gap-4"><div className="flex min-w-0 items-center gap-2"><span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-slate-100 text-[10px] font-bold text-slate-500">{rank}</span><p className="truncate text-xs font-bold text-slate-700" title={label}>{label}</p></div><p className="shrink-0 text-xs font-bold tabular-nums text-[#014171]">{formatted}</p></div><div className="mt-2 ml-7 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full" style={{ width: `${percentage(value, max)}%`, backgroundColor: color }} /></div></div>;
-}
-
-function ColumnChart({ rows }: { rows: ExpenseBreakdown[] }) {
-  const displayed = rows.slice(-12);
-  const max = Math.max(...displayed.map((row) => row.expenseCents), 1);
-  const peak = displayed.reduce<ExpenseBreakdown | null>((current, row) => !current || row.expenseCents > current.expenseCents ? row : current, null);
-  if (!displayed.length) return <div className="mt-5"><EmptyMessage>No expense trend is available for this period.</EmptyMessage></div>;
-  return <div className="mt-6 flex flex-col"><div className="flex h-64 items-end gap-2 border-b border-slate-200 px-1">{displayed.map((row) => <div key={row.key} className="group relative flex h-full min-w-0 flex-1 items-end"><div title={`${chartLabel(row.key)}: ${money.format(row.expenseCents / 100)}`} className="w-full rounded-t-md bg-[#0b70a8] transition hover:bg-[#014171]" style={{ height: `${Math.max(4, percentage(row.expenseCents, max))}%` }} /></div>)}</div><div className="mt-2 flex gap-2 px-1">{displayed.map((row, index) => <span key={row.key} className="min-w-0 flex-1 truncate text-center text-[9px] font-semibold text-slate-400">{index % Math.ceil(displayed.length / 6) === 0 || index === displayed.length - 1 ? chartLabel(row.key) : ""}</span>)}</div><div className="mt-3 flex items-center justify-between text-[10px] text-slate-500"><span>Peak · {peak ? chartLabel(peak.key) : "—"}</span><strong className="text-slate-700">{money.format(max / 100)}</strong></div></div>;
-}
-
 function countStatus(rows: { status: string; count: number }[], status: string) { return rows.find((row) => row.status === status)?.count ?? 0; }
 function percentage(value: number, total: number) { return total > 0 ? Math.max(0, Math.min(100, Math.round((value / total) * 100))) : 0; }
 
@@ -353,22 +283,6 @@ function groupMonitoringByLocation(rows: MonitoringRow[], online: (row: Monitori
   return [...groups.values()].sort((left, right) => (right.online + right.offline) - (left.online + left.offline) || left.name.localeCompare(right.name));
 }
 
-function expenseBreakdown(summary: ReturnType<typeof summarizeTonerExpenses>, dimension: OverviewExpenseBreakdown): ExpenseBreakdown[] {
-  if (dimension === "location") return summary.locations;
-  if (dimension === "department") return summary.departments;
-  return summary.tonerTypes;
-}
-
-function breakdownLabel(dimension: OverviewExpenseBreakdown) { return dimension === "toner" ? "Toner type" : dimension[0].toUpperCase() + dimension.slice(1); }
-
-function chartLabel(key: string) {
-  if (/^\d{4}$/.test(key)) return key;
-  const parts = key.split("-").map(Number);
-  const date = new Date(Date.UTC(parts[0], (parts[1] ?? 1) - 1, parts[2] ?? 1));
-  return new Intl.DateTimeFormat("en-PH", parts.length === 3 ? { month: "short", day: "numeric", timeZone: "UTC" } : { month: "short", year: "2-digit", timeZone: "UTC" }).format(date);
-}
-
-function manilaDate(value: Date) { return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Manila" }).format(value); }
 function formatDateTime(value: Date) { return new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" }).format(value); }
 function relativeTime(value: Date, now: Date) { const seconds = Math.max(0, Math.round((now.getTime() - new Date(value).getTime()) / 1_000)); if (seconds < 60) return `${seconds}s ago`; if (seconds < 3_600) return `${Math.floor(seconds / 60)}m ago`; if (seconds < 86_400) return `${Math.floor(seconds / 3_600)}h ago`; return `${Math.floor(seconds / 86_400)}d ago`; }
 

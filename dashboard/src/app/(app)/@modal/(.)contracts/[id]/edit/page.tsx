@@ -1,4 +1,4 @@
-import EditContractPage from "@/app/(app)/contracts/[id]/edit/page";
+import { EditContractPage } from "@/app/(app)/contracts/[id]/edit/content";
 import ModalShell from "@/components/ModalShell";
 
 export default async function EditContractModal({

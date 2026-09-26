@@ -19,7 +19,7 @@ export default async function AppLayout({
   modal,
 }: {
   children: ReactNode;
-  modal?: ReactNode;
+  modal: ReactNode;
 }) {
   const session = await requireSession();
   if (session.role === "employee") redirect("/portal");

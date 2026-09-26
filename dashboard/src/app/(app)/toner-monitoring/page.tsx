@@ -19,6 +19,7 @@ import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
 import Search from "@/components/Search";
 import RecordTableToolbar from "@/components/RecordTableToolbar";
 import PrinterColumnFilter, { type PrinterColumnFilterOption } from "@/app/(app)/printers/PrinterColumnFilter";
+import RecordPagination, { paginateRecords } from "@/components/RecordPagination";
 
 export const dynamic = "force-dynamic";
 const BLANK_FILTER_VALUE = "__blank__";
@@ -106,6 +107,7 @@ export default async function TonerMonitoringPage({
       && matchesSelected(row.departmentName?.trim() || BLANK_FILTER_VALUE, departmentFilters)
     ))
     .sort((left, right) => compareTonerRows(left, right, sort));
+  const paginated = paginateRecords(txnRows, firstParam(sp.page));
 
   return (
     <div>
@@ -117,6 +119,11 @@ export default async function TonerMonitoringPage({
         message={typeof sp.success === "string" ? sp.success : undefined}
         showInline={false}
       />
+      {typeof sp.error === "string" && (
+        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {sp.error}
+        </div>
+      )}
 
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
@@ -208,7 +215,7 @@ export default async function TonerMonitoringPage({
         ) : (
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
-            {txnRows.map((t) => (
+            {paginated.items.map((t) => (
               <article key={t.id} className="p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -289,7 +296,7 @@ export default async function TonerMonitoringPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {txnRows.map((t) => (
+              {paginated.items.map((t) => (
                 <tr key={t.id} className="align-top transition-colors even:bg-slate-50/25 hover:bg-sky-50/45">
                   <td className="px-4 py-3.5"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
                   <td className="px-4 py-3.5">
@@ -349,6 +356,7 @@ export default async function TonerMonitoringPage({
           </>
         )}
         </div>
+        <RecordPagination pathname="/toner-monitoring" searchParams={sp} page={paginated.page} totalPages={paginated.totalPages} total={txnRows.length} start={paginated.start} />
       </TableCard>
     </div>
   );

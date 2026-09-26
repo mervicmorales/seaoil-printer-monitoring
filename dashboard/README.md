@@ -36,6 +36,34 @@ The dashboard reads its connection from `.env.local`. After changing
 Before deployment, replace local credentials with server-managed secrets and
 configure regular off-server PostgreSQL backups.
 
+## Performance and deployment
+
+Production Next.js compresses responses and minifies JavaScript/CSS. The
+dashboard uses a bounded PostgreSQL connection pool (`DB_POOL_MAX`, default
+10 per application process). Size it against PostgreSQL's connection limit
+before running multiple instances.
+
+The optimized branding logo is served as WebP. Public `/branding/` assets have
+a one-day browser/CDN TTL; authenticated API responses are not publicly cached.
+The organization-wide Overview expense summary uses a 15-second in-process
+cache and a private 15-second browser cache, so recent toner changes may take
+up to 15 seconds to appear there.
+
+To use a CDN, publish the exact build's `/_next/static/` directory to it and
+set `NEXT_ASSET_PREFIX` to the CDN origin **at build time**. Do not set this
+variable before the CDN contains those files. Do not cache `/api/`, HTML,
+`/uploads/`, or user-specific documents at the CDN. A load balancer requires
+shared uploaded-file storage (or an object store) and shared session/database
+configuration; the current local `public/uploads/` directory is not safe for
+multiple dashboard replicas.
+
+For the Docker image, pass the same public CDN origin with
+`docker build --build-arg NEXT_ASSET_PREFIX=https://cdn.example.com ...`.
+
+The additive indexes for repair tickets and toner transactions in
+`src/db/schema.ts` must be applied with Drizzle (`npm run db:push:docker` for
+the local Docker database). Back up PostgreSQL first in other environments.
+
 The `/printdash` workspace treats the latest printer reading and reporting
 agent as stale after `MONITORING_STALE_SECONDS`. The safe default is 180
 seconds (three 60-second polling cycles); accepted values are 60-86400.
@@ -211,3 +239,42 @@ Restart the office agent after updating its files, or rebuild its Docker image.
 Automatic lookup uses the IP-associated SNMP interface where available, otherwise
 an unambiguous interface address. Unsupported, offline, or ambiguous devices can
 be entered manually; detection is not guaranteed for every printer.
+
+## Security rollout: sessions, ticket numbers, and uploaded documents
+
+Before deploying this release, back up PostgreSQL and all existing
+`dashboard/public/uploads` files. Configure a unique `AUTH_SECRET` of at least 32
+characters; the dashboard health check now fails if it is missing or still an
+example value. Restart the dashboard after changing it (existing sessions will
+need to sign in again).
+
+For an existing database, run the additive migrations before starting the new
+dashboard code:
+
+```bash
+node --env-file=.env.local scripts/migrate-auth-security.mjs
+node --env-file=.env.local scripts/migrate-repair-ticket-sequence.mjs
+```
+
+The main and Coolify Compose `db-init` services run these automatically. Do not
+run the ticket-number migration while old and new dashboard instances are
+accepting repair reports at the same time; cut over after the migration.
+
+New contract documents and repair-resolution attachments are stored under
+`storage/uploads` (or `PRIVATE_UPLOAD_DIR`), not `public/uploads`. Give the
+dashboard process write access to this directory and keep it on persistent,
+private storage. The Compose deployments now mount a named `private-uploads`
+volume. Before replacing an old container, export its `public/uploads` files;
+otherwise files that only exist in that container will be lost. Stage those files
+under the new dashboard's `public/uploads` and run:
+
+```bash
+npm run uploads:migrate:private
+```
+
+Use `npm run uploads:migrate:private -- --copy` when the source is a read-only
+backup; verify every expected file exists in private storage before removing the
+public copy or retiring the old container. The old `/uploads/...` URLs now return
+404, while authorized users retrieve the same records through protected API
+routes. Keep the backup until those downloads have been verified. Do not point
+a CDN directly at `public/uploads`.

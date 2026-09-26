@@ -7,3 +7,5 @@ node_modules
 *.dump
 *.log
 .git
+public/uploads
+storage/uploads

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { db } from "@/db";
 import { systemSettings } from "@/db/schema";
 
@@ -6,7 +7,7 @@ const DEFAULT_STALE_SECONDS = 180;
 const MIN_STALE_SECONDS = 60;
 const MAX_STALE_SECONDS = 86_400;
 
-export async function getMonitoringStaleSeconds() {
+export const getMonitoringStaleSeconds = cache(async () => {
   const [settings] = await db.select({ minutes: systemSettings.agentOfflineThresholdMinutes }).from(systemSettings).limit(1);
   if (settings && Number.isInteger(settings.minutes) && settings.minutes >= 1 && settings.minutes <= 1_440) {
     return settings.minutes * 60;
@@ -15,4 +16,4 @@ export async function getMonitoringStaleSeconds() {
   return Number.isInteger(parsed) && parsed >= MIN_STALE_SECONDS && parsed <= MAX_STALE_SECONDS
     ? parsed
     : DEFAULT_STALE_SECONDS;
-}
+});

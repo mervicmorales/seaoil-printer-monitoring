@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { Pencil } from "lucide";
-import PrinterViewPage from "@/app/(app)/printers/[id]/page";
+import { PrinterViewPage } from "@/app/(app)/printers/[id]/content";
 import ModalShell from "@/components/ModalShell";
 import DeleteButton from "@/components/DeleteButton";
 import { db } from "@/db";

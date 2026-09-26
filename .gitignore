@@ -51,3 +51,4 @@ EOF
 
 # Runtime/user uploaded files
 dashboard/public/uploads/
+dashboard/storage/uploads/

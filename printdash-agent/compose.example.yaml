@@ -8,6 +8,7 @@ services:
       - .env
     environment:
       PORT: "3003"
+      PRINTDASH_LISTEN_ADDRESS: 0.0.0.0
       USERS_FILE: /data/users.json
       DATA_FILE: /data/printers.json
       SEAOIL_CONFIG_CACHE_FILE: /data/seaoil-config-cache.json

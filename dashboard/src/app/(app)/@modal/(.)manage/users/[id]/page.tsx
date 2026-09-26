@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import ViewUserPage from "@/app/(app)/manage/[id]/page";
+import { ViewUserPage } from "@/app/(app)/manage/[id]/content";
 import ModalShell from "@/components/ModalShell";
 import DeleteButton from "@/components/DeleteButton";
 import { db } from "@/db";

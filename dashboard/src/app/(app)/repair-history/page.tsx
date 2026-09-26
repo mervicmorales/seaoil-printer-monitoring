@@ -11,6 +11,7 @@ import AutoSubmitFilterForm from "@/components/AutoSubmitFilterForm";
 import Search from "@/components/Search";
 import RecordTableToolbar from "@/components/RecordTableToolbar";
 import PrinterColumnFilter, { type PrinterColumnFilterOption } from "@/app/(app)/printers/PrinterColumnFilter";
+import RecordPagination, { paginateRecords } from "@/components/RecordPagination";
 
 export const dynamic = "force-dynamic";
 const BLANK_FILTER_VALUE = "__blank__";
@@ -76,6 +77,7 @@ export default async function RepairHistoryPage({
       && matchesSelected(row.status, statusFilters)
     ))
     .sort((left, right) => compareRepairRows(left, right, sort));
+  const paginated = paginateRecords(rows, firstParam(sp.page));
 
   return (
     <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col sm:h-[calc(100dvh-111px)]">
@@ -110,7 +112,7 @@ export default async function RepairHistoryPage({
         ) : (
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
-            {rows.map((t) => (
+            {paginated.items.map((t) => (
               <article key={t.id} className="p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
@@ -168,7 +170,7 @@ export default async function RepairHistoryPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((t) => (
+              {paginated.items.map((t) => (
                 <tr key={t.id} className="transition-colors hover:bg-slate-50/80">
                   <td className="px-4 py-3 font-mono text-xs font-bold text-[#014171]">{t.ticketNumber}</td>
                   <td className="px-4 py-3">{formatDate(t.requestedDate)}</td>
@@ -195,6 +197,7 @@ export default async function RepairHistoryPage({
           </>
         )}
         </div>
+        <RecordPagination pathname="/repair-history" searchParams={sp} page={paginated.page} totalPages={paginated.totalPages} total={rows.length} start={paginated.start} />
       </TableCard>
     </div>
   );

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { MorphIcon, type IconNode } from "morphicons/react";
 import {
@@ -34,9 +35,6 @@ import {
   Wrench,
   X,
 } from "lucide";
-import LogoutConfirmationDialog from "@/components/LogoutConfirmationDialog";
-import ChangePasswordDialog from "@/components/ChangePasswordDialog";
-import SidebarAboutDialog from "@/components/SidebarAboutDialog";
 import AuthBlob from "@/components/AuthBlob";
 import { useBlobSkin } from "@/components/BlobSkinProvider";
 import {
@@ -44,6 +42,10 @@ import {
 } from "@/lib/blob-skins";
 import { MODULE_LABELS, type ModuleName } from "@/lib/permissions";
 import type { UserRole } from "@/lib/roles";
+
+const LogoutConfirmationDialog = dynamic(() => import("@/components/LogoutConfirmationDialog"), { ssr: false });
+const ChangePasswordDialog = dynamic(() => import("@/components/ChangePasswordDialog"), { ssr: false });
+const SidebarAboutDialog = dynamic(() => import("@/components/SidebarAboutDialog"), { ssr: false });
 
 type NavChild = {
   href: string;
@@ -655,23 +657,23 @@ export default function Sidebar({
           document.body,
         )}
 
-      <LogoutConfirmationDialog
+      {logoutOpen && <LogoutConfirmationDialog
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
         triggerRef={signOutButtonRef}
         employeeMode={employeeMode}
-      />
-      <ChangePasswordDialog
+      />}
+      {changePasswordOpen && <ChangePasswordDialog
         open={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
         triggerRef={accountButtonRef}
-      />
-      <SidebarAboutDialog
+      />}
+      {aboutOpen && <SidebarAboutDialog
         open={aboutOpen}
         employeeMode={employeeMode}
         onClose={() => setAboutOpen(false)}
         triggerRef={aboutButtonRef}
-      />
+      />}
     </>
   );
 }

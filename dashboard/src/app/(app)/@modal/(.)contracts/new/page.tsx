@@ -1,4 +1,4 @@
-import NewContractPage from "@/app/(app)/contracts/new/page";
+import { NewContractPage } from "@/app/(app)/contracts/new/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function UploadContractModal() {

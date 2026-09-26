@@ -1,4 +1,4 @@
-import ReportIssuePage from "@/app/(app)/repair-history/new/page";
+import { ReportIssuePage } from "@/app/(app)/repair-history/new/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function ReportPrinterIssueModal() {

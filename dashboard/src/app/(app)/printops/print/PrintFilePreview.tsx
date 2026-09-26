@@ -156,6 +156,8 @@ export default function PrintFilePreview({
                     <img
                       src={previewUrl}
                       alt={`Preview of ${file.name}`}
+                      loading="lazy"
+                      decoding="async"
                       className={`rounded-lg bg-white object-contain shadow-xl ring-1 ring-slate-900/10 ${orientation === "landscape" ? "aspect-[1.414/1] w-full max-w-5xl" : "aspect-[1/1.414] w-full max-w-3xl"}`}
                     />
                   )}

@@ -74,11 +74,45 @@ function verifyPassword(password, stored) {
   const check = crypto.scryptSync(password, salt, 64).toString('hex');
   try { return crypto.timingSafeEqual(Buffer.from(hash,'hex'), Buffer.from(check,'hex')); } catch { return false; }
 }
+function persistUsers(nextUsers) {
+  const temporaryFile = `${USERS_FILE}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(temporaryFile, JSON.stringify(nextUsers,null,2), { mode: 0o600 });
+    fs.renameSync(temporaryFile, USERS_FILE);
+  } catch (error) {
+    try { fs.unlinkSync(temporaryFile); } catch {}
+    throw error;
+  }
+}
 function loadUsers() {
-  try { if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE,'utf8')); } catch {}
-  const production = process.env.NODE_ENV === 'production';
-  const adminPassword = process.env.PRINTDASH_ADMIN_PASSWORD || (production ? '' : 'admin123');
-  const userPassword = process.env.PRINTDASH_USER_PASSWORD || (production ? '' : 'user123');
+  if (fs.existsSync(USERS_FILE)) {
+    const users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    if (!Array.isArray(users)
+      || !users.some(user => user?.role === 'admin')
+      || users.some(user => typeof user?.username !== 'string'
+        || !['admin', 'user'].includes(user.role)
+        || typeof user.password !== 'string'
+        || !/^[a-f0-9]{32}:[a-f0-9]{128}$/i.test(user.password))) {
+      throw new Error('The PrintDash users file is invalid or has no administrator');
+    }
+    let rotated = false;
+    const migrated = users.map(user => {
+      const legacyDefault = user.username === 'admin' ? 'admin123'
+        : user.username === 'user' ? 'user123' : null;
+      if (!legacyDefault || !verifyPassword(legacyDefault, user.password)) return user;
+      const replacement = process.env[user.username === 'admin'
+        ? 'PRINTDASH_ADMIN_PASSWORD' : 'PRINTDASH_USER_PASSWORD'] || '';
+      if (replacement.length < 12 || replacement.startsWith('replace-with-')) {
+        throw new Error(`Rotate the legacy PrintDash ${user.username} password using a unique 12+ character environment value`);
+      }
+      rotated = true;
+      return { ...user, password: hashPassword(replacement) };
+    });
+    if (rotated) persistUsers(migrated);
+    return migrated;
+  }
+  const adminPassword = process.env.PRINTDASH_ADMIN_PASSWORD || '';
+  const userPassword = process.env.PRINTDASH_USER_PASSWORD || '';
   if (adminPassword.length < 12 || userPassword.length < 12) {
     throw new Error('PRINTDASH_ADMIN_PASSWORD and PRINTDASH_USER_PASSWORD must each contain at least 12 characters');
   }
@@ -86,10 +120,13 @@ function loadUsers() {
     { username:'admin', role:'admin', password: hashPassword(adminPassword) },
     { username:'user',  role:'user',  password: hashPassword(userPassword) },
   ];
-  try { fs.writeFileSync(USERS_FILE, JSON.stringify(defaults,null,2)); } catch {}
+  persistUsers(defaults);
   return defaults;
 }
-function saveUsers() { try { fs.writeFileSync(USERS_FILE, JSON.stringify(USERS,null,2)); } catch {} }
+function saveUsers(nextUsers) {
+  persistUsers(nextUsers);
+  USERS = nextUsers;
+}
 let USERS = startupValidation.ok ? loadUsers() : [];
 
 const sessions = new Map(); // token -> {username, role, exp}
@@ -112,7 +149,36 @@ function getSession(req) {
   if (!token) return null;
   const s = sessions.get(token);
   if (!s || s.exp < Date.now()) { sessions.delete(token); return null; }
+  const currentUser = USERS.find(user => user.username === s.username);
+  if (!currentUser) { sessions.delete(token); return null; }
+  s.role = currentUser.role;
   return s;
+}
+const loginAttempts = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+function loginAttemptKey(req, username) {
+  return [`ip:${req.ip}`, `user:${String(username || '').trim().toLowerCase()}`];
+}
+function isLoginLimited(key, limit) {
+  const entry = loginAttempts.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.startedAt >= LOGIN_WINDOW_MS) { loginAttempts.delete(key); return false; }
+  return entry.failures >= limit;
+}
+function recordLoginFailure(keys) {
+  const now = Date.now();
+  if (loginAttempts.size > 10000) {
+    for (const [key, entry] of loginAttempts) {
+      if (now - entry.startedAt >= LOGIN_WINDOW_MS) loginAttempts.delete(key);
+    }
+    if (loginAttempts.size > 10000) loginAttempts.delete(loginAttempts.keys().next().value);
+  }
+  for (const key of keys) {
+    const entry = loginAttempts.get(key);
+    loginAttempts.set(key, !entry || now - entry.startedAt >= LOGIN_WINDOW_MS
+      ? { failures: 1, startedAt: now }
+      : { ...entry, failures: entry.failures + 1 });
+  }
 }
 // API routes the 'user' role IS allowed to use (everything else is admin-only)
 const USER_ALLOWED = [
@@ -141,12 +207,19 @@ app.use((req, res, next) => {
 app.get('/login', (_req,res) => res.send(LOGIN_HTML));
 app.post('/api/login', express.json(), (req,res) => {
   const { username, password } = req.body || {};
+  const keys = loginAttemptKey(req, username);
+  if (isLoginLimited(keys[0], 20) || isLoginLimited(keys[1], 5)) {
+    return res.status(429).json({error:'Too many sign-in attempts. Try again later.'});
+  }
   const user = USERS.find(u => u.username === username);
-  if (!user || !verifyPassword(password||'', user.password)) {
+  if (typeof password !== 'string' || password.length > 256 || !user || !verifyPassword(password, user.password)) {
+    recordLoginFailure(keys);
     return res.status(401).json({error:'Invalid username or password'});
   }
+  loginAttempts.delete(keys[1]);
   const token = createSession(user);
-  res.setHeader('Set-Cookie', `session=${token}; HttpOnly; Path=/; Max-Age=${SESSION_TTL_MS/1000}; SameSite=Lax`);
+  const secureCookie = req.secure || process.env.PRINTDASH_COOKIE_SECURE === 'true' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `session=${token}; HttpOnly; Path=/; Max-Age=${SESSION_TTL_MS/1000}; SameSite=Lax${secureCookie}`);
   res.json({ok:true, role:user.role});
 });
 app.post('/api/logout', (req,res) => {
@@ -162,26 +235,31 @@ app.get('/api/users', (_req,res) => {
 app.post('/api/users', express.json(), (req,res) => {
   const { username, password, role } = req.body || {};
   if (!username || !password || !['admin','user'].includes(role)) return res.status(400).json({error:'username, password, and valid role required'});
+  if (typeof username !== 'string' || username.length > 100 || typeof password !== 'string' || password.length < 12 || password.length > 256) return res.status(400).json({error:'username and a 12-256 character password are required'});
   if (USERS.find(u=>u.username===username)) return res.status(409).json({error:'username already exists'});
-  USERS.push({ username, role, password: hashPassword(password) });
-  saveUsers();
+  try { saveUsers([...USERS, { username, role, password: hashPassword(password) }]); }
+  catch { return res.status(500).json({error:'Could not save user'}); }
   res.json({ok:true});
 });
 app.put('/api/users/:username', express.json(), (req,res) => {
   const u = USERS.find(x=>x.username===req.params.username);
   if (!u) return res.status(404).json({error:'not found'});
   const { password, role } = req.body || {};
-  if (role) { if (!['admin','user'].includes(role)) return res.status(400).json({error:'invalid role'}); u.role = role; }
-  if (password) u.password = hashPassword(password);
-  saveUsers();
+  if (role && !['admin','user'].includes(role)) return res.status(400).json({error:'invalid role'});
+  if (password && (typeof password !== 'string' || password.length < 12 || password.length > 256)) return res.status(400).json({error:'password must be 12-256 characters'});
+  if (u.role === 'admin' && role === 'user' && USERS.filter(user=>user.role==='admin').length<=1) return res.status(400).json({error:'cannot demote the last admin'});
+  const nextUser = { ...u, ...(role ? { role } : {}), ...(password ? { password: hashPassword(password) } : {}) };
+  try { saveUsers(USERS.map(user=>user.username===u.username ? nextUser : user)); }
+  catch { return res.status(500).json({error:'Could not save user'}); }
+  if (role || password) for (const [token,session] of sessions) if (session.username===u.username) sessions.delete(token);
   res.json({ok:true});
 });
 app.delete('/api/users/:username', (req,res) => {
   if (req.params.username === req.user.username) return res.status(400).json({error:"can't delete your own account"});
   if (USERS.filter(u=>u.role==='admin').length<=1 && USERS.find(u=>u.username===req.params.username)?.role==='admin')
     return res.status(400).json({error:'cannot delete the last admin'});
-  USERS = USERS.filter(x=>x.username!==req.params.username);
-  saveUsers();
+  try { saveUsers(USERS.filter(x=>x.username!==req.params.username)); }
+  catch { return res.status(500).json({error:'Could not delete user'}); }
   for (const [token,s] of sessions) if (s.username===req.params.username) sessions.delete(token);
   res.json({ok:true});
 });

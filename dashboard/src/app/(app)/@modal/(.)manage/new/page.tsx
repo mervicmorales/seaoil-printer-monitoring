@@ -1,4 +1,4 @@
-import NewUserPage from "@/app/(app)/manage/new/page";
+import { NewUserPage } from "@/app/(app)/manage/new/content";
 import ModalShell from "@/components/ModalShell";
 
 export default async function NewUserModal({

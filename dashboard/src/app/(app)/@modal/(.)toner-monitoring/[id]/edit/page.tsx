@@ -1,4 +1,4 @@
-import EditTransactionPage from "@/app/(app)/toner-monitoring/[id]/edit/page";
+import { EditTransactionPage } from "@/app/(app)/toner-monitoring/[id]/edit/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function EditTonerTransactionModal({

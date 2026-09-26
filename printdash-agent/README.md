@@ -230,6 +230,14 @@ Printer/user/settings data and scans are stored in named volumes. The example
 binds the dashboard to `127.0.0.1:3003` by default. Set
 `PRINTDASH_BIND_ADDRESS=0.0.0.0` only when LAN access is required and the host
 firewall restricts access to trusted office networks.
+Inside the container the service listens on all container interfaces so the
+loopback-only host port mapping can reach it. If a TLS reverse proxy is used,
+set `PRINTDASH_COOKIE_SECURE=true` in the agent environment.
+Existing `admin` and `user` accounts still using the old short default
+passwords are rotated at startup to the corresponding 12-character-or-longer
+`PRINTDASH_ADMIN_PASSWORD` and `PRINTDASH_USER_PASSWORD` values. The agent
+refuses to start if a replacement is missing, so set both values before
+upgrading an older installation.
 
 The Compose deployment mounts `/var/run/cups/cups.sock` from the host. Install
 and start CUPS on that host before launching the agent. If CUPS is restarted,

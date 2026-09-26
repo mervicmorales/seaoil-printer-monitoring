@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  sessionVersion: integer("session_version").notNull().default(0),
   role: text("role").notNull().default("support"), // 'super_admin' | 'admin' | 'support' | 'employee'
   employeeId: text("employee_id").unique(),
   primaryLocationId: integer("primary_location_id").references(() => locations.id, {
@@ -44,6 +45,12 @@ export const users = pgTable("users", {
   accountStatus: text("account_status").notNull().default("active"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const authRateLimits = pgTable("auth_rate_limits", {
+  key: text("key").primaryKey(),
+  failures: integer("failures").notNull().default(0),
+  windowStartedAt: timestamp("window_started_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const userModuleAccess = pgTable(
@@ -529,7 +536,10 @@ export const repairTickets = pgTable("repair_tickets", {
   dateClosed: date("date_closed"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("repair_tickets_status_updated_idx").on(t.status, t.updatedAt),
+  index("repair_tickets_requested_date_idx").on(t.requestedDate),
+]);
 
 // ---------- REPLACEMENT HISTORY ----------
 export const replacementHistory = pgTable("replacement_history", {
@@ -566,7 +576,10 @@ export const tonerTransactions = pgTable("toner_transactions", {
   }),
   remarks: text("remarks"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("toner_transactions_type_date_idx").on(t.type, t.date),
+  index("toner_transactions_created_idx").on(t.createdAt, t.id),
+]);
 
 // ---------- EMPLOYEE REGISTRATION ----------
 export const userRegistrationRequests = pgTable(

@@ -38,6 +38,8 @@ services:
         node scripts/migrate-notifications-registration-smtp.mjs &&
         node scripts/migrate-monitoring-assignments.mjs &&
         node scripts/add-printer-mac-address.mjs &&
+        node scripts/migrate-auth-security.mjs &&
+        node scripts/migrate-repair-ticket-sequence.mjs &&
         node scripts/add-user-printer-permissions.mjs &&
         node scripts/migrate-monitoring-agent-locations.mjs &&
         node scripts/add-printer-access-requests.mjs
@@ -69,6 +71,8 @@ services:
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
     ports:
       - "0.0.0.0:${DASHBOARD_PORT:-3000}:3000"
+    volumes:
+      - private-uploads:/app/storage/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -89,3 +93,4 @@ volumes:
   postgres-data:
     external: true
     name: openship-seaoil-printer-monitoring-postgres-data
+  private-uploads:

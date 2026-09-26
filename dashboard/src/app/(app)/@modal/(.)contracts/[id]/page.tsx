@@ -1,4 +1,4 @@
-import ViewContractPage from "@/app/(app)/contracts/[id]/page";
+import { ViewContractPage } from "@/app/(app)/contracts/[id]/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function ViewContractModal({

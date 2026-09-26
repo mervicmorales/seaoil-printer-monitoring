@@ -1,4 +1,4 @@
-import RegistrationDetailPage from "@/app/(app)/manage/registrations/[id]/page";
+import { RegistrationDetailPage } from "@/app/(app)/manage/registrations/[id]/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function RegistrationDetailModal({

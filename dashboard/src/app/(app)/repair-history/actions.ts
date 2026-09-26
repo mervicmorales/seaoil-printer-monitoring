@@ -7,10 +7,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess, requireSession, generateTicketNumber, createNotification } from "@/lib/server-utils";
 import { REPAIR_STATUSES } from "@/lib/constants";
-import { mkdir, unlink, writeFile } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { hasAdminPrivileges } from "@/lib/roles";
+import { archiveStoredUpload, privateUploadPath, storedUploadUrl } from "@/lib/private-uploads";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -38,27 +39,22 @@ async function saveResolutionAttachment(file: File | null) {
     throw new Error("ResolutionAttachmentTooLarge");
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "repair-resolutions");
-  await mkdir(uploadDir, { recursive: true });
+  const data = Buffer.from(await file.arrayBuffer());
+  const matchesType = extension === ".png"
+    ? data.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))
+    : extension === ".jpg"
+      ? data.subarray(0, 3).equals(Buffer.from("ffd8ff", "hex"))
+      : data.subarray(0, 4).toString() === "RIFF" && data.subarray(8, 12).toString() === "WEBP";
+  if (!matchesType) throw new Error("ResolutionAttachmentTypeMismatch");
   const filename = `${randomUUID()}${extension}`;
-  await writeFile(path.join(uploadDir, filename), Buffer.from(await file.arrayBuffer()));
-  return { url: `/uploads/repair-resolutions/${filename}`, name: file.name };
+  const destination = privateUploadPath("repair-resolutions", filename);
+  await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+  await writeFile(destination, data, { flag: "wx", mode: 0o600 });
+  return { url: storedUploadUrl("repair-resolutions", filename), name: file.name };
 }
 
 async function deleteResolutionAttachment(url: string | null) {
-  const prefix = "/uploads/repair-resolutions/";
-  if (!url?.startsWith(prefix)) return;
-
-  const filename = path.basename(url);
-  if (!filename || url !== `${prefix}${filename}`) return;
-
-  try {
-    await unlink(path.join(process.cwd(), "public", "uploads", "repair-resolutions", filename));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error("Could not remove a repair resolution attachment.");
-    }
-  }
+  await archiveStoredUpload("repair-resolutions", url);
 }
 
 export type RepairFormState = {

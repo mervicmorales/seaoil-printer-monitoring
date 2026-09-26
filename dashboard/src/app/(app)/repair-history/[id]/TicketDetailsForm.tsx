@@ -140,7 +140,7 @@ export default function TicketDetailsForm({
           )}
           {resolutionAttachmentUrl && (
             <a
-              href={resolutionAttachmentUrl}
+              href={`/api/repair-history/${ticketId}/attachment`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-[#014171] shadow-sm transition hover:bg-sky-100"

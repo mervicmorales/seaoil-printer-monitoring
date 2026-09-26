@@ -9,7 +9,7 @@ import {
 } from "@/lib/auth";
 import { db } from "@/db";
 import { notifications, users } from "@/db/schema";
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/server-utils";
 import { ADMIN_ONLY_NOTIFICATION_TYPES } from "@/lib/notification-types";
@@ -58,7 +58,7 @@ export async function changePasswordAction(
 
   await db
     .update(users)
-    .set({ passwordHash: await hashPassword(newPassword) })
+    .set({ passwordHash: await hashPassword(newPassword), sessionVersion: sql`${users.sessionVersion} + 1` })
     .where(eq(users.id, session.id));
 
   return { success: true };

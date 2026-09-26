@@ -12,6 +12,7 @@ import RefreshControl from "@/components/RefreshControl";
 import LiveMonitoringBadge from "@/components/LiveMonitoringBadge";
 import PrinterRecordsToolbar, { type PrinterRecordSort } from "./PrinterRecordsToolbar";
 import PrinterColumnFilter, { type PrinterColumnFilterOption } from "./PrinterColumnFilter";
+import RecordPagination, { paginateRecords } from "@/components/RecordPagination";
 
 export const dynamic = "force-dynamic";
 const LOW_CONSUMABLE_THRESHOLD_PERCENT = 20;
@@ -26,6 +27,7 @@ type PrinterSearchParams = {
   toner?: string | string[];
   status?: string | string[];
   sort?: string | string[];
+  page?: string | string[];
   success?: string | string[];
 };
 
@@ -249,6 +251,7 @@ export default async function PrintersPage({
     sort,
     monitoringByPrinter,
   ));
+  const paginated = paginateRecords(rows, firstParam(params.page));
 
   const totalCount = await db.select({ count: sql<number>`count(*)::int` }).from(printers);
   const returnParams = new URLSearchParams();
@@ -259,6 +262,7 @@ export default async function PrintersPage({
   tonerFilters.forEach((value) => returnParams.append("toner", value));
   statusFilters.forEach((value) => returnParams.append("status", value));
   if (sort !== "newest") returnParams.set("sort", sort);
+  if (paginated.page > 1) returnParams.set("page", String(paginated.page));
   const printerListReturnTo = returnParams.size > 0
     ? `/printers?${returnParams.toString()}`
     : "/printers";
@@ -297,7 +301,7 @@ export default async function PrintersPage({
           <div className="divide-y divide-slate-100 lg:hidden">
             {rows.length === 0 ? (
               <EmptyState message="No printers found" />
-            ) : rows.map((p) => {
+            ) : paginated.items.map((p) => {
               const monitoring = monitoringByPrinter.get(p.id) ?? null;
               return (
                 <article key={p.id} className="p-4 sm:p-5">
@@ -452,7 +456,7 @@ export default async function PrintersPage({
                     </span>
                   </td>
                 </tr>
-              ) : rows.map((p) => {
+              ) : paginated.items.map((p) => {
                 const monitoring = monitoringByPrinter.get(p.id) ?? null;
                 return (
                 <tr key={p.id} className="bg-white transition-colors hover:bg-slate-50/80">
@@ -518,6 +522,7 @@ export default async function PrintersPage({
           </div>
           </>
         </div>
+        <RecordPagination pathname="/printers" searchParams={params} page={paginated.page} totalPages={paginated.totalPages} total={rows.length} start={paginated.start} />
       </TableCard>
     </div>
   );

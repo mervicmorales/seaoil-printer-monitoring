@@ -1,4 +1,4 @@
-import RequestTonerPage from "@/app/(app)/toner-monitoring/request/page";
+import { RequestTonerPage } from "@/app/(app)/toner-monitoring/request/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function RequestTonerModal() {

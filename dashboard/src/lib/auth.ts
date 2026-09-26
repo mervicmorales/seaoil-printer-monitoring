@@ -8,7 +8,17 @@ import { SESSION_COOKIE } from "@/lib/validation";
 import { isUserRole, type UserRole } from "@/lib/roles";
 
 export { SESSION_COOKIE };
-const SECRET = process.env.AUTH_SECRET || "seaoil-printer-monitoring-dev-secret";
+function sessionSecret() {
+  const secret = process.env.AUTH_SECRET?.trim();
+  if (!secret || secret.length < 32 || /^(change_me|replace-with-)/i.test(secret) || secret === "seaoil-printer-monitoring-dev-secret") {
+    throw new Error("AUTH_SECRET must be a unique secret of at least 32 characters");
+  }
+  return secret;
+}
+
+export function assertAuthConfiguration() {
+  sessionSecret();
+}
 
 export type SessionPayload = {
   id: number;
@@ -16,6 +26,7 @@ export type SessionPayload = {
   email: string;
   username: string;
   role: UserRole;
+  sessionVersion: number;
 };
 
 export async function hashPassword(password: string) {
@@ -27,12 +38,13 @@ export async function verifyPassword(password: string, hash: string) {
 }
 
 export function signSession(payload: SessionPayload) {
-  return jwt.sign(payload, SECRET, { expiresIn: "7d" });
+  return jwt.sign(payload, sessionSecret(), { expiresIn: "7d" });
 }
 
 export function verifySession(token: string): SessionPayload | null {
+  const secret = sessionSecret();
   try {
-    return jwt.verify(token, SECRET) as SessionPayload;
+    return jwt.verify(token, secret) as SessionPayload;
   } catch {
     return null;
   }
@@ -53,11 +65,13 @@ export async function getSession(): Promise<SessionPayload | null> {
       username: users.username,
       role: users.role,
       accountStatus: users.accountStatus,
+      sessionVersion: users.sessionVersion,
     })
     .from(users)
     .where(eq(users.id, session.id))
     .limit(1);
   if (!account || !isUserRole(account.role) || account.accountStatus !== "active") return null;
+  if ((session.sessionVersion ?? 0) !== account.sessionVersion) return null;
 
   return {
     ...account,

@@ -116,7 +116,7 @@ export default function EditTicketForm({
             />
             {ticket.resolutionAttachmentUrl && (
               <a
-                href={ticket.resolutionAttachmentUrl}
+                href={`/api/repair-history/${ticket.id}/attachment`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-[#014171] shadow-sm transition hover:bg-sky-100"

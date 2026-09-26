@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { setSessionCookie, verifyPassword } from "@/lib/auth";
 import { expireRegistrationRequests } from "@/lib/registration-requests";
 import { isUserRole } from "@/lib/roles";
+import { clearSuccessfulLogin, isLoginRateLimited, recordFailedLogin } from "@/lib/auth-rate-limit";
 
 export type LoginState = {
   error?: string;
@@ -34,6 +35,9 @@ export async function loginAction(
   if (!password) fieldErrors.password = "Password is required.";
   if (Object.keys(fieldErrors).length) {
     return { fieldErrors };
+  }
+  if (await isLoginRateLimited(identifier)) {
+    return { error: "Too many sign-in attempts. Please try again in 15 minutes." };
   }
 
   const rows = await db
@@ -75,10 +79,12 @@ export async function loginAction(
       }
     }
 
+    await recordFailedLogin(identifier);
     return { error: "Invalid credentials. Please check your email/username and password." };
   }
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
+    await recordFailedLogin(identifier);
     return { error: "Invalid credentials. Please check your email/username and password." };
   }
   if (user.accountStatus === "pending_email") {
@@ -93,12 +99,15 @@ export async function loginAction(
     return { error: "This account has an invalid role. Please contact IT support." };
   }
 
+  await clearSuccessfulLogin(identifier);
+
   await setSessionCookie({
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     username: user.username,
     role: user.role,
+    sessionVersion: user.sessionVersion,
   });
 
   const redirectTo = user.role === "employee"

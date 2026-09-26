@@ -27,7 +27,7 @@ function getRuntimeSettings(environment = process.env) {
   return {
     port: parsedPort.port,
     portIsValid: parsedPort.valid,
-    bindAddress: environment.PRINTDASH_LISTEN_ADDRESS?.trim() || "0.0.0.0",
+    bindAddress: environment.PRINTDASH_LISTEN_ADDRESS?.trim() || "127.0.0.1",
     environmentFile: environment.SEAOIL_ENV_FILE?.trim() || null,
     serviceMode: environment.SEAOIL_SERVICE_MODE?.trim() === SERVICE_MODE,
   };

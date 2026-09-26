@@ -1,7 +1,7 @@
 "use server";
 
 import { createHash } from "crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { auditLogs, passwordResetTokens, users } from "@/db/schema";
@@ -56,7 +56,7 @@ export async function resetPasswordAction(
 
     const updated = await tx
       .update(users)
-      .set({ passwordHash })
+      .set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` })
       .where(eq(users.id, record.userId))
       .returning({ id: users.id });
     if (!updated.length) return false;

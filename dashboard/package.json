@@ -2,9 +2,9 @@
   "name": "nextjs-postgresql-template",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "postinstall": "node scripts/patch-feral-blob.mjs",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -21,6 +21,9 @@
     "monitoring:agent:migrate-global": "node scripts/monitoring-agent-credentials.mjs migrate-global",
     "monitoring:assignments:migrate": "node scripts/migrate-monitoring-assignments.mjs",
     "db:migrate:agent-locations": "node --env-file=.env.local scripts/migrate-monitoring-agent-locations.mjs",
+    "uploads:migrate:private": "node scripts/migrate-private-uploads.mjs",
+    "db:migrate:auth-security": "node scripts/migrate-auth-security.mjs",
+    "db:migrate:repair-sequence": "node scripts/migrate-repair-ticket-sequence.mjs",
     "db:migrate:agent-locations:docker": "node --env-file=.env.docker scripts/migrate-monitoring-agent-locations.mjs",
     "db:migrate:features": "node scripts/migrate-notifications-registration-smtp.mjs",
     "db:migrate:features:docker": "node --env-file=.env.docker scripts/migrate-notifications-registration-smtp.mjs",
@@ -46,18 +49,22 @@
     "drizzle-orm": "0.45.2",
     "exceljs": "^4.4.0",
     "feral-blob": "0.1.0",
-    "framer-motion": "^13.1.1",
     "goey-toast": "^0.5.0",
     "jsonwebtoken": "^9.0.3",
     "lucide": "^1.33.0",
     "morphicons": "^1.7.0",
     "motion": "^13.1.1",
-    "next": "16.2.6",
-    "nodemailer": "^9.0.5",
+    "next": "^16.3.5",
+    "nodemailer": "^9.1.1",
     "pg": "8.20.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "zod": "^4.4.3"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",
@@ -67,8 +74,8 @@
     "@types/react-dom": "19.2.3",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
-    "postcss": "8.5.8",
+    "eslint-config-next": "^16.3.5",
+    "postcss": "^8.5.28",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3"
   }

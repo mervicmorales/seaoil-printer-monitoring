@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { Save } from "lucide";
-import ViewTicketPage from "@/app/(app)/repair-history/[id]/page";
+import { ViewTicketPage } from "@/app/(app)/repair-history/[id]/content";
 import { deleteTicketAction } from "@/app/(app)/repair-history/actions";
 import TicketStatusSelect from "@/app/(app)/repair-history/TicketStatusSelect";
 import DeleteButton from "@/components/DeleteButton";

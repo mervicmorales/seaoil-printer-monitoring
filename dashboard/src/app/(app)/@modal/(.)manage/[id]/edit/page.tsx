@@ -1,4 +1,4 @@
-import EditUserPage from "@/app/(app)/manage/[id]/edit/page";
+import { EditUserPage } from "@/app/(app)/manage/[id]/edit/content";
 import ModalShell from "@/components/ModalShell";
 
 export default async function EditUserModal({

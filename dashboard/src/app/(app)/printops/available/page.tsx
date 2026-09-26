@@ -1,4 +1,4 @@
-import { AvailablePrintersPageContent } from "@/app/portal/page";
+import { AvailablePrintersPageContent } from "@/app/portal/content";
 
 export const dynamic = "force-dynamic";
 

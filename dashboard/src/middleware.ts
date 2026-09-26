@@ -14,6 +14,11 @@ const PUBLIC_PATHS = [
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Uploaded files are served only by authenticated API routes, never as static assets.
+  if (pathname.startsWith("/uploads/")) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   if (
     PUBLIC_PATHS.some((p) => pathname === p) ||
     pathname.startsWith("/api/health") ||
@@ -23,7 +28,6 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/api/monitoring/printops") ||
     pathname.startsWith("/api/monitoring/agent-status") ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/uploads") ||
     pathname.match(/\.(png|jpg|jpeg|svg|ico|webp)$/)
   ) {
     return NextResponse.next();

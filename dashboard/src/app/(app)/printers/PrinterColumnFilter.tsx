@@ -100,21 +100,36 @@ export default function PrinterColumnFilter({
 
     function placeMenu() {
       const bounds = buttonRef.current?.getBoundingClientRect();
-      if (!bounds) return;
+      const menu = menuRef.current;
+      if (!bounds || !menu) return;
       const menuWidth = Math.min(320, window.innerWidth - 24);
-      const left = Math.max(12, Math.min(bounds.right - menuWidth, window.innerWidth - menuWidth - 12));
-      const preferredTop = bounds.bottom + 8;
-      setPosition({ left, top: Math.min(preferredTop, Math.max(12, window.innerHeight - 480)) });
+      const menuHeight = menu.getBoundingClientRect().height;
+      const left = Math.max(12, Math.min(bounds.left, window.innerWidth - menuWidth - 12));
+      const below = bounds.bottom + 8;
+      const above = bounds.top - menuHeight - 8;
+      const top = below + menuHeight <= window.innerHeight - 12
+        ? below
+        : above >= 12
+          ? above
+          : Math.max(12, Math.min(below, window.innerHeight - menuHeight - 12));
+      setPosition((current) => current.left === left && current.top === top
+        ? current
+        : { left, top });
+    }
+
+    function onScroll(event: Event) {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      placeMenu();
     }
 
     placeMenu();
     window.addEventListener("resize", placeMenu);
-    window.addEventListener("scroll", placeMenu, true);
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       window.removeEventListener("resize", placeMenu);
-      window.removeEventListener("scroll", placeMenu, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
-  }, [open]);
+  }, [open, filteredOptions.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -165,7 +180,7 @@ export default function PrinterColumnFilter({
           ref={menuRef}
           role="dialog"
           aria-label={`${label} column options`}
-          className="fixed z-[80] flex max-h-[min(29rem,calc(100dvh-1.5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-left normal-case tracking-normal text-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.2)]"
+          className="fixed z-[80] flex max-h-[calc(100dvh-1.5rem)] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-clip rounded-lg border border-slate-200 bg-white text-left normal-case tracking-normal text-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.2)]"
           style={position}
         >
           {sortAscValue && sortDescValue && <div className="border-b border-slate-200 p-2">
@@ -221,7 +236,7 @@ export default function PrinterColumnFilter({
             />
           </label>
 
-          <div className="min-h-0 flex-1 overflow-y-auto border-y border-slate-100 px-2 py-1">
+          <div className="min-h-0 max-h-60 overflow-y-auto overscroll-contain border-y border-slate-100 px-2 py-1">
             {filteredOptions.length === 0 ? (
               <p className="px-3 py-5 text-center text-xs font-normal text-slate-400">No matching values</p>
             ) : filteredOptions.map((option) => {

@@ -18,7 +18,7 @@ import {
   users,
   userModuleAccess,
 } from "@/db/schema";
-import { eq, and, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
@@ -234,7 +234,10 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
       primaryLocationId,
       departmentId,
     };
-    if (password) updateValues.passwordHash = await hashPassword(password);
+    if (password) {
+      updateValues.passwordHash = await hashPassword(password);
+      updateValues.sessionVersion = sql`${users.sessionVersion} + 1`;
+    }
     await db.transaction(async (tx) => {
       await tx.update(users).set(updateValues).where(eq(users.id, id));
 
@@ -437,17 +440,16 @@ export async function updatePermissionsAction(formData: FormData) {
     if (!requestedAccess[parent]) requestedAccess[child] = false;
   }
 
-  await db.transaction(async (tx) => {
-    for (const moduleName of MODULES) {
-      await tx
-        .insert(userModuleAccess)
-        .values({ userId, module: moduleName, fullAccess: requestedAccess[moduleName] })
-        .onConflictDoUpdate({
-          target: [userModuleAccess.userId, userModuleAccess.module],
-          set: { fullAccess: requestedAccess[moduleName] },
-        });
-    }
-  });
+  await db.insert(userModuleAccess)
+    .values(MODULES.map((moduleName) => ({
+      userId,
+      module: moduleName,
+      fullAccess: requestedAccess[moduleName],
+    })))
+    .onConflictDoUpdate({
+      target: [userModuleAccess.userId, userModuleAccess.module],
+      set: { fullAccess: sql`excluded.full_access` },
+    });
 
   revalidatePath("/manage");
   redirect("/manage?success=Permissions updated.");

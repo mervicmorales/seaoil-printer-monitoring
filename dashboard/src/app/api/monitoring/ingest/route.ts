@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   monitoringAgents,
@@ -170,6 +170,38 @@ export async function POST(request: Request) {
 
       const agent = activeAgent;
 
+      const serialNumbers = [...new Set(payload.printers.flatMap((printer) => printer.serial ? [printer.serial] : []))];
+      const assetTags = [...new Set(payload.printers.flatMap((printer) => printer.assetTag ? [printer.assetTag] : []))];
+      const ipAddresses = [...new Set(payload.printers.map((printer) => printer.ip))];
+      const matchConditions: SQL[] = [];
+      if (serialNumbers.length) matchConditions.push(inArray(printers.serialNumber, serialNumbers));
+      if (assetTags.length) matchConditions.push(inArray(printers.assetTag, assetTags));
+      if (ipAddresses.length) matchConditions.push(inArray(printers.ipAddress, ipAddresses));
+      const candidates = matchConditions.length
+        ? await tx.select({
+            id: printers.id,
+            serialNumber: printers.serialNumber,
+            assetTag: printers.assetTag,
+            ipAddress: printers.ipAddress,
+          }).from(printers).where(or(...matchConditions))
+        : [];
+      const assignments = candidates.length
+        ? await tx.select({ printerId: printerMonitoringAssignments.printerId })
+          .from(printerMonitoringAssignments)
+          .where(and(
+            eq(printerMonitoringAssignments.agentId, agent.id),
+            inArray(printerMonitoringAssignments.printerId, candidates.map((printer) => printer.id)),
+          ))
+        : [];
+      const assignedPrinterIds = new Set(assignments.map((assignment) => assignment.printerId));
+      const candidatesBySerial = new Map(candidates.map((printer) => [printer.serialNumber, printer]));
+      const candidatesByAssetTag = new Map<string, typeof candidates>();
+      const candidatesByIp = new Map<string, typeof candidates>();
+      for (const printer of candidates) {
+        if (printer.assetTag) candidatesByAssetTag.set(printer.assetTag, [...(candidatesByAssetTag.get(printer.assetTag) ?? []), printer]);
+        if (printer.ipAddress) candidatesByIp.set(printer.ipAddress, [...(candidatesByIp.get(printer.ipAddress) ?? []), printer]);
+      }
+
       const matched: Array<{
         printerId: number;
         monitoringReadingId: number;
@@ -192,11 +224,7 @@ export async function POST(request: Request) {
         let ambiguousReason: "ambiguous-asset-tag" | "ambiguous-ip" | null = null;
 
         if (observation.serial) {
-          const [serialMatch] = await tx
-            .select({ id: printers.id })
-            .from(printers)
-            .where(eq(printers.serialNumber, observation.serial))
-            .limit(1);
+          const serialMatch = candidatesBySerial.get(observation.serial);
           if (serialMatch) {
             printerId = serialMatch.id;
             matchedBy = "serial";
@@ -204,11 +232,7 @@ export async function POST(request: Request) {
         }
 
         if (!printerId && observation.assetTag) {
-          const assetMatches = await tx
-            .select({ id: printers.id })
-            .from(printers)
-            .where(eq(printers.assetTag, observation.assetTag))
-            .limit(2);
+          const assetMatches = candidatesByAssetTag.get(observation.assetTag) ?? [];
           if (assetMatches.length === 1) {
             printerId = assetMatches[0].id;
             matchedBy = "assetTag";
@@ -218,11 +242,7 @@ export async function POST(request: Request) {
         }
 
         if (!printerId && !ambiguousReason) {
-          const ipMatches = await tx
-            .select({ id: printers.id })
-            .from(printers)
-            .where(eq(printers.ipAddress, observation.ip))
-            .limit(2);
+          const ipMatches = candidatesByIp.get(observation.ip) ?? [];
           if (ipMatches.length === 1) {
             printerId = ipMatches[0].id;
             matchedBy = "ip";
@@ -241,17 +261,7 @@ export async function POST(request: Request) {
           continue;
         }
 
-        const [assignment] = await tx
-          .select({ printerId: printerMonitoringAssignments.printerId })
-          .from(printerMonitoringAssignments)
-          .where(
-            and(
-              eq(printerMonitoringAssignments.printerId, printerId),
-              eq(printerMonitoringAssignments.agentId, agent.id),
-            ),
-          )
-          .limit(1);
-        if (!assignment) {
+        if (!assignedPrinterIds.has(printerId)) {
           unmatched.push({
             name: observation.name,
             serial: observation.serial ?? null,

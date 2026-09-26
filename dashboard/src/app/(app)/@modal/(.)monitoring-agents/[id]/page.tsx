@@ -1,4 +1,4 @@
-import MonitoringAgentDetailPage from "@/app/(app)/monitoring-agents/[id]/page";
+import { MonitoringAgentDetailPage } from "@/app/(app)/monitoring-agents/[id]/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function MonitoringAgentDetailModal({

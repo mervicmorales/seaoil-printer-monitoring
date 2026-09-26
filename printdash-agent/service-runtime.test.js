@@ -25,17 +25,17 @@ test("resolves Windows service paths without affecting other platforms", () => {
   );
 });
 
-test("preserves local defaults and reads service bind configuration", () => {
+test("binds locally by default and reads explicit service configuration", () => {
   assert.deepEqual(getRuntimeSettings({}), {
     port: 3003,
     portIsValid: true,
-    bindAddress: "0.0.0.0",
+    bindAddress: "127.0.0.1",
     environmentFile: null,
     serviceMode: false,
   });
-  const configured = getRuntimeSettings({ PORT: "3100", PRINTDASH_LISTEN_ADDRESS: "127.0.0.1" });
+  const configured = getRuntimeSettings({ PORT: "3100", PRINTDASH_LISTEN_ADDRESS: "0.0.0.0" });
   assert.equal(configured.port, 3100);
-  assert.equal(configured.bindAddress, "127.0.0.1");
+  assert.equal(configured.bindAddress, "0.0.0.0");
 });
 
 test("validates critical Windows service configuration", () => {

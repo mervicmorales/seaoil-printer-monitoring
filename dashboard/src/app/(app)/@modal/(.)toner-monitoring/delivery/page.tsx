@@ -1,4 +1,4 @@
-import DeliveryTonerPage from "@/app/(app)/toner-monitoring/delivery/page";
+import { DeliveryTonerPage } from "@/app/(app)/toner-monitoring/delivery/content";
 import ModalShell from "@/components/ModalShell";
 
 export default function DeliveryTonerModal() {

@@ -1,4 +1,4 @@
-import NewPrinterPage from "@/app/(app)/printers/new/page";
+import { NewPrinterPage } from "@/app/(app)/printers/new/content";
 import ModalShell from "@/components/ModalShell";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 

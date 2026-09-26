@@ -50,10 +50,11 @@ export async function requireAdmin(module: ModuleName) {
 
 export async function generateTicketNumber() {
   const prefix = "PR";
-  const count = await db.execute<{ count: string }>(
-    sql`select coalesce(max(substring(ticket_number from '^PR([0-9]{6})$')::integer), 0)::text as count from repair_tickets`,
+  const next = await db.execute<{ number: string }>(
+    sql`select nextval('repair_ticket_sequence')::text as number`,
   );
-  const n = parseInt(count.rows[0]?.count ?? "0", 10) + 1;
+  const n = Number(next.rows[0]?.number);
+  if (!Number.isSafeInteger(n) || n < 1) throw new Error("Could not allocate a repair ticket number");
   return `${prefix}${String(n).padStart(6, "0")}`;
 }
 
