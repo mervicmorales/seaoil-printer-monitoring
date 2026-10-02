@@ -59,6 +59,8 @@ export async function AvailablePrintersPageContent({
   const [employee] = await db.select({
     primaryLocationId: users.primaryLocationId,
     departmentId: users.departmentId,
+    subunitId: users.subunitId,
+    costCenterId: users.costCenterId,
   }).from(users)
     .where(eq(users.id, session.id))
     .limit(1);
@@ -94,6 +96,8 @@ export async function AvailablePrintersPageContent({
                 and(
                   eq(printers.locationId, employee.primaryLocationId),
                   eq(printers.departmentId, employee.departmentId),
+                  employee.subunitId ? eq(printers.subunitId, employee.subunitId) : undefined,
+                  employee.costCenterId ? eq(printers.costCenterId, employee.costCenterId) : undefined,
                 ),
                 eq(userPrinterPermissions.userId, session.id),
               )

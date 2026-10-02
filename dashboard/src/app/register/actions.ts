@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "crypto";
 import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { departments, emailVerificationTokens, locations, systemSettings, userRegistrationRequests, users } from "@/db/schema";
+import { emailVerificationTokens, systemSettings, userRegistrationRequests, users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { buildEmailVerificationEmail } from "@/lib/email-templates";
@@ -15,6 +15,7 @@ import {
   PASSWORD_RULE_TEXT,
 } from "@/lib/validation";
 import { expireRegistrationRequests } from "@/lib/registration-requests";
+import { validateOrganizationSelection } from "@/lib/organization";
 
 export type RegistrationState = {
   success?: string;
@@ -59,6 +60,8 @@ export async function registerAction(_previous: RegistrationState, formData: For
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
   const primaryLocationId = Number(value(formData, "primaryLocationId"));
   const departmentId = Number(value(formData, "departmentId"));
+  const subunitId = Number(value(formData, "subunitId")) || null;
+  const costCenterId = Number(value(formData, "costCenterId")) || null;
   const username = email.split("@")[0];
   const fieldErrors: Record<string, string> = {};
   if (fullName.length < 2) fieldErrors.fullName = "Full name is required.";
@@ -66,18 +69,23 @@ export async function registerAction(_previous: RegistrationState, formData: For
   if (!/^[^\s@]+@seaoil\.com\.ph$/i.test(email)) fieldErrors.email = "Use your @seaoil.com.ph email address.";
   if (!isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
   if (password !== confirmPassword) fieldErrors.confirmPassword = "Passwords do not match.";
-  if (!Number.isInteger(primaryLocationId) || primaryLocationId < 1) fieldErrors.primaryLocationId = "Select a location.";
+  if (!Number.isInteger(primaryLocationId) || primaryLocationId < 1) fieldErrors.primaryLocationId = "Select an office.";
   if (!Number.isInteger(departmentId) || departmentId < 1) fieldErrors.departmentId = "Select a department.";
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
-  const [[settings], [location], [department]] = await Promise.all([
+  const [[settings], organizationErrors] = await Promise.all([
     db.select({ enabled: systemSettings.registrationEnabled }).from(systemSettings).limit(1),
-    db.select({ id: locations.id }).from(locations).where(eq(locations.id, primaryLocationId)).limit(1),
-    db.select({ id: departments.id }).from(departments).where(eq(departments.id, departmentId)).limit(1),
+    validateOrganizationSelection(
+      { locationId: primaryLocationId, departmentId, subunitId, costCenterId },
+      { requireLocation: true, requireDepartment: true, requireSubunitWhenAvailable: true },
+    ),
   ]);
   if (settings?.enabled === false) return { error: "Employee registration is currently unavailable." };
-  if (!location) fieldErrors.primaryLocationId = "Select a valid location.";
-  if (!department) fieldErrors.departmentId = "Select a valid department.";
+  Object.assign(fieldErrors, organizationErrors);
+  if (organizationErrors.locationId) {
+    fieldErrors.primaryLocationId = organizationErrors.locationId;
+    delete fieldErrors.locationId;
+  }
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   const recentCutoff = new Date(Date.now() - 15 * 60_000);
@@ -133,6 +141,8 @@ export async function registerAction(_previous: RegistrationState, formData: For
       passwordHash,
       primaryLocationId,
       departmentId,
+      subunitId,
+      costCenterId,
       source: "self_registration",
       status: "pending_email",
       expiresAt,

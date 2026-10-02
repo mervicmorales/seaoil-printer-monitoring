@@ -4,6 +4,8 @@ import { and, asc, desc, eq, gte, isNull, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   departments,
+  subunits,
+  costCenters,
   itsNames,
   locations,
   tonerTransactions,
@@ -26,11 +28,13 @@ export async function getTonerExpenseExportReport(
   if (filters.dateFrom) conditions.push(gte(tonerTransactions.date, filters.dateFrom));
   if (filters.dateTo) conditions.push(lte(tonerTransactions.date, filters.dateTo));
   addLookupCondition(conditions, filters.department, tonerTransactions.departmentId);
+  addLookupCondition(conditions, filters.subunit, tonerTransactions.subunitId);
+  addLookupCondition(conditions, filters.costCenter, tonerTransactions.costCenterId);
   addLookupCondition(conditions, filters.location, tonerTransactions.locationId);
   addLookupCondition(conditions, filters.tonerType, tonerTransactions.tonerTypeId);
   addLookupCondition(conditions, filters.itsName, tonerTransactions.itsNameId);
 
-  const [rows, departmentOptions, locationOptions, tonerTypeOptions, itsNameOptions] = await Promise.all([
+  const [rows, departmentOptions, subunitOptions, costCenterOptions, locationOptions, tonerTypeOptions, itsNameOptions] = await Promise.all([
     db
       .select({
         transactionId: tonerTransactions.id,
@@ -39,6 +43,10 @@ export async function getTonerExpenseExportReport(
         ticketReference: tonerTransactions.ticketReference,
         departmentId: tonerTransactions.departmentId,
         departmentName: departments.name,
+        subunitId: tonerTransactions.subunitId,
+        subunitName: subunits.name,
+        costCenterId: tonerTransactions.costCenterId,
+        costCenterCode: costCenters.code,
         locationId: tonerTransactions.locationId,
         locationName: locations.name,
         tonerTypeId: tonerTransactions.tonerTypeId,
@@ -53,12 +61,16 @@ export async function getTonerExpenseExportReport(
       .from(tonerTransactions)
       .innerJoin(tonerTypes, eq(tonerTransactions.tonerTypeId, tonerTypes.id))
       .leftJoin(departments, eq(tonerTransactions.departmentId, departments.id))
+      .leftJoin(subunits, eq(tonerTransactions.subunitId, subunits.id))
+      .leftJoin(costCenters, eq(tonerTransactions.costCenterId, costCenters.id))
       .leftJoin(locations, eq(tonerTransactions.locationId, locations.id))
       .leftJoin(itsNames, eq(tonerTransactions.itsNameId, itsNames.id))
       .where(and(...conditions))
       .orderBy(desc(tonerTransactions.date), desc(tonerTransactions.id))
       .limit(MAX_TONER_EXPENSE_EXPORT_ROWS + 1),
     db.select({ id: departments.id, name: departments.name }).from(departments).orderBy(asc(departments.name)),
+    db.select({ id: subunits.id, name: subunits.name }).from(subunits).orderBy(asc(subunits.name)),
+    db.select({ id: costCenters.id, name: costCenters.code }).from(costCenters).orderBy(asc(costCenters.code)),
     db.select({ id: locations.id, name: locations.name }).from(locations).orderBy(asc(locations.name)),
     db.select({ id: tonerTypes.id, name: tonerTypes.name }).from(tonerTypes).orderBy(asc(tonerTypes.name)),
     db.select({ id: itsNames.id, name: itsNames.name }).from(itsNames).orderBy(asc(itsNames.name)),
@@ -75,7 +87,9 @@ export async function getTonerExpenseExportReport(
       date: row.date,
       ticketReference: cleanText(row.ticketReference),
       department: row.departmentName?.trim() || "Unassigned department",
-      location: row.locationName?.trim() || "Unassigned location",
+      subunit: row.subunitName?.trim() || "Unassigned subunit",
+      costCenter: row.costCenterCode?.trim() || "Unassigned cost center",
+      location: row.locationName?.trim() || "Unassigned office",
       tonerType: row.tonerTypeName,
       quantity,
       unitCostCents,
@@ -103,7 +117,9 @@ export async function getTonerExpenseExportReport(
     filterLabels: {
       period: periodLabel(filters),
       department: lookupLabel(filters.department, departmentOptions, "All departments", "Unassigned department"),
-      location: lookupLabel(filters.location, locationOptions, "All locations", "Unassigned location"),
+      subunit: lookupLabel(filters.subunit, subunitOptions, "All subunits", "Unassigned subunit"),
+      costCenter: lookupLabel(filters.costCenter, costCenterOptions, "All cost centers", "Unassigned cost center"),
+      location: lookupLabel(filters.location, locationOptions, "All offices", "Unassigned office"),
       tonerType: lookupLabel(filters.tonerType, tonerTypeOptions, "All toner types", "Unassigned toner type"),
       itsName: lookupLabel(filters.itsName, itsNameOptions, "All ITS names", "Unassigned ITS name"),
     },
@@ -118,6 +134,8 @@ function addLookupCondition(
   value: TonerExpenseLookupFilter,
   column:
     | typeof tonerTransactions.departmentId
+    | typeof tonerTransactions.subunitId
+    | typeof tonerTransactions.costCenterId
     | typeof tonerTransactions.locationId
     | typeof tonerTransactions.tonerTypeId
     | typeof tonerTransactions.itsNameId,

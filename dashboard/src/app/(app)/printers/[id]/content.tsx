@@ -6,11 +6,13 @@ import {
   printers,
   locations,
   departments,
+  costCenters,
   vendors,
   contracts,
   printerTonerTypes,
   tonerTypes,
   repairTickets,
+  subunits,
   replacementHistory,
   printerMonitoringReadings,
   printerConsumableReadings,
@@ -62,6 +64,8 @@ export async function PrinterViewPage({
       printer: printers,
       locationName: locations.name,
       departmentName: departments.name,
+      subunitName: subunits.name,
+      costCenterCode: costCenters.code,
       vendorName: vendors.name,
       vendorEmail: vendors.email,
       contractNumber: contracts.contractNumber,
@@ -70,6 +74,8 @@ export async function PrinterViewPage({
     .from(printers)
     .leftJoin(locations, eq(printers.locationId, locations.id))
     .leftJoin(departments, eq(printers.departmentId, departments.id))
+    .leftJoin(subunits, eq(printers.subunitId, subunits.id))
+    .leftJoin(costCenters, eq(printers.costCenterId, costCenters.id))
     .leftJoin(vendors, eq(printers.vendorId, vendors.id))
     .leftJoin(contracts, eq(printers.contractId, contracts.id))
     .where(eq(printers.id, printerId))
@@ -238,12 +244,15 @@ export async function PrinterViewPage({
 
                 <InfoSection
                   title="Assignment"
-                  description="Assigned user, location, and department"
+                  description="Assigned user and organizational assignment"
                   icon={Building2}
                 >
                   <dl className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-                    <Field label="Location" value={record.locationName || "—"} />
+                    <Field label="Office" value={record.locationName || "—"} />
+                    <Field label="Location" value={p.floor || "—"} />
                     <Field label="Department" value={record.departmentName || "—"} />
+                    <Field label="Subunit" value={record.subunitName || "—"} />
+                    <Field label="Cost Center" value={record.costCenterCode || "—"} />
                     <div className="sm:col-span-2">
                       <Field label="Assigned User" value={p.assignedUser || "—"} />
                     </div>
@@ -433,7 +442,7 @@ export async function PrinterViewPage({
                         <th className="px-4 py-3">Ticket #</th>
                         <th className="px-4 py-3">Requested Date</th>
                         <th className="px-4 py-3">Serial Number</th>
-                        <th className="px-4 py-3">Location</th>
+                        <th className="px-4 py-3">Office</th>
                         <th className="px-4 py-3">Department</th>
                         <th className="px-4 py-3">Problem</th>
                         <th className="px-4 py-3">Vendor</th>

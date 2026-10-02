@@ -163,7 +163,7 @@ export default function AgentManagementTable({
             <thead className="bg-slate-50/95 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-2.5">
-                  <FilterableHeading label="Location / Agent">
+                  <FilterableHeading label="Office / Agent">
                     <PrinterColumnFilter label="Agent" paramName="agent" options={agentOptions} selectedValues={agentFilters} currentSort={sort} sortAscValue="agent_asc" sortDescValue="agent_desc" />
                   </FilterableHeading>
                 </th>
@@ -182,7 +182,7 @@ export default function AgentManagementTable({
               {filteredAgents.map((agent) => (
                 <tr key={agent.id} className="transition hover:bg-slate-50/70">
                   <td className="px-4 py-3 align-top">
-                    <p className="font-semibold text-slate-800">{agent.location || "Unassigned location"}</p>
+                    <p className="font-semibold text-slate-800">{agent.location || "Unassigned office"}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{agent.name} · {agent.assignedPrinterCount} printer{agent.assignedPrinterCount === 1 ? "" : "s"}</p>
                   </td>
                   <td className="px-4 py-3 align-top"><ConnectivityBadge status={agent.connectivity} /></td>

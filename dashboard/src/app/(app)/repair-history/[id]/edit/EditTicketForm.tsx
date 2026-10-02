@@ -4,9 +4,11 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { ClipboardCheck, Paperclip, Wrench, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { Input, Select, Textarea, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { Input, Textarea, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SearchableDropdown from "@/components/SearchableDropdown";
 import type { RepairFormState } from "../../actions";
 import Link from "next/link";
+import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
 
 type Lookup = { id: number; name: string };
 type Ticket = {
@@ -16,6 +18,8 @@ type Ticket = {
   requestedDate: string;
   departmentId: number | null;
   locationId: number | null;
+  subunitId: number | null;
+  costCenterId: number | null;
   problem: string;
   vendorId: number | null;
   resolution: string | null;
@@ -37,14 +41,12 @@ function SubmitButton() {
 export default function EditTicketForm({
   action,
   ticket,
-  locations,
-  departments,
+  organizationOptions,
   vendors,
 }: {
   action: (prev: RepairFormState, formData: FormData) => Promise<RepairFormState>;
   ticket: Ticket;
-  locations: Lookup[];
-  departments: Lookup[];
+  organizationOptions: OrganizationFieldOptions;
   vendors: Lookup[];
 }) {
   const [state, formAction] = useActionState(action, {});
@@ -65,24 +67,17 @@ export default function EditTicketForm({
         <Input label="Ticket Number" value={ticket.ticketNumber} readOnly disabled className="bg-slate-100 text-slate-500" />
         <Input label="Serial Number" value={ticket.serialNumber} readOnly disabled className="bg-slate-100 text-slate-500" />
         <Input label="Requested Date" value={ticket.requestedDate} readOnly disabled className="bg-slate-100 text-slate-500" />
-        <Select label="Department" name="departmentId" defaultValue={ticket.departmentId ?? ""}>
-          <option value="">Select department</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </Select>
-        <Select label="Location" name="locationId" defaultValue={ticket.locationId ?? ""}>
-          <option value="">Select location</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>{l.name}</option>
-          ))}
-        </Select>
-        <Select label="Vendor" name="vendorId" defaultValue={ticket.vendorId ?? ""}>
-          <option value="">Select vendor</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>{v.name}</option>
-          ))}
-        </Select>
+        <OrganizationFields
+          options={organizationOptions}
+          initialLocationId={ticket.locationId}
+          initialDepartmentId={ticket.departmentId}
+          initialSubunitId={ticket.subunitId}
+          initialCostCenterId={ticket.costCenterId}
+          requiredSubunit
+          errors={state.fieldErrors}
+          className="contents"
+        />
+        <SearchableDropdown label="Vendor" name="vendorId" defaultValue={ticket.vendorId == null ? "" : String(ticket.vendorId)} placeholder="Search vendors..." options={[{ value: "", label: "No vendor selected" }, ...vendors.map((vendor) => ({ value: String(vendor.id), label: vendor.name }))]} />
         <Input label="Date Closed" name="dateClosed" type="date" defaultValue={ticket.dateClosed ?? ""} />
         </div>
       </section>

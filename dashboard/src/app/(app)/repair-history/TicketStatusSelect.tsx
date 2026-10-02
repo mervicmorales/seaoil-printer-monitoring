@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { statusBadgeColor } from "@/components/ui";
 import { REPAIR_STATUSES } from "@/lib/constants";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 const STATUS_COLORS = {
   green: "border-emerald-300 bg-emerald-50 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-200",
@@ -34,24 +35,31 @@ export default function TicketStatusSelect({
     );
   }
 
+  const dropdown = (
+    <SearchableDropdown
+      label={compact ? undefined : "Ticket Status"}
+      ariaLabel={compact ? "Ticket Status" : undefined}
+      name="status"
+      form={formId}
+      value={status}
+      onValueChange={handleStatusChange}
+      required
+      placeholder="Search statuses..."
+      options={REPAIR_STATUSES.map((item) => ({ value: item, label: item }))}
+      className={compact ? "w-36 shrink-0" : "min-w-48"}
+      inputClassName={`${compact ? "!h-9 !text-xs" : ""} font-semibold ${statusColor}`}
+      labelClassName="!text-xs !text-slate-600"
+    />
+  );
+
+  if (!compact) return dropdown;
+
   return (
-    <div className={compact ? "flex items-center gap-2" : "flex flex-col gap-1.5"}>
-      <label htmlFor={`${formId}-status`} className="text-xs font-medium text-slate-600">
-        Ticket Status
-      </label>
-      <select
-        id={`${formId}-status`}
-        name="status"
-        form={formId}
-        value={status}
-        onChange={(event) => handleStatusChange(event.target.value)}
-        required
-        className={`${compact ? "min-w-36 px-3 py-2 text-xs" : "min-w-48 px-3.5 py-2.5 text-sm"} rounded-xl border font-semibold shadow-sm outline-none transition focus:ring-2 ${statusColor}`}
-      >
-        {REPAIR_STATUSES.map((item) => (
-          <option key={item} value={item}>{item}</option>
-        ))}
-      </select>
+    <div className="flex shrink-0 items-center gap-2">
+      <span className="whitespace-nowrap text-xs font-medium text-slate-600">
+        Ticket Status <span className="text-red-500">*</span>
+      </span>
+      {dropdown}
     </div>
   );
 }

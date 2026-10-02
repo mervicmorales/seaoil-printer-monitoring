@@ -109,7 +109,7 @@ cp settings.example.json settings.json
 
 | File | Purpose |
 |---|---|
-| `printers.json` | List of printers to monitor (IP, SNMP community string, location) |
+| `printers.json` | List of printers to monitor (IP, SNMP community string, office) |
 | `settings.json` | Telegram bot token/chat ID and alert thresholds |
 | `users.json` | Created automatically on first run with default accounts `admin/admin123` and `user/user123` |
 
@@ -133,7 +133,7 @@ different office because each key has an independent token.
 | `SEAOIL_AGENT_TOKEN` | Yes | None | Unique bearer token generated once by the central credential CLI |
 | `SEAOIL_AGENT_KEY` | Yes | None | Stable ID such as `cebu-agent`; never derive it only from hostname |
 | `SEAOIL_AGENT_NAME` | No | `PrintDash Agent` | Human-readable agent name |
-| `SEAOIL_AGENT_LOCATION` | No | None | Human-readable office/location metadata |
+| `SEAOIL_AGENT_LOCATION` | No | None | Human-readable office metadata (legacy variable name retained for compatibility) |
 | `SEAOIL_AGENT_BUILD_ID` | No | None | Optional non-secret release/build label reported to Agent Management |
 | `POLL_INTERVAL_SECONDS` | No | `60` | SNMP polling interval; valid range is 30-3600 seconds |
 | `SEAOIL_CONFIG_REFRESH_SECONDS` | No | `60` | Central assignment refresh interval; valid range is 30-3600 seconds |

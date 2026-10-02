@@ -59,7 +59,7 @@ export default async function LoginPage({
             Print &amp; Scan Anywhere.
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-6 text-[#e3edf7] xl:text-[15px]">
-            Use one secure workspace to print, scan, and access available devices across SEAOIL locations.
+            Use one secure workspace to print, scan, and access available devices across SEAOIL offices.
           </p>
 
           <div className="mt-9 grid max-w-lg gap-3 sm:grid-cols-3">

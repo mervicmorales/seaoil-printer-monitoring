@@ -1,18 +1,13 @@
-import { asc } from "drizzle-orm";
 import { Building2, CheckCircle2, MailCheck, ShieldCheck, type IconNode } from "lucide";
 import { IconGlyph } from "@/components/ui";
-import { db } from "@/db";
-import { departments, locations } from "@/db/schema";
 import { SYSTEM_LOGO_URL } from "@/lib/branding";
+import { getOrganizationOptions } from "@/lib/organization";
 import RegisterForm, { ResendVerificationForm } from "./RegisterForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
-  const [locationRows, departmentRows] = await Promise.all([
-    db.select().from(locations).orderBy(asc(locations.name)),
-    db.select().from(departments).orderBy(asc(departments.name)),
-  ]);
+  const organizationOptions = await getOrganizationOptions();
   const logoUrl = SYSTEM_LOGO_URL;
 
   return (
@@ -78,7 +73,7 @@ export default async function RegisterPage() {
                 </p>
               </div>
 
-              <RegisterForm locations={locationRows} departments={departmentRows} />
+              <RegisterForm organizationOptions={organizationOptions} />
               <ResendVerificationForm />
             </div>
           </section>

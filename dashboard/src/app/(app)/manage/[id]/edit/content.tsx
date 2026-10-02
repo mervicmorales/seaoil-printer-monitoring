@@ -7,7 +7,7 @@ import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import UserForm from "../../UserForm";
 import { updateUserAction } from "../../actions";
 import { requireAdmin } from "@/lib/server-utils";
-import { getDepartments, getLocations } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import { canManageRole } from "@/lib/roles";
 
 export async function EditUserPage({
@@ -19,10 +19,9 @@ export async function EditUserPage({
 }) {
   const actor = await requireAdmin("manage_users");
   const { id } = await params;
-  const [rows, locations, departments] = await Promise.all([
+  const [rows, organizationOptions] = await Promise.all([
     db.select().from(users).where(eq(users.id, Number(id))).limit(1),
-    getLocations(),
-    getDepartments(),
+    getOrganizationOptions({ activeOnly: false }),
   ]);
   const user = rows[0];
   if (!user) notFound();
@@ -49,8 +48,7 @@ export async function EditUserPage({
           mode="edit"
           action={updateUserAction}
           user={user}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           showActions={!embedded}
           fitPanel={embedded}
           actorRole={actor.role}

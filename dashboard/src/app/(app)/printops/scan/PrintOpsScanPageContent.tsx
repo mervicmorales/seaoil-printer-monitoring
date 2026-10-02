@@ -51,7 +51,11 @@ export async function PrintOpsScanPageContent({
           locationScope ? { locationId: locationScope.locationId } : undefined,
           assignedPrinterIds,
           session.role === "support" || session.role === "employee"
-            ? locationScope?.departmentId
+            ? {
+                departmentId: locationScope?.departmentId,
+                subunitId: locationScope?.subunitId,
+                costCenterId: locationScope?.costCenterId,
+              }
             : undefined,
         ),
     getRecentPrintOpsCommands(
@@ -120,7 +124,7 @@ export async function PrintOpsScanPageContent({
               <p className="font-semibold">No scanner available</p>
               <p className="mt-0.5 text-xs leading-5 text-amber-700">
                 {locationScoped
-                  ? "No scanner is currently available for your assigned location and printer permissions."
+                  ? "No scanner is currently available for your assigned office and printer permissions."
                   : showAgentControls
                     ? "No compatible scanners are available yet. Refresh an online office agent above."
                     : "No compatible scanners are currently available."}
@@ -182,7 +186,7 @@ export async function PrintOpsScanPageContent({
             <div className="hidden lg:block">
               <table className="w-full min-w-[1120px] text-sm">
                 <thead className="bg-slate-50/95 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
-                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Location / Department</th><th className="px-4 py-3">Printer / SN</th><th className="px-4 py-3">Date Requested</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
+                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Office / Department</th><th className="px-4 py-3">Printer / SN</th><th className="px-4 py-3">Date Requested</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {scans.map((scan) => {

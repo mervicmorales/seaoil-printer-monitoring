@@ -9,6 +9,7 @@ import { Input, PrimaryButton, SecondaryButton, Textarea } from "@/components/ui
 import type { TonerFormState } from "./actions";
 import Link from "next/link";
 import SearchableSelect from "@/components/SearchableSelect";
+import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
 
 type Lookup = { id: number; name: string; stock?: number };
 
@@ -28,8 +29,7 @@ export default function TonerDeliveryRequestForm({
   mode,
   action,
   tonerTypes,
-  locations,
-  departments,
+  organizationOptions,
   itsNames,
   today,
   showActions = true,
@@ -37,8 +37,7 @@ export default function TonerDeliveryRequestForm({
   mode: "delivery" | "request";
   action: (prev: TonerFormState, formData: FormData) => Promise<TonerFormState>;
   tonerTypes: Lookup[];
-  locations: Lookup[];
-  departments: Lookup[];
+  organizationOptions: OrganizationFieldOptions;
   itsNames: Lookup[];
   today: string;
   showActions?: boolean;
@@ -46,12 +45,6 @@ export default function TonerDeliveryRequestForm({
   const [state, formAction] = useActionState(action, {});
   const [checked, setChecked] = useState<number[]>([]);
   const [quantity, setQuantity] = useState("");
-  const defaultLocationId = locations.find(
-    (location) => location.name.trim().toLowerCase() === "taipan head office",
-  )?.id;
-  const defaultDepartmentId = departments.find(
-    (department) => department.name.trim().toLowerCase() === "its",
-  )?.id;
   const selectedToners = tonerTypes.filter((toner) => checked.includes(toner.id));
   const allRequestTonersOutOfStock = mode === "request"
     && tonerTypes.length > 0
@@ -87,10 +80,10 @@ export default function TonerDeliveryRequestForm({
         <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
         <Input label="Date" floatingLabel name="date" type="date" defaultValue={today} required error={state.fieldErrors?.date} />
         <Input
-          label="Ticket Reference"
+          label="Ticket or R.Q"
           floatingLabel
           name="ticketReference"
-          placeholder="Enter ticket or P.O number"
+          placeholder="Enter ticket or R.Q number"
         />
         <Input
           label="Quantity"
@@ -104,25 +97,14 @@ export default function TonerDeliveryRequestForm({
           disabled={allRequestTonersOutOfStock || outOfStockToners.length > 0}
           error={state.fieldErrors?.quantity}
         />
-        <SearchableSelect
-          label="Location"
+        <OrganizationFields
+          options={organizationOptions}
+          requiredLocation={mode === "request"}
+          requiredDepartment={mode === "request"}
+          requiredSubunit={mode === "request"}
           floatingLabel
-          name="locationId"
-          options={locations}
-          placeholder="Search location..."
-          required={mode === "request"}
-          defaultValue={mode === "delivery" ? defaultLocationId : undefined}
-          error={state.fieldErrors?.locationId}
-        />
-        <SearchableSelect
-          label="Department"
-          floatingLabel
-          name="departmentId"
-          options={departments}
-          placeholder="Search department..."
-          required={mode === "request"}
-          defaultValue={mode === "delivery" ? defaultDepartmentId : undefined}
-          error={state.fieldErrors?.departmentId}
+          errors={state.fieldErrors}
+          className="contents"
         />
         <SearchableSelect
           label="ITS Name"

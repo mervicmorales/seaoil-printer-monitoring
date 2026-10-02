@@ -123,7 +123,7 @@ authenticate by itself. Only a bcrypt hash is stored in PostgreSQL.
 Create an agent and copy the token shown once into that office's `.env`:
 
 ```bash
-npm run monitoring:agent:create -- --key cebu-agent --name "Cebu Agent" --location "Cebu Depot"
+npm run monitoring:agent:create -- --key cebu-agent --name "Cebu Agent" --office "Cebu Depot"
 ```
 
 Rotate or revoke credentials without deleting the agent or its history:
@@ -239,6 +239,35 @@ Restart the office agent after updating its files, or rebuild its Docker image.
 Automatic lookup uses the IP-associated SNMP interface where available, otherwise
 an unambiguous interface address. Unsupported, offline, or ambiguous devices can
 be entered manually; detection is not guaranteed for every printer.
+
+## Organizational data migration and import
+
+Before deploying the Office terminology and centralized Office / Department /
+Subunit / Cost Center workflow to an existing database, back up PostgreSQL and
+run the additive, repeatable migrations from `dashboard/` in this order:
+
+```bash
+npm run db:migrate:office-naming
+npm run db:migrate:organization
+```
+
+Use the corresponding `:docker` scripts with `.env.docker`. The first migration
+renames the existing `locations` table and related foreign-key columns to
+`offices` / `office_id` without copying or deleting records. The Coolify
+`db-init` service runs both migrations automatically before the dashboard is
+started. The migrations do not reset tables or backfill guessed assignments;
+existing users, printers, repair tickets, and toner transactions retain their
+Office and Department values while the new Subunit and Cost Center foreign keys
+remain nullable.
+
+Authorized administrators can then open **System → Import Data**, upload an
+`.xlsx` workbook containing the `Collated data` sheet, review row-numbered
+validation and create/update/skip counts, and explicitly confirm the import.
+Confirmation claims the preview once and performs all organization upserts in a
+database transaction. Re-imports are idempotent, invalid/duplicate rows are
+skipped and reported, and records missing from a later workbook are never
+deleted or deactivated automatically. Import history is available under
+**System → Import History**.
 
 ## Security rollout: sessions, ticket numbers, and uploaded documents
 

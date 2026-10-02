@@ -10,8 +10,17 @@ import {
   vendors,
   systemSettings,
   auditLogs,
+  costCenters,
+  monitoringAgents,
+  organizationMappings,
+  printers,
+  repairTickets,
+  subunits,
+  tonerTransactions,
+  userRegistrationRequests,
+  users,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
@@ -32,60 +41,277 @@ function num(v: FormDataEntryValue | null) {
 
 function revalidateAll() {
   revalidatePath("/system");
+  revalidatePath("/system/notifications");
+  revalidatePath("/system/organization");
+  revalidatePath("/system/toner-types");
+  revalidatePath("/system/its-names");
+  revalidatePath("/system/vendors");
   revalidatePath("/overview");
   revalidatePath("/printers");
   revalidatePath("/toner-monitoring");
   revalidatePath("/toner-expenses");
   revalidatePath("/contracts");
   revalidatePath("/repair-history");
+  revalidatePath("/register");
+  revalidatePath("/manage");
+  revalidatePath("/portal");
 }
 
-// ---------- LOCATIONS ----------
+// ---------- OFFICES ----------
 export async function addLocationAction(formData: FormData) {
   await requireAdmin("system");
   const name = str(formData.get("name"));
-  if (name) await db.insert(locations).values({ name }).onConflictDoNothing();
+  const address = str(formData.get("address"));
+  if (name) {
+    const inserted = await db.insert(locations).values({ name, address }).onConflictDoNothing().returning({ id: locations.id });
+    if (!inserted[0]) redirect("/system/organization?tab=offices&error=An office with that name already exists.");
+  }
   revalidateAll();
-  redirect("/system?tab=locations&success=Location added.");
+  redirect("/system/organization?tab=offices&success=Office added.");
 }
 export async function updateLocationAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
   const name = str(formData.get("name"));
-  if (id && name) await db.update(locations).set({ name }).where(eq(locations.id, id));
+  const address = str(formData.get("address"));
+  const status = formData.get("status") === "inactive" ? "inactive" : "active";
+  if (id && name) {
+    try {
+      await db.update(locations).set({ name, address, status, updatedAt: new Date() }).where(eq(locations.id, id));
+    } catch {
+      redirect("/system/organization?tab=offices&error=An office with that name already exists.");
+    }
+  }
   revalidateAll();
-  redirect("/system?tab=locations&success=Location updated.");
+  redirect("/system/organization?tab=offices&success=Office updated.");
 }
 export async function deleteLocationAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
-  if (id) await db.delete(locations).where(eq(locations.id, id));
+  if (id) {
+    const result = await db.execute<{ count: number }>(sql`
+      select (
+        (select count(*) from ${users} where ${users.primaryLocationId} = ${id}) +
+        (select count(*) from ${printers} where ${printers.locationId} = ${id}) +
+        (select count(*) from ${repairTickets} where ${repairTickets.locationId} = ${id}) +
+        (select count(*) from ${tonerTransactions} where ${tonerTransactions.locationId} = ${id}) +
+        (select count(*) from ${userRegistrationRequests} where ${userRegistrationRequests.primaryLocationId} = ${id}) +
+        (select count(*) from ${monitoringAgents} where ${monitoringAgents.locationId} = ${id}) +
+        (select count(*) from ${organizationMappings} where ${organizationMappings.locationId} = ${id})
+      )::int as count
+    `);
+    const count = result.rows[0]?.count ?? 0;
+    if (count > 0) redirect(`/system/organization?tab=offices&error=${encodeURIComponent(`This office is referenced by ${count} record(s). Deactivate it instead.`)}`);
+    await db.delete(locations).where(eq(locations.id, id));
+  }
   revalidateAll();
-  redirect("/system?tab=locations&success=Location deleted.");
+  redirect("/system/organization?tab=offices&success=Office deleted.");
 }
 
 // ---------- DEPARTMENTS ----------
 export async function addDepartmentAction(formData: FormData) {
   await requireAdmin("system");
   const name = str(formData.get("name"));
-  if (name) await db.insert(departments).values({ name }).onConflictDoNothing();
+  if (name) {
+    const inserted = await db.insert(departments).values({ name }).onConflictDoNothing().returning({ id: departments.id });
+    if (!inserted[0]) redirect("/system/organization?tab=departments&error=A department with that name already exists.");
+  }
   revalidateAll();
-  redirect("/system?tab=departments&success=Department added.");
+  redirect("/system/organization?tab=departments&success=Department added.");
 }
 export async function updateDepartmentAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
   const name = str(formData.get("name"));
-  if (id && name) await db.update(departments).set({ name }).where(eq(departments.id, id));
+  const status = formData.get("status") === "inactive" ? "inactive" : "active";
+  if (id && name) {
+    try {
+      await db.update(departments).set({ name, status, updatedAt: new Date() }).where(eq(departments.id, id));
+    } catch {
+      redirect("/system/organization?tab=departments&error=A department with that name already exists.");
+    }
+  }
   revalidateAll();
-  redirect("/system?tab=departments&success=Department updated.");
+  redirect("/system/organization?tab=departments&success=Department updated.");
 }
 export async function deleteDepartmentAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
-  if (id) await db.delete(departments).where(eq(departments.id, id));
+  if (id) {
+    const result = await db.execute<{ count: number }>(sql`
+      select (
+        (select count(*) from ${users} where ${users.departmentId} = ${id}) +
+        (select count(*) from ${printers} where ${printers.departmentId} = ${id}) +
+        (select count(*) from ${repairTickets} where ${repairTickets.departmentId} = ${id}) +
+        (select count(*) from ${tonerTransactions} where ${tonerTransactions.departmentId} = ${id}) +
+        (select count(*) from ${userRegistrationRequests} where ${userRegistrationRequests.departmentId} = ${id}) +
+        (select count(*) from ${subunits} where ${subunits.departmentId} = ${id})
+      )::int as count
+    `);
+    const count = result.rows[0]?.count ?? 0;
+    if (count > 0) redirect(`/system/organization?tab=departments&error=${encodeURIComponent(`This department is referenced by ${count} record(s). Deactivate it instead.`)}`);
+    await db.delete(departments).where(eq(departments.id, id));
+  }
   revalidateAll();
-  redirect("/system?tab=departments&success=Department deleted.");
+  redirect("/system/organization?tab=departments&success=Department deleted.");
+}
+
+// ---------- SUBUNITS ----------
+export async function addSubunitAction(formData: FormData) {
+  await requireAdmin("system");
+  const name = str(formData.get("name"));
+  const departmentId = num(formData.get("departmentId"));
+  if (name && departmentId) {
+    const [department] = await db.select({ id: departments.id }).from(departments).where(and(eq(departments.id, departmentId), eq(departments.status, "active"))).limit(1);
+    if (!department) redirect("/system/organization?tab=subunits&error=Select an active department.");
+    const inserted = await db.insert(subunits).values({ name, departmentId }).onConflictDoNothing().returning({ id: subunits.id });
+    if (!inserted[0]) redirect("/system/organization?tab=subunits&error=That subunit already exists in the selected department.");
+  }
+  revalidateAll();
+  redirect("/system/organization?tab=subunits&success=Subunit added.");
+}
+
+export async function updateSubunitAction(formData: FormData) {
+  await requireAdmin("system");
+  const id = num(formData.get("id"));
+  const name = str(formData.get("name"));
+  const departmentId = num(formData.get("departmentId"));
+  const status = formData.get("status") === "inactive" ? "inactive" : "active";
+  if (id && name && departmentId) {
+    try {
+      await db.update(subunits).set({ name, departmentId, status, updatedAt: new Date() }).where(eq(subunits.id, id));
+    } catch {
+      redirect("/system/organization?tab=subunits&error=That subunit already exists in the selected department.");
+    }
+  }
+  revalidateAll();
+  redirect("/system/organization?tab=subunits&success=Subunit updated.");
+}
+
+export async function deleteSubunitAction(formData: FormData) {
+  await requireAdmin("system");
+  const id = num(formData.get("id"));
+  if (id) {
+    const result = await db.execute<{ count: number }>(sql`
+      select (
+        (select count(*) from ${users} where ${users.subunitId} = ${id}) +
+        (select count(*) from ${printers} where ${printers.subunitId} = ${id}) +
+        (select count(*) from ${repairTickets} where ${repairTickets.subunitId} = ${id}) +
+        (select count(*) from ${tonerTransactions} where ${tonerTransactions.subunitId} = ${id}) +
+        (select count(*) from ${userRegistrationRequests} where ${userRegistrationRequests.subunitId} = ${id}) +
+        (select count(*) from ${organizationMappings} where ${organizationMappings.subunitId} = ${id})
+      )::int as count
+    `);
+    const count = result.rows[0]?.count ?? 0;
+    if (count > 0) redirect(`/system/organization?tab=subunits&error=${encodeURIComponent(`This subunit is referenced by ${count} record(s). Deactivate it instead.`)}`);
+    await db.delete(subunits).where(eq(subunits.id, id));
+  }
+  revalidateAll();
+  redirect("/system/organization?tab=subunits&success=Subunit deleted.");
+}
+
+// ---------- COST CENTERS AND ORGANIZATIONAL MAPPINGS ----------
+export async function addOrganizationMappingAction(formData: FormData) {
+  await requireAdmin("system");
+  const locationId = num(formData.get("locationId"));
+  const subunitId = num(formData.get("subunitId"));
+  const code = str(formData.get("costCenter"));
+  if (locationId && subunitId && code) {
+    const [validLocation, validSubunit] = await Promise.all([
+      db.select({ id: locations.id }).from(locations).where(and(eq(locations.id, locationId), eq(locations.status, "active"))).limit(1),
+      db.select({ id: subunits.id }).from(subunits).where(and(eq(subunits.id, subunitId), eq(subunits.status, "active"))).limit(1),
+    ]);
+    if (!validLocation[0] || !validSubunit[0]) {
+      redirect("/system/organization?tab=cost-centers&error=Select an active office and subunit.");
+    }
+    await db.transaction(async (tx) => {
+      const [existingCostCenter] = await tx
+        .select({ id: costCenters.id })
+        .from(costCenters)
+        .where(sql`lower(${costCenters.code}) = lower(${code})`)
+        .limit(1);
+      const [costCenter] = existingCostCenter
+        ? await tx.update(costCenters).set({ status: "active", updatedAt: new Date() }).where(eq(costCenters.id, existingCostCenter.id)).returning({ id: costCenters.id })
+        : await tx.insert(costCenters).values({ code }).returning({ id: costCenters.id });
+      await tx.insert(organizationMappings).values({
+        locationId,
+        subunitId,
+        costCenterId: costCenter.id,
+      }).onConflictDoNothing();
+    });
+  }
+  revalidateAll();
+  redirect("/system/organization?tab=cost-centers&success=Organizational mapping added.");
+}
+
+export async function updateOrganizationMappingAction(formData: FormData) {
+  await requireAdmin("system");
+  const id = num(formData.get("id"));
+  const status = formData.get("status") === "inactive" ? "inactive" : "active";
+  if (id) await db.update(organizationMappings).set({ status, updatedAt: new Date() }).where(eq(organizationMappings.id, id));
+  revalidateAll();
+  redirect("/system/organization?tab=cost-centers&success=Organizational mapping updated.");
+}
+
+export async function deleteOrganizationMappingAction(formData: FormData) {
+  await requireAdmin("system");
+  const id = num(formData.get("id"));
+  if (id) {
+    const [mapping] = await db.select().from(organizationMappings).where(eq(organizationMappings.id, id)).limit(1);
+    if (mapping) {
+      const result = await db.execute<{ count: number }>(sql`
+        select (
+          (select count(*) from ${users} where ${users.primaryLocationId} = ${mapping.locationId} and ${users.subunitId} = ${mapping.subunitId} and ${users.costCenterId} = ${mapping.costCenterId}) +
+          (select count(*) from ${printers} where ${printers.locationId} = ${mapping.locationId} and ${printers.subunitId} = ${mapping.subunitId} and ${printers.costCenterId} = ${mapping.costCenterId}) +
+          (select count(*) from ${repairTickets} where ${repairTickets.locationId} = ${mapping.locationId} and ${repairTickets.subunitId} = ${mapping.subunitId} and ${repairTickets.costCenterId} = ${mapping.costCenterId}) +
+          (select count(*) from ${tonerTransactions} where ${tonerTransactions.locationId} = ${mapping.locationId} and ${tonerTransactions.subunitId} = ${mapping.subunitId} and ${tonerTransactions.costCenterId} = ${mapping.costCenterId})
+        )::int as count
+      `);
+      const count = result.rows[0]?.count ?? 0;
+      if (count > 0) redirect(`/system/organization?tab=cost-centers&error=${encodeURIComponent(`This mapping is referenced by ${count} record(s). Deactivate it instead.`)}`);
+      await db.delete(organizationMappings).where(eq(organizationMappings.id, id));
+    }
+  }
+  revalidateAll();
+  redirect("/system/organization?tab=cost-centers&success=Organizational mapping deleted.");
+}
+
+export async function updateCostCenterAction(formData: FormData) {
+  await requireAdmin("system");
+  const id = num(formData.get("id"));
+  const code = str(formData.get("code"));
+  const status = formData.get("status") === "inactive" ? "inactive" : "active";
+  if (id && code) {
+    try {
+      await db.update(costCenters).set({ code, status, updatedAt: new Date() }).where(eq(costCenters.id, id));
+    } catch {
+      redirect("/system/organization?tab=cost-centers&error=A cost center with that code already exists.");
+    }
+  }
+  revalidateAll();
+  redirect("/system/organization?tab=cost-centers&success=Cost center updated.");
+}
+
+export async function deleteCostCenterAction(formData: FormData) {
+  await requireAdmin("system");
+  const id = num(formData.get("id"));
+  if (id) {
+    const result = await db.execute<{ count: number }>(sql`
+      select (
+        (select count(*) from ${users} where ${users.costCenterId} = ${id}) +
+        (select count(*) from ${printers} where ${printers.costCenterId} = ${id}) +
+        (select count(*) from ${repairTickets} where ${repairTickets.costCenterId} = ${id}) +
+        (select count(*) from ${tonerTransactions} where ${tonerTransactions.costCenterId} = ${id}) +
+        (select count(*) from ${userRegistrationRequests} where ${userRegistrationRequests.costCenterId} = ${id}) +
+        (select count(*) from ${organizationMappings} where ${organizationMappings.costCenterId} = ${id})
+      )::int as count
+    `);
+    const count = result.rows[0]?.count ?? 0;
+    if (count > 0) redirect(`/system/organization?tab=cost-centers&error=${encodeURIComponent(`This cost center is referenced by ${count} record(s). Deactivate it instead.`)}`);
+    await db.delete(costCenters).where(eq(costCenters.id, id));
+  }
+  revalidateAll();
+  redirect("/system/organization?tab=cost-centers&success=Cost center deleted.");
 }
 
 // ---------- ITS NAMES ----------
@@ -94,14 +320,14 @@ export async function addItsNameAction(formData: FormData) {
   const name = str(formData.get("name"));
   if (name) await db.insert(itsNames).values({ name }).onConflictDoNothing();
   revalidateAll();
-  redirect("/system?tab=its&success=ITS Name added.");
+  redirect("/system/its-names?success=ITS Name added.");
 }
 export async function deleteItsNameAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(itsNames).where(eq(itsNames.id, id));
   revalidateAll();
-  redirect("/system?tab=its&success=ITS Name deleted.");
+  redirect("/system/its-names?success=ITS Name deleted.");
 }
 
 // ---------- TONER TYPES ----------
@@ -110,7 +336,7 @@ export async function addTonerTypeAction(formData: FormData) {
   const name = str(formData.get("name"));
   const unitCost = num(formData.get("unitCost")) ?? 0;
   if (!Number.isFinite(unitCost) || unitCost < 0 || unitCost > 9_999_999_999.99) {
-    redirect("/system?tab=toner&error=Enter a valid non-negative unit cost.");
+    redirect("/system/toner-types?error=Enter a valid non-negative unit cost.");
   }
   if (name) {
     const inserted = await db.insert(tonerTypes).values({
@@ -122,7 +348,7 @@ export async function addTonerTypeAction(formData: FormData) {
     }
   }
   revalidateAll();
-  redirect("/system?tab=toner&success=Toner Type added. Dashboard alert card created.");
+  redirect("/system/toner-types?success=Toner Type added. Dashboard alert card created.");
 }
 export async function updateTonerTypeAction(formData: FormData) {
   await requireAdmin("system");
@@ -130,7 +356,7 @@ export async function updateTonerTypeAction(formData: FormData) {
   const name = str(formData.get("name"));
   const unitCost = num(formData.get("unitCost")) ?? 0;
   if (!Number.isFinite(unitCost) || unitCost < 0 || unitCost > 9_999_999_999.99) {
-    redirect("/system?tab=toner&error=Enter a valid non-negative unit cost.");
+    redirect("/system/toner-types?error=Enter a valid non-negative unit cost.");
   }
   if (id && name) {
     await db
@@ -139,14 +365,14 @@ export async function updateTonerTypeAction(formData: FormData) {
       .where(eq(tonerTypes.id, id));
   }
   revalidateAll();
-  redirect("/system?tab=toner&success=Toner type and unit cost updated.");
+  redirect("/system/toner-types?success=Toner type and unit cost updated.");
 }
 export async function deleteTonerTypeAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(tonerTypes).where(eq(tonerTypes.id, id));
   revalidateAll();
-  redirect("/system?tab=toner&success=Toner Type deleted. Dashboard alert card removed.");
+  redirect("/system/toner-types?success=Toner Type deleted. Dashboard alert card removed.");
 }
 export async function updateThresholdAction(formData: FormData) {
   await requireModuleFullAccess("system");
@@ -154,7 +380,7 @@ export async function updateThresholdAction(formData: FormData) {
   const threshold = num(formData.get("threshold"));
   const criticalThreshold = num(formData.get("criticalThreshold"));
   if (id && threshold !== null && criticalThreshold !== null && criticalThreshold > threshold) {
-    redirect("/system?tab=toner&error=Critical threshold must not exceed the low threshold.");
+    redirect("/system/toner-types?error=Critical threshold must not exceed the low threshold.");
   }
   if (id && threshold !== null && criticalThreshold !== null) {
     const [inventory] = await db.select({ stock: tonerInventory.stock }).from(tonerInventory).where(eq(tonerInventory.tonerTypeId, id)).limit(1);
@@ -165,7 +391,7 @@ export async function updateThresholdAction(formData: FormData) {
     }).where(eq(tonerInventory.tonerTypeId, id));
   }
   revalidateAll();
-  redirect("/system?tab=toner&success=Inventory thresholds updated.");
+  redirect("/system/toner-types?success=Inventory thresholds updated.");
 }
 export async function updateAlertCardVisibilityAction(formData: FormData) {
   await requireAdmin("system");
@@ -177,7 +403,7 @@ export async function updateAlertCardVisibilityAction(formData: FormData) {
       .where(eq(tonerTypes.id, id));
   }
   revalidateAll();
-  redirect("/system?tab=toner&success=Alert card visibility updated.");
+  redirect("/system/toner-types?success=Alert card visibility updated.");
 }
 
 // ---------- VENDORS ----------
@@ -193,7 +419,7 @@ export async function addVendorAction(formData: FormData) {
     });
   }
   revalidateAll();
-  redirect("/system?tab=vendors&success=Vendor added.");
+  redirect("/system/vendors?success=Vendor added.");
 }
 export async function updateVendorAction(formData: FormData) {
   await requireAdmin("system");
@@ -210,14 +436,14 @@ export async function updateVendorAction(formData: FormData) {
       .where(eq(vendors.id, id));
   }
   revalidateAll();
-  redirect("/system?tab=vendors&success=Vendor updated.");
+  redirect("/system/vendors?success=Vendor updated.");
 }
 export async function deleteVendorAction(formData: FormData) {
   await requireAdmin("system");
   const id = num(formData.get("id"));
   if (id) await db.delete(vendors).where(eq(vendors.id, id));
   revalidateAll();
-  redirect("/system?tab=vendors&success=Vendor deleted.");
+  redirect("/system/vendors?success=Vendor deleted.");
 }
 
 // ---------- SETTINGS ----------
@@ -230,7 +456,7 @@ export async function updateSettingsAction(formData: FormData) {
   const emails = emailInput.split(",").map(e => e.trim()).filter(e => e);
   const invalidEmails = emails.filter(e => !isValidEmail(e));
   if (invalidEmails.length > 0) {
-    redirect(`/system?tab=reminders&error=Invalid email address: ${invalidEmails[0]}`);
+    redirect(`/system/notifications?tab=reminders&error=Invalid email address: ${invalidEmails[0]}`);
   }
   
   const values = {
@@ -252,7 +478,7 @@ export async function updateSettingsAction(formData: FormData) {
   }
   await db.insert(auditLogs).values({ actorUserId: admin.id, action: "notifications.settings_changed", targetType: "system_settings" });
   revalidateAll();
-  redirect("/system?tab=reminders&success=Settings saved.");
+  redirect("/system/notifications?tab=reminders&success=Settings saved.");
 }
 
 export async function updateSmtpSettingsAction(formData: FormData) {
@@ -268,11 +494,11 @@ export async function updateSmtpSettingsAction(formData: FormData) {
   const fromName = str(formData.get("smtpFromName"));
   const testRecipient = str(formData.get("smtpTestRecipient"));
   if (enabled && (!host || !port || port < 1 || port > 65535 || !from || !isValidEmail(from) || !fromName || !["none", "starttls", "tls"].includes(security))) {
-    redirect("/system?tab=email&error=Complete all required SMTP fields with valid values.");
+    redirect("/system/notifications?tab=email&error=Complete all required SMTP fields with valid values.");
   }
-  if (testRecipient && !isValidEmail(testRecipient)) redirect("/system?tab=email&error=Test recipient must be a valid email.");
-  if (username && !password && !existing?.smtpPasswordEncrypted) redirect("/system?tab=email&error=Enter the SMTP password.");
-  if (!username && password) redirect("/system?tab=email&error=SMTP username is required when setting a password.");
+  if (testRecipient && !isValidEmail(testRecipient)) redirect("/system/notifications?tab=email&error=Test recipient must be a valid email.");
+  if (username && !password && !existing?.smtpPasswordEncrypted) redirect("/system/notifications?tab=email&error=Enter the SMTP password.");
+  if (!username && password) redirect("/system/notifications?tab=email&error=SMTP username is required when setting a password.");
   let encryptedPassword = existing?.smtpPasswordEncrypted ?? null;
   if (password) encryptedPassword = encryptSecret(password);
   if (!username) encryptedPassword = null;
@@ -281,5 +507,5 @@ export async function updateSmtpSettingsAction(formData: FormData) {
   else await db.insert(systemSettings).values(values);
   await db.insert(auditLogs).values({ actorUserId: admin.id, action: "smtp.settings_changed", targetType: "system_settings", metadata: { enabled, host, port, security, passwordChanged: Boolean(password) } });
   revalidateAll();
-  redirect("/system?tab=email&success=SMTP settings saved.");
+  redirect("/system/notifications?tab=email&success=SMTP settings saved.");
 }

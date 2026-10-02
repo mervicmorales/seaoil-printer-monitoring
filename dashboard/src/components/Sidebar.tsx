@@ -16,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { MorphIcon, type IconNode } from "morphicons/react";
 import {
   Bell,
+  Building2,
   ChevronDown,
   ChevronUp,
   Droplets,
@@ -23,6 +24,7 @@ import {
   LayoutDashboard,
   KeyRound,
   LogOut,
+  Mail,
   Menu,
   Radar,
   ReceiptText,
@@ -31,6 +33,7 @@ import {
   Printer,
   Settings,
   Sun,
+  Truck,
   Users,
   Wrench,
   X,
@@ -105,7 +108,19 @@ const NAV: NavItem[] = [
   },
   { href: "/manage/registrations", label: MODULE_LABELS.registrations, icon: KeyRound, separated: true, module: "registrations" },
   { href: "/manage", label: MODULE_LABELS.manage_users, icon: Users, module: "manage_users" },
-  { href: "/system", label: MODULE_LABELS.system, icon: Settings, module: "system" },
+  {
+    href: "/system",
+    label: MODULE_LABELS.system,
+    icon: Settings,
+    module: "system",
+    children: [
+      { href: "/system/notifications", label: "Email & Notifications", icon: Mail },
+      { href: "/system/organization", label: "Organization Data", icon: Building2 },
+      { href: "/system/toner-types", label: "Toner Types", icon: Droplets },
+      { href: "/system/its-names", label: "ITS Names", icon: Users },
+      { href: "/system/vendors", label: "Vendor / Supplier", icon: Truck },
+    ],
+  },
 ];
 
 const EMPLOYEE_NAV: NavItem[] = [
@@ -178,6 +193,7 @@ export default function Sidebar({
     pathname.startsWith("/toner-monitoring") || pathname.startsWith("/toner-expenses"),
   );
   const [printOpsOpen, setPrintOpsOpen] = useState(pathname.startsWith("/printops"));
+  const [systemOpen, setSystemOpen] = useState(pathname.startsWith("/system"));
   const [employeeServicesOpen, setEmployeeServicesOpen] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -392,14 +408,17 @@ export default function Sidebar({
             const isPrinters = item.href === "/printers";
             const isToners = item.href === "/toners";
             const isPrintOps = item.href === "/printops";
+            const isSystem = item.href === "/system";
             const isEmployeeServices = item.href === "/portal/printer-services";
-            const isDropdown = isPrinters || isToners || isPrintOps || isEmployeeServices;
+            const isDropdown = isPrinters || isToners || isPrintOps || isSystem || isEmployeeServices;
             const submenuOpen = isPrinters
               ? printersOpen
               : isToners
                 ? tonersOpen
                 : isPrintOps
                   ? printOpsOpen
+                  : isSystem
+                    ? systemOpen
                   : isEmployeeServices
                     ? employeeServicesOpen
                     : sectionActive;
@@ -409,6 +428,8 @@ export default function Sidebar({
                 ? "toners-submenu"
                 : isPrintOps
                   ? "printops-submenu"
+                  : isSystem
+                    ? "system-submenu"
                   : isEmployeeServices
                     ? "employee-print-services-submenu"
                     : undefined;
@@ -444,6 +465,11 @@ export default function Sidebar({
                         setPrintOpsOpen((open) => !open);
                         return;
                       }
+                      if (isSystem) {
+                        event.preventDefault();
+                        setSystemOpen((open) => !open);
+                        return;
+                      }
                       if (isEmployeeServices) {
                         event.preventDefault();
                         setEmployeeServicesOpen((open) => !open);
@@ -472,6 +498,7 @@ export default function Sidebar({
                         if (isPrinters) setPrintersOpen((open) => !open);
                         if (isToners) setTonersOpen((open) => !open);
                         if (isPrintOps) setPrintOpsOpen((open) => !open);
+                        if (isSystem) setSystemOpen((open) => !open);
                         if (isEmployeeServices) setEmployeeServicesOpen((open) => !open);
                       }}
                       className={`absolute right-1 top-1 flex size-8 items-center justify-center rounded-md text-[#dfe9f4] transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${copyClass}`}

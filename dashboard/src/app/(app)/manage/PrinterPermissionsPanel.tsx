@@ -8,6 +8,7 @@ import { MorphIcon } from "morphicons/react";
 import { gooeyToast } from "goey-toast";
 import { Badge, SecondaryButton } from "@/components/ui";
 import SearchInput from "@/components/SearchInput";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 export type PrinterPermissionState = {
   error?: string;
@@ -133,7 +134,7 @@ export default function PrinterPermissionsPanel({
   if (!locationName) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Assign a location to this account before configuring printer permissions.
+        Assign an office to this account before configuring printer permissions.
       </div>
     );
   }
@@ -149,24 +150,22 @@ export default function PrinterPermissionsPanel({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Available Agent</span>
-          <select
+        <div className="block">
+          <SearchableDropdown
+            label="Available Agent"
             value={selectedAgentId}
-            onChange={(event) => {
-              setSelectedAgentId(event.target.value);
+            onValueChange={(value) => {
+              setSelectedAgentId(value);
               setSearchQuery("");
             }}
-            className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
-          >
-            {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>{agent.name}</option>
-            ))}
-          </select>
+            placeholder="Search available agents..."
+            options={agents.map((agent) => ({ value: String(agent.id), label: agent.name }))}
+            labelClassName="!font-semibold"
+          />
           <span className="mt-1.5 block text-xs text-slate-500">
             Agents assigned to {locationName}.
           </span>
-        </label>
+        </div>
         <form action={refreshFormAction} className="sm:pt-[1.625rem]">
           <input type="hidden" name="userId" value={userId} />
           <input type="hidden" name="agentId" value={selectedAgentId} />
@@ -239,7 +238,7 @@ export default function PrinterPermissionsPanel({
                     <MorphIcon icon={Printer} size={20} strokeWidth={2} reducedMotion="user" />
                   </span>
                   <p className="mt-3 text-sm font-semibold text-slate-700">No matching printers</p>
-                  <p className="mt-1 text-xs text-slate-500">Try another serial number, model, location, department, or IP address.</p>
+                  <p className="mt-1 text-xs text-slate-500">Try another serial number, model, office, department, or IP address.</p>
                 </div>
               ) : (
                 <div className="grid max-h-80 gap-2 overflow-y-auto p-3 sm:grid-cols-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 type ScanTarget = {
   value: string;
@@ -29,42 +30,34 @@ export default function ScanTargetFields({ targets }: { targets: ScanTarget[] })
 
   return (
     <>
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Scanner</span>
-        <select
+      <SearchableDropdown
+          label="Scanner"
           name="target"
           required
           value={selectedTarget}
-          onChange={(event) => {
-            const nextTarget = targets.find((target) => target.value === event.target.value);
+          onValueChange={(value) => {
+            const nextTarget = targets.find((target) => target.value === value);
             const nextSources = nextTarget?.sources.length
               ? nextTarget.sources
               : ["Flatbed", "ADF", "ADF Duplex"];
-            setSelectedTarget(event.target.value);
+            setSelectedTarget(value);
             if (!nextSources.includes(source)) setSource(nextSources[0] ?? "Flatbed");
           }}
-          className={selectClassName}
-        >
-          {targets.map((target) => (
-            <option key={target.value} value={target.value}>{target.label}</option>
-          ))}
-        </select>
-      </label>
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Document source</span>
-        <select
+          placeholder="Search scanners..."
+          options={targets.map((target) => ({ value: target.value, label: target.label }))}
+          inputClassName={selectClassName}
+          labelClassName="!font-semibold"
+        />
+      <SearchableDropdown
+          label="Document source"
           name="source"
           value={source}
-          onChange={(event) => setSource(event.target.value)}
-          className={selectClassName}
-        >
-          {availableSources.map((availableSource) => (
-            <option key={availableSource} value={availableSource}>
-              {SOURCE_LABELS[availableSource] || availableSource}
-            </option>
-          ))}
-        </select>
-      </label>
+          onValueChange={setSource}
+          placeholder="Search document sources..."
+          options={availableSources.map((availableSource) => ({ value: availableSource, label: SOURCE_LABELS[availableSource] || availableSource }))}
+          inputClassName={selectClassName}
+          labelClassName="!font-semibold"
+        />
     </>
   );
 }

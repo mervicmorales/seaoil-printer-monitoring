@@ -57,6 +57,7 @@ type PrinterTableRow = {
   id: number;
   model: string | null;
   locationName: string | null;
+  floor: string | null;
   status: string;
 };
 
@@ -106,6 +107,7 @@ export default async function PrintersPage({
         ilike(printers.assetTag, `%${query}%`),
         ilike(printers.ipAddress, `%${query}%`),
         ilike(printers.model, `%${query}%`),
+        ilike(printers.floor, `%${query}%`),
         ilike(locations.name, `%${query}%`),
         ilike(departments.name, `%${query}%`),
       ),
@@ -118,6 +120,7 @@ export default async function PrintersPage({
       serialNumber: printers.serialNumber,
       model: printers.model,
       status: printers.status,
+      floor: printers.floor,
       locationId: printers.locationId,
       locationName: locations.name,
       departmentName: departments.name,
@@ -324,7 +327,7 @@ export default async function PrintersPage({
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs">
-                    <MobileField label="Location" value={p.locationName ?? "Unassigned"} />
+                    <MobileField label="Office" value={officeLocationLabel(p.locationName, p.floor)} />
                     <MobileField label="Department" value={p.departmentName ?? "No department"} />
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">IP Address</p>
@@ -372,9 +375,9 @@ export default async function PrintersPage({
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-2.5">
                   <div className="flex min-w-0 items-center justify-between gap-2">
-                    <span className="min-w-0 leading-4">Location / Department</span>
+                    <span className="min-w-0 leading-4">Office / Department</span>
                     <PrinterColumnFilter
-                      label="Location"
+                      label="Office"
                       paramName="location"
                       options={locationOptions}
                       selectedValues={locationFilters}
@@ -462,7 +465,7 @@ export default async function PrintersPage({
                 <tr key={p.id} className="bg-white transition-colors hover:bg-slate-50/80">
                   <td className="px-4 py-2.5">
                     <p className="line-clamp-2 text-xs font-medium text-slate-700">
-                      {p.locationName ?? "Unassigned"}
+                      {officeLocationLabel(p.locationName, p.floor)}
                     </p>
                     <p className="mt-1 line-clamp-2 text-xs text-slate-400">
                       {p.departmentName ?? "No department"}
@@ -695,6 +698,12 @@ function matchesSelected(value: string, selected: string[]) {
   return selected.length === 0 || selected.includes(value);
 }
 
+function officeLocationLabel(office: string | null, floor: string | null) {
+  const officeLabel = office?.trim() || "Unassigned";
+  const floorLabel = floor?.trim();
+  return floorLabel ? `${officeLabel} - ${floorLabel}` : officeLabel;
+}
+
 function tonerFilterValues(printer: PrinterMonitoringSnapshot | null) {
   if (!printer || printer.reading_id === null) return [BLANK_FILTER_VALUE];
   const toners = Array.isArray(printer.toner_consumables) ? printer.toner_consumables : [];
@@ -721,8 +730,8 @@ function comparePrinterRows(
   switch (sort) {
     case "location_asc":
     case "location_desc":
-      leftValue = left.locationName ?? "";
-      rightValue = right.locationName ?? "";
+      leftValue = officeLocationLabel(left.locationName, left.floor);
+      rightValue = officeLocationLabel(right.locationName, right.floor);
       descending = sort === "location_desc";
       break;
     case "model_asc":

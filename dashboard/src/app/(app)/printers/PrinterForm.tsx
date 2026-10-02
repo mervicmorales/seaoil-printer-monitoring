@@ -6,8 +6,11 @@ import { useFormStatus } from "react-dom";
 import { Activity, Check, Droplets, Printer, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SearchableDropdown from "@/components/SearchableDropdown";
 import SearchableSelect from "@/components/SearchableSelect";
+import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
 import { formatDate } from "@/lib/format";
+import { PRINTER_FLOORS } from "@/lib/printer-floor";
 import type { PrinterFormState } from "./actions";
 import Link from "next/link";
 
@@ -26,8 +29,11 @@ type Printer = {
   serialNumber: string;
   model: string | null;
   monthlyRate: string | null;
+  floor: string | null;
   locationId: number | null;
   departmentId: number | null;
+  subunitId: number | null;
+  costCenterId: number | null;
   vendorId: number | null;
   contractId: number | null;
   assignedUser: string | null;
@@ -50,8 +56,7 @@ export default function PrinterForm({
   action,
   printer,
   tonerTypes,
-  locations,
-  departments,
+  organizationOptions,
   vendors,
   contracts,
   monitoringAgents,
@@ -65,8 +70,7 @@ export default function PrinterForm({
   action: (prev: PrinterFormState, formData: FormData) => Promise<PrinterFormState>;
   printer?: Printer;
   tonerTypes: Lookup[];
-  locations: Lookup[];
-  departments: Lookup[];
+  organizationOptions: OrganizationFieldOptions;
   vendors: Lookup[];
   contracts: ContractLookup[];
   monitoringAgents: MonitoringAgentLookup[];
@@ -168,23 +172,31 @@ export default function PrinterForm({
           defaultValue={printer?.monthlyRate ?? ""}
           disabled={mode === "edit" && limitedSupport}
         />
-        <SearchableSelect
-          label="Location"
+        <OrganizationFields
+          options={organizationOptions}
+          initialLocationId={printer?.locationId}
+          initialDepartmentId={printer?.departmentId}
+          initialSubunitId={printer?.subunitId}
+          initialCostCenterId={printer?.costCenterId}
+          requiredSubunit
           floatingLabel={floatingLabels}
-          name="locationId"
-          options={locations}
-          placeholder="Search location..."
-          defaultValue={printer?.locationId}
           disabled={mode === "edit" && limitedSupport}
+          errors={state.fieldErrors}
+          className="contents"
         />
-        <SearchableSelect
-          label="Department"
-          floatingLabel={floatingLabels}
-          name="departmentId"
-          options={departments}
-          placeholder="Search department..."
-          defaultValue={printer?.departmentId}
+        <SearchableDropdown
+          label="Location"
+          name="floor"
+          options={[
+            { value: "", label: "No location selected" },
+            ...PRINTER_FLOORS.map((floor) => ({ value: floor, label: floor })),
+          ]}
+          placeholder="Search floor location..."
+          defaultValue={printer?.floor ?? ""}
           disabled={mode === "edit" && limitedSupport}
+          error={state.fieldErrors?.floor}
+          floatingLabel={floatingLabels}
+          inputClassName="focus:border-[#040273] focus:ring-[#040273]/15"
         />
         <SearchableSelect
           label="Vendor / Supplier"

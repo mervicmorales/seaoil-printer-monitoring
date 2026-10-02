@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { repairTickets, locations, departments, vendors } from "@/db/schema";
+import { repairTickets, locations, departments, subunits, costCenters, vendors } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ClipboardList } from "lucide";
 import { PageHeader, Card, Badge, statusBadgeColor, IconGlyph } from "@/components/ui";
@@ -30,11 +30,15 @@ export async function ViewTicketPage({
       ticket: repairTickets,
       locationName: locations.name,
       departmentName: departments.name,
+      subunitName: subunits.name,
+      costCenterCode: costCenters.code,
       vendorName: vendors.name,
     })
     .from(repairTickets)
     .leftJoin(locations, eq(repairTickets.locationId, locations.id))
     .leftJoin(departments, eq(repairTickets.departmentId, departments.id))
+    .leftJoin(subunits, eq(repairTickets.subunitId, subunits.id))
+    .leftJoin(costCenters, eq(repairTickets.costCenterId, costCenters.id))
     .leftJoin(vendors, eq(repairTickets.vendorId, vendors.id))
     .where(eq(repairTickets.id, ticketId))
     .limit(1);
@@ -46,7 +50,8 @@ export async function ViewTicketPage({
   return (
     <div>
       <PageHeader
-        title={`Ticket ${t.ticketNumber}`}
+        title={embedded ? t.ticketNumber : `Ticket ${t.ticketNumber}`}
+        parentTitle={embedded ? t.ticketNumber : undefined}
         subtitle={`Serial Number: ${t.serialNumber}`}
         actions={!embedded ? (
           <>
@@ -83,7 +88,9 @@ export async function ViewTicketPage({
         <dl className={embedded ? "px-7 py-3" : "px-8 py-4"}>
           <Field label="Requested Date" value={formatDate(t.requestedDate)} />
           <Field label="Department" value={record.departmentName || "—"} />
-          <Field label="Location" value={record.locationName || "—"} />
+          <Field label="Subunit" value={record.subunitName || "—"} />
+          <Field label="Cost Center" value={record.costCenterCode || "—"} />
+          <Field label="Office" value={record.locationName || "—"} />
           <Field label="Vendor" value={record.vendorName || "—"} />
           <Field label="Date Closed" value={formatDate(t.dateClosed)} />
           {!access.repair && (

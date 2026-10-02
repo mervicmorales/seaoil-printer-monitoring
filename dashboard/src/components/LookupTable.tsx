@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Pencil, Plus, Save, X } from "lucide";
+import { useMemo, useState } from "react";
+import { Pencil, Plus, Search } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import DeleteButton from "@/components/DeleteButton";
-import { PrimaryButton, SecondaryButton } from "@/components/ui";
+import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SystemDrawer from "@/app/(app)/system/SystemDrawer";
 
 type Item = { id: number; name: string };
 
@@ -31,70 +32,64 @@ export default function LookupTable({
   title?: string;
   description?: string;
 }) {
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Item | null>(null);
+  const filtered = useMemo(() => items.filter((item) => item.name.toLowerCase().includes(query.trim().toLowerCase())), [items, query]);
 
   return (
     <div className={fillHeight ? "flex h-full min-h-0 flex-col" : ""}>
-      <div className={`mb-4 flex items-end justify-between gap-4 ${fillHeight ? "shrink-0" : ""}`}>
+      <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-sm font-bold text-[#014171]">{title}</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
         </div>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">{items.length} records</span>
+        <div className="flex items-center gap-2">
+          <label className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+            <MorphIcon icon={Search} size={15} strokeWidth={2} reducedMotion="user" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search records" className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15" />
+          </label>
+          {!readOnly && <PrimaryButton type="button" onClick={() => setAdding(true)}><MorphIcon icon={Plus} size={15} strokeWidth={2} reducedMotion="user" />Add</PrimaryButton>}
+        </div>
       </div>
-      {!readOnly && <form action={addAction} className={`mb-4 flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:flex-row ${fillHeight ? "shrink-0" : ""}`}>
-        <input
-          name="name"
-          required
-          placeholder={placeholder}
-          className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15 sm:max-w-sm"
-        />
-        <PrimaryButton type="submit" className="min-h-10 py-2">
-          <MorphIcon icon={Plus} size={15} strokeWidth={2} reducedMotion="user" />
-          Add
-        </PrimaryButton>
-      </form>}
-      <div className={`divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white ${fillHeight ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : ""}`}>
-        {items.length === 0 && <p className="px-4 py-10 text-center text-sm font-medium text-slate-400">No records yet.</p>}
-        {items.map((item) => (
-          <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-slate-50/70">
-            {editingId === item.id && editable && updateAction ? (
-              <form action={updateAction} className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-                <input type="hidden" name="id" value={item.id} />
-                <input
-                  name="name"
-                  defaultValue={item.name}
-                  className="h-9 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15 sm:max-w-sm"
-                />
-                <PrimaryButton type="submit" className="min-h-9 px-3 py-1.5 text-xs">
-                  <MorphIcon icon={Save} size={13} strokeWidth={2} reducedMotion="user" />
-                  Save
-                </PrimaryButton>
-                <SecondaryButton type="button" className="px-3 py-1.5 text-xs" onClick={() => setEditingId(null)}>
-                  <MorphIcon icon={X} size={13} strokeWidth={2} reducedMotion="user" />
-                  Cancel
-                </SecondaryButton>
-              </form>
-            ) : (
-              <>
-                <p className="text-sm font-semibold text-slate-700">{item.name}</p>
-                <div className="flex gap-2">
-                  {!readOnly && editable && updateAction && (
-                    <button
-                      onClick={() => setEditingId(item.id)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
-                    >
-                      <MorphIcon icon={Pencil} size={12} strokeWidth={2} reducedMotion="user" />
-                      Edit
-                    </button>
-                  )}
-                  {!readOnly && <DeleteButton action={deleteAction} id={item.id} confirmText={`Delete "${item.name}"?`} className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100" />}
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+
+      <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-200 bg-white">
+        <table className="min-w-full text-left text-sm">
+          <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-[0.08em] text-slate-500">
+            <tr><th className="px-4 py-3">Name</th><th className="w-40 px-4 py-3 text-right">Actions</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filtered.map((item) => (
+              <tr key={item.id} className="transition hover:bg-slate-50/70">
+                <td className="px-4 py-3.5 font-semibold text-slate-700">{item.name}</td>
+                <td className="px-4 py-3 text-right">
+                  {!readOnly && <div className="inline-flex items-center justify-end gap-2">
+                    {editable && updateAction && <button type="button" onClick={() => setEditing(item)} aria-label={`Edit ${item.name}`} className="flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50"><MorphIcon icon={Pencil} size={16} strokeWidth={2} reducedMotion="user" /></button>}
+                    <DeleteButton action={deleteAction} id={item.id} confirmText={`Delete "${item.name}"?`} />
+                  </div>}
+                </td>
+              </tr>
+            ))}
+            {!filtered.length && <tr><td colSpan={2} className="px-4 py-12 text-center text-sm text-slate-400">No matching records.</td></tr>}
+          </tbody>
+        </table>
       </div>
+      <p className="mt-3 shrink-0 text-xs font-medium text-slate-500">{filtered.length} of {items.length} records</p>
+
+      <SystemDrawer open={adding} title={`Add ${title.replace(/s$/i, "")}`} subtitle="Create a new reference record" onClose={() => setAdding(false)}>
+        <form action={addAction} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <Input label="Name" name="name" placeholder={placeholder} required floatingLabel />
+          <div className="mt-5 flex justify-end gap-2"><SecondaryButton type="button" onClick={() => setAdding(false)}>Cancel</SecondaryButton><PrimaryButton type="submit">Add record</PrimaryButton></div>
+        </form>
+      </SystemDrawer>
+
+      {editing && updateAction && <SystemDrawer open title={`Edit ${title.replace(/s$/i, "")}`} subtitle="Update this reference record" onClose={() => setEditing(null)}>
+        <form action={updateAction} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <input type="hidden" name="id" value={editing.id} />
+          <Input label="Name" name="name" defaultValue={editing.name} required floatingLabel />
+          <div className="mt-5 flex justify-end gap-2"><SecondaryButton type="button" onClick={() => setEditing(null)}>Cancel</SecondaryButton><PrimaryButton type="submit">Save changes</PrimaryButton></div>
+        </form>
+      </SystemDrawer>}
     </div>
   );
 }

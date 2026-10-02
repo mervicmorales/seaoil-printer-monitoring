@@ -88,7 +88,7 @@ async function main() {
   await upsertUser("Sample Support", "user@seaoil.com.ph", "user", supportPassword, "support");
 
   for (const name of ["Head Office", "Pasig Depot", "Cebu Depot", "Davao Station"]) {
-    await upsertLookup("locations", name);
+    await upsertLookup("offices", name);
   }
   for (const name of ["IT Services", "Finance", "Operations", "Human Resources"]) {
     await upsertLookup("departments", name);

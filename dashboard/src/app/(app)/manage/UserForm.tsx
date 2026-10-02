@@ -16,14 +16,14 @@ import {
   type IconNode,
 } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { Input, Select, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SearchableDropdown from "@/components/SearchableDropdown";
 import { PASSWORD_RULE_TEXT } from "@/lib/validation";
-import SearchableSelect from "@/components/SearchableSelect";
+import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
 import type { UserFormState } from "./actions";
 import Link from "next/link";
 import { isSuperAdmin, type UserRole } from "@/lib/roles";
 
-type Lookup = { id: number; name: string };
 type UserRecord = {
   id: number;
   fullName: string;
@@ -33,6 +33,8 @@ type UserRecord = {
   employeeId: string | null;
   primaryLocationId: number | null;
   departmentId: number | null;
+  subunitId: number | null;
+  costCenterId: number | null;
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -55,8 +57,7 @@ export default function UserForm({
   mode,
   action,
   user,
-  locations,
-  departments,
+  organizationOptions,
   returnTo = "/manage",
   employeeOnly = false,
   showActions = true,
@@ -66,8 +67,7 @@ export default function UserForm({
   mode: "create" | "edit";
   action: (prev: UserFormState, formData: FormData) => Promise<UserFormState>;
   user?: UserRecord;
-  locations: Lookup[];
-  departments: Lookup[];
+  organizationOptions: OrganizationFieldOptions;
   returnTo?: "/manage" | "/manage/registrations";
   employeeOnly?: boolean;
   showActions?: boolean;
@@ -107,12 +107,20 @@ export default function UserForm({
             <Input label="Full Name" floatingLabel name="fullName" autoComplete="name" required defaultValue={user?.fullName ?? ""} error={state.fieldErrors?.fullName} />
             <Input label="Email Address" floatingLabel name="email" type="email" autoComplete="email" required defaultValue={user?.email ?? ""} error={state.fieldErrors?.email} />
             <Input label="Username" floatingLabel name="username" autoComplete="username" required defaultValue={user?.username ?? ""} error={state.fieldErrors?.username} />
-            <Select label="Role" name="role" value={role} onChange={(event) => setRole(event.target.value)} required>
-              <option value="employee">Employee</option>
-              {!employeeOnly && <option value="support">Support</option>}
-              {!employeeOnly && isSuperAdmin(actorRole) && <option value="admin">Admin</option>}
-              {!employeeOnly && isSuperAdmin(actorRole) && <option value="super_admin">Super Admin</option>}
-            </Select>
+            <SearchableDropdown
+              label="Role"
+              name="role"
+              value={role}
+              onValueChange={setRole}
+              required
+              floatingLabel
+              placeholder="Search roles..."
+              options={[
+                { value: "employee", label: "Employee" },
+                ...(!employeeOnly ? [{ value: "support", label: "Support" }] : []),
+                ...(!employeeOnly && isSuperAdmin(actorRole) ? [{ value: "admin", label: "Admin" }, { value: "super_admin", label: "Super Admin" }] : []),
+              ]}
+            />
           </div>
           {state.fieldErrors?.role && <p className="mt-1 text-xs text-red-600">{state.fieldErrors.role}</p>}
         </section>
@@ -133,34 +141,28 @@ export default function UserForm({
               defaultValue={user?.employeeId ?? ""}
               error={state.fieldErrors?.employeeId}
             />
-            <SearchableSelect
-              label="Location"
+            <OrganizationFields
+              options={organizationOptions}
+              locationFieldName="primaryLocationId"
+              initialLocationId={user?.primaryLocationId}
+              initialDepartmentId={user?.departmentId}
+              initialSubunitId={user?.subunitId}
+              initialCostCenterId={user?.costCenterId}
+              requiredLocation={assignmentRequired}
+              requiredDepartment={assignmentRequired}
+              requiredSubunit={assignmentRequired}
               floatingLabel
-              name="primaryLocationId"
-              options={locations}
-              placeholder="Search location..."
-              required={assignmentRequired}
-              defaultValue={user?.primaryLocationId}
-              error={state.fieldErrors?.primaryLocationId}
-            />
-            <SearchableSelect
-              label="Department"
-              floatingLabel
-              name="departmentId"
-              options={departments}
-              placeholder="Search department..."
-              required={assignmentRequired}
-              defaultValue={user?.departmentId}
-              error={state.fieldErrors?.departmentId}
+              errors={state.fieldErrors}
+              className="contents"
             />
           </div>
           <div className={`mt-3 flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 text-xs text-sky-800 ${fitPanel ? "px-3 py-2 leading-4" : "px-3.5 py-3 leading-5"}`}>
             <span className="mt-0.5 shrink-0 text-[#014171]"><MorphIcon icon={KeyRound} size={14} strokeWidth={2} reducedMotion="user" /></span>
             <span>
               {role === "employee"
-                ? "Employees automatically receive printers for their location and department; additional printer grants are saved on their profile."
+                ? "Employees automatically receive printers for their organizational assignment; additional printer grants are saved on their profile."
                 : role === "support"
-                  ? "Support users automatically receive printers for their location and department; additional printer grants are saved on their profile."
+                  ? "Support users automatically receive printers for their organizational assignment; additional printer grants are saved on their profile."
                   : role === "admin"
                     ? "Admin module access is configured by a Super Admin."
                     : "Super Admins have full system access and authority over all roles."}

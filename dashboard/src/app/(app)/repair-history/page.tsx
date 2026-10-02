@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { repairTickets, locations, departments } from "@/db/schema";
+import { repairTickets, locations, departments, subunits } from "@/db/schema";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Eye, Plus, Wrench } from "lucide";
 import { PageHeader, TableCard, Badge, statusBadgeColor, EmptyState, IconGlyph } from "@/components/ui";
@@ -29,6 +29,7 @@ export default async function RepairHistoryPage({
   const searchTerm = (firstParam(sp.q) || firstParam(sp.ticket) || firstParam(sp.serial)).trim();
   const requestedDateFilters = paramList(sp.requestedDate);
   const departmentFilters = paramList(sp.department);
+  const subunitFilters = paramList(sp.subunit);
   const statusFilters = paramList(sp.status);
   const sort = firstParam(sp.sort);
   if (searchTerm) {
@@ -47,6 +48,7 @@ export default async function RepairHistoryPage({
       requestedDate: repairTickets.requestedDate,
       serialNumber: repairTickets.serialNumber,
       departmentName: departments.name,
+      subunitName: subunits.name,
       locationName: locations.name,
       problem: repairTickets.problem,
       dateClosed: repairTickets.dateClosed,
@@ -54,6 +56,7 @@ export default async function RepairHistoryPage({
     })
     .from(repairTickets)
     .leftJoin(departments, eq(repairTickets.departmentId, departments.id))
+    .leftJoin(subunits, eq(repairTickets.subunitId, subunits.id))
     .leftJoin(locations, eq(repairTickets.locationId, locations.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(
@@ -70,10 +73,14 @@ export default async function RepairHistoryPage({
     label: row.departmentName?.trim() || "(Blanks)",
   })));
   const statusOptions = uniqueFilterOptions(baseRows.map((row) => ({ value: row.status, label: row.status })));
+  const subunitOptions = uniqueFilterOptions(baseRows
+    .filter((row) => departmentFilters.length === 0 || matchesSelected(row.departmentName?.trim() || BLANK_FILTER_VALUE, departmentFilters))
+    .map((row) => ({ value: row.subunitName?.trim() || BLANK_FILTER_VALUE, label: row.subunitName?.trim() || "(Blanks)" })));
   const rows = baseRows
     .filter((row) => (
       matchesSelected(dateFilterValue(row.requestedDate), requestedDateFilters)
       && matchesSelected(row.departmentName?.trim() || BLANK_FILTER_VALUE, departmentFilters)
+      && matchesSelected(row.subunitName?.trim() || BLANK_FILTER_VALUE, subunitFilters)
       && matchesSelected(row.status, statusFilters)
     ))
     .sort((left, right) => compareRepairRows(left, right, sort));
@@ -91,10 +98,11 @@ export default async function RepairHistoryPage({
         <RecordTableToolbar count={rows.length} label="repair ticket">
           <AutoSubmitFilterForm
             method="get"
-            resetKey={[requestedDateFilters.join(","), departmentFilters.join(","), statusFilters.join(","), sort].join("|")}
+            resetKey={[requestedDateFilters.join(","), departmentFilters.join(","), subunitFilters.join(","), statusFilters.join(","), sort].join("|")}
           >
             {requestedDateFilters.map((value) => <input key={`requested-date-${value}`} type="hidden" name="requestedDate" value={value} />)}
             {departmentFilters.map((value) => <input key={`department-${value}`} type="hidden" name="department" value={value} />)}
+            {subunitFilters.map((value) => <input key={`subunit-${value}`} type="hidden" name="subunit" value={value} />)}
             {statusFilters.map((value) => <input key={`status-${value}`} type="hidden" name="status" value={value} />)}
             {sort && <input type="hidden" name="sort" value={sort} />}
             <Search name="q" defaultValue={searchTerm} placeholder="Ticket or serial number" ariaLabel="Search repair tickets" />
@@ -130,8 +138,9 @@ export default async function RepairHistoryPage({
                 <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
                   <TicketField label="Serial number" value={t.serialNumber} mono />
                   <TicketField label="Date closed" value={formatDate(t.dateClosed)} />
-                  <TicketField label="Location" value={t.locationName || "—"} />
+                  <TicketField label="Office" value={t.locationName || "—"} />
                   <TicketField label="Department" value={t.departmentName || "—"} />
+                  <TicketField label="Subunit" value={t.subunitName || "—"} />
                   <div className="col-span-2"><TicketField label="Concern" value={t.problem} /></div>
                 </dl>
 
@@ -155,8 +164,13 @@ export default async function RepairHistoryPage({
                 </th>
                 <th className="px-4 py-3">Serial Number</th>
                 <th className="px-4 py-2.5">
-                  <FilterableHeading label="Location / Department">
+                  <FilterableHeading label="Office / Department">
                     <PrinterColumnFilter label="Department" paramName="department" options={departmentOptions} selectedValues={departmentFilters} currentSort={sort} sortAscValue="department_asc" sortDescValue="department_desc" />
+                  </FilterableHeading>
+                </th>
+                <th className="px-4 py-2.5">
+                  <FilterableHeading label="Subunit">
+                    <PrinterColumnFilter label="Subunit" paramName="subunit" options={subunitOptions} selectedValues={subunitFilters} currentSort={sort} sortAscValue="subunit_asc" sortDescValue="subunit_desc" />
                   </FilterableHeading>
                 </th>
                 <th className="px-4 py-3">Concern</th>
@@ -179,6 +193,7 @@ export default async function RepairHistoryPage({
                     <p>{t.locationName || "—"}</p>
                     <p className="text-xs text-slate-400">{t.departmentName || "—"}</p>
                   </td>
+                  <td className="px-4 py-3 text-xs text-slate-600">{t.subunitName || "—"}</td>
                   <td className="px-4 py-3 max-w-xs truncate" title={t.problem}>{t.problem}</td>
                   <td className="px-4 py-3">{formatDate(t.dateClosed)}</td>
                   <td className="px-4 py-3"><Badge color={statusBadgeColor(t.status)}>{t.status}</Badge></td>
@@ -244,8 +259,8 @@ function dateFilterValue(value: string | Date) {
 }
 
 function compareRepairRows(
-  left: { requestedDate: string | Date; departmentName: string | null; status: string },
-  right: { requestedDate: string | Date; departmentName: string | null; status: string },
+  left: { requestedDate: string | Date; departmentName: string | null; subunitName: string | null; status: string },
+  right: { requestedDate: string | Date; departmentName: string | null; subunitName: string | null; status: string },
   sort: string,
 ) {
   const values: Record<string, [string, string]> = {
@@ -253,6 +268,8 @@ function compareRepairRows(
     requested_date_desc: [dateFilterValue(right.requestedDate), dateFilterValue(left.requestedDate)],
     department_asc: [left.departmentName ?? "", right.departmentName ?? ""],
     department_desc: [right.departmentName ?? "", left.departmentName ?? ""],
+    subunit_asc: [left.subunitName ?? "", right.subunitName ?? ""],
+    subunit_desc: [right.subunitName ?? "", left.subunitName ?? ""],
     status_asc: [left.status, right.status],
     status_desc: [right.status, left.status],
   };

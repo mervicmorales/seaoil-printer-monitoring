@@ -14,17 +14,82 @@ import {
 } from "drizzle-orm/pg-core";
 
 // ---------- CORE LOOKUPS USED BY USER PROFILES ----------
-export const locations = pgTable("locations", {
+// Kept as `locations` in TypeScript temporarily to avoid breaking internal API
+// contracts; the persisted business entity and all database columns use Office.
+export const locations = pgTable("offices", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
+  address: text("address"),
+  status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const departments = pgTable("departments", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
+  status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+export const subunits = pgTable(
+  "subunits",
+  {
+    id: serial("id").primaryKey(),
+    departmentId: integer("department_id")
+      .notNull()
+      .references(() => departments.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("subunits_department_name_unique").on(t.departmentId, t.name),
+    index("subunits_department_status_idx").on(t.departmentId, t.status),
+  ],
+);
+
+export const costCenters = pgTable("cost_centers", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// A cost center is not uniquely determined by a subunit in the supplied source
+// data. This table therefore preserves each valid office/subunit/cost-center
+// combination without forcing an incorrect one-to-one relationship.
+export const organizationMappings = pgTable(
+  "organization_mappings",
+  {
+    id: serial("id").primaryKey(),
+    locationId: integer("office_id")
+      .notNull()
+      .references(() => locations.id, { onDelete: "restrict" }),
+    subunitId: integer("subunit_id")
+      .notNull()
+      .references(() => subunits.id, { onDelete: "restrict" }),
+    costCenterId: integer("cost_center_id")
+      .notNull()
+      .references(() => costCenters.id, { onDelete: "restrict" }),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("organization_mappings_unique").on(
+      t.locationId,
+      t.subunitId,
+      t.costCenterId,
+    ),
+    index("organization_mappings_office_idx").on(t.locationId),
+    index("organization_mappings_subunit_idx").on(t.subunitId),
+    index("organization_mappings_cost_center_idx").on(t.costCenterId),
+  ],
+);
 
 // ---------- USERS & ACCESS ----------
 export const users = pgTable("users", {
@@ -36,16 +101,44 @@ export const users = pgTable("users", {
   sessionVersion: integer("session_version").notNull().default(0),
   role: text("role").notNull().default("support"), // 'super_admin' | 'admin' | 'support' | 'employee'
   employeeId: text("employee_id").unique(),
-  primaryLocationId: integer("primary_location_id").references(() => locations.id, {
+  primaryLocationId: integer("primary_office_id").references(() => locations.id, {
     onDelete: "set null",
   }),
   departmentId: integer("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
+  subunitId: integer("subunit_id").references(() => subunits.id, {
+    onDelete: "set null",
+  }),
+  costCenterId: integer("cost_center_id").references(() => costCenters.id, {
     onDelete: "set null",
   }),
   accountStatus: text("account_status").notNull().default("active"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const organizationImports = pgTable(
+  "organization_imports",
+  {
+    id: serial("id").primaryKey(),
+    filename: text("filename").notNull(),
+    importedBy: integer("imported_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("pending"),
+    totalRows: integer("total_rows").notNull().default(0),
+    createdCount: integer("created_count").notNull().default(0),
+    updatedCount: integer("updated_count").notNull().default(0),
+    skippedCount: integer("skipped_count").notNull().default(0),
+    failedCount: integer("failed_count").notNull().default(0),
+    summary: jsonb("summary").$type<Record<string, unknown>>().notNull().default({}),
+    stagedRows: jsonb("staged_rows").$type<unknown[] | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [index("organization_imports_created_idx").on(t.createdAt)],
+);
 
 export const authRateLimits = pgTable("auth_rate_limits", {
   key: text("key").primaryKey(),
@@ -158,10 +251,17 @@ export const printers = pgTable("printers", {
   monthlyRate: numeric("monthly_rate", { precision: 12, scale: 2 }).default(
     "0",
   ),
-  locationId: integer("location_id").references(() => locations.id, {
+  floor: text("floor"),
+  locationId: integer("office_id").references(() => locations.id, {
     onDelete: "set null",
   }),
   departmentId: integer("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
+  subunitId: integer("subunit_id").references(() => subunits.id, {
+    onDelete: "set null",
+  }),
+  costCenterId: integer("cost_center_id").references(() => costCenters.id, {
     onDelete: "set null",
   }),
   vendorId: integer("vendor_id").references(() => vendors.id, {
@@ -199,7 +299,7 @@ export const monitoringAgents = pgTable(
     id: serial("id").primaryKey(),
     agentKey: text("agent_key").notNull().unique(),
     name: text("name").notNull(),
-    locationId: integer("location_id").references(() => locations.id, {
+    locationId: integer("office_id").references(() => locations.id, {
       onDelete: "set null",
     }),
     hostname: text("hostname"),
@@ -226,20 +326,20 @@ export const monitoringAgents = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("monitoring_agents_location_idx").on(t.locationId)],
+  (t) => [index("monitoring_agents_office_idx").on(t.locationId)],
 );
 
-// An agent can serve several physical locations. locationId above remains the
-// primary location for display and backwards compatibility; this table is the
-// authoritative coverage list used by location-scoped features.
+// An agent can serve several physical offices. The TypeScript locationId alias
+// above maps to the primary office column for backwards compatibility; this table is the
+// authoritative coverage list used by office-scoped features.
 export const monitoringAgentLocations = pgTable(
-  "monitoring_agent_locations",
+  "monitoring_agent_offices",
   {
     id: serial("id").primaryKey(),
     agentId: integer("agent_id")
       .notNull()
       .references(() => monitoringAgents.id, { onDelete: "cascade" }),
-    locationId: integer("location_id")
+    locationId: integer("office_id")
       .notNull()
       .references(() => locations.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -247,11 +347,11 @@ export const monitoringAgentLocations = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("monitoring_agent_locations_agent_location_unique").on(
+    uniqueIndex("monitoring_agent_offices_agent_office_unique").on(
       t.agentId,
       t.locationId,
     ),
-    index("monitoring_agent_locations_location_idx").on(t.locationId),
+    index("monitoring_agent_offices_office_idx").on(t.locationId),
   ],
 );
 
@@ -521,7 +621,13 @@ export const repairTickets = pgTable("repair_tickets", {
   departmentId: integer("department_id").references(() => departments.id, {
     onDelete: "set null",
   }),
-  locationId: integer("location_id").references(() => locations.id, {
+  locationId: integer("office_id").references(() => locations.id, {
+    onDelete: "set null",
+  }),
+  subunitId: integer("subunit_id").references(() => subunits.id, {
+    onDelete: "set null",
+  }),
+  costCenterId: integer("cost_center_id").references(() => costCenters.id, {
     onDelete: "set null",
   }),
   problem: text("problem").notNull(),
@@ -565,10 +671,16 @@ export const tonerTransactions = pgTable("toner_transactions", {
     .notNull()
     .references(() => tonerTypes.id, { onDelete: "cascade" }),
   quantity: integer("quantity").notNull(),
-  locationId: integer("location_id").references(() => locations.id, {
+  locationId: integer("office_id").references(() => locations.id, {
     onDelete: "set null",
   }),
   departmentId: integer("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
+  subunitId: integer("subunit_id").references(() => subunits.id, {
+    onDelete: "set null",
+  }),
+  costCenterId: integer("cost_center_id").references(() => costCenters.id, {
     onDelete: "set null",
   }),
   itsNameId: integer("its_name_id").references(() => itsNames.id, {
@@ -591,10 +703,14 @@ export const userRegistrationRequests = pgTable(
     email: text("email").notNull(),
     username: text("username").notNull(),
     passwordHash: text("password_hash").notNull(),
-    primaryLocationId: integer("primary_location_id")
+    primaryLocationId: integer("primary_office_id")
       .references(() => locations.id),
     departmentId: integer("department_id")
       .references(() => departments.id),
+    subunitId: integer("subunit_id")
+      .references(() => subunits.id),
+    costCenterId: integer("cost_center_id")
+      .references(() => costCenters.id),
     source: text("source").notNull().default("self_registration"),
     userId: integer("user_id").references(() => users.id, {
       onDelete: "set null",

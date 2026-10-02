@@ -12,8 +12,8 @@ const BCRYPT_COST = 12;
 
 function usage() {
   console.error(`Usage:
-  npm run monitoring:agent -- create --key <key> --name <name> [--location <existing location>]
-  npm run monitoring:agent -- rotate --key <key> [--name <name>] [--location <existing location>]
+  npm run monitoring:agent -- create --key <key> --name <name> [--office <existing office>]
+  npm run monitoring:agent -- rotate --key <key> [--name <name>] [--office <existing office>]
   npm run monitoring:agent -- revoke --key <key>
   npm run monitoring:agent -- migrate-global --key <existing key>`);
 }
@@ -27,7 +27,7 @@ function parseArguments(values) {
       throw new Error("Every option must use --name value syntax");
     }
     const name = flag.slice(2);
-    if (!["key", "name", "location"].includes(name)) {
+    if (!["key", "name", "office"].includes(name)) {
       throw new Error(`Unknown option: ${flag}`);
     }
     options[name] = value.trim();
@@ -47,14 +47,14 @@ function generateToken() {
   return `sea_${crypto.randomBytes(32).toString("base64url")}`;
 }
 
-async function resolveLocationId(client, locationName) {
-  if (!locationName) return null;
+async function resolveOfficeId(client, officeName) {
+  if (!officeName) return null;
   const result = await client.query(
-    "select id from locations where name = $1 limit 1",
-    [locationName],
+    "select id from offices where name = $1 limit 1",
+    [officeName],
   );
   if (result.rowCount !== 1) {
-    throw new Error(`Location '${locationName}' does not exist`);
+    throw new Error(`Office '${officeName}' does not exist`);
   }
   return result.rows[0].id;
 }
@@ -62,7 +62,7 @@ async function resolveLocationId(client, locationName) {
 async function provision(client, command, options) {
   validateKey(options.key);
   const existingResult = await client.query(
-    "select id, name, location_id, token_hash, token_revoked_at from monitoring_agents where agent_key = $1 for update",
+    "select id, name, office_id, token_hash, token_revoked_at from monitoring_agents where agent_key = $1 for update",
     [options.key],
   );
   const existing = existingResult.rows[0] ?? null;
@@ -81,7 +81,7 @@ async function provision(client, command, options) {
     throw new Error("--name is required when creating a new agent");
   }
 
-  const locationId = await resolveLocationId(client, options.location);
+  const officeId = await resolveOfficeId(client, options.office);
   const token = generateToken();
   const tokenHash = await bcrypt.hash(token, BCRYPT_COST);
 
@@ -90,34 +90,34 @@ async function provision(client, command, options) {
     await client.query(
       `update monitoring_agents
        set name = coalesce($2, name),
-           location_id = case when $3::boolean then $4 else location_id end,
+           office_id = case when $3::boolean then $4 else office_id end,
            token_hash = $5,
            token_created_at = now(),
            token_revoked_at = null,
            status = case when status = 'revoked' then 'inactive' else status end,
            updated_at = now()
        where id = $1`,
-      [existing.id, options.name || null, Boolean(options.location), locationId, tokenHash],
+      [existing.id, options.name || null, Boolean(options.office), officeId, tokenHash],
     );
     agentId = existing.id;
   } else {
     const inserted = await client.query(
       `insert into monitoring_agents
-        (agent_key, name, location_id, status, token_hash, token_created_at, last_seen)
+        (agent_key, name, office_id, status, token_hash, token_created_at, last_seen)
        values ($1, $2, $3, 'inactive', $4, now(), null)
        returning id`,
-      [options.key, options.name, locationId, tokenHash],
+      [options.key, options.name, officeId, tokenHash],
     );
     agentId = inserted.rows[0].id;
   }
 
-  const effectiveLocationId = options.location ? locationId : existing?.location_id;
-  if (effectiveLocationId) {
+  const effectiveOfficeId = options.office ? officeId : existing?.office_id;
+  if (effectiveOfficeId) {
     await client.query(
-      `insert into monitoring_agent_locations (agent_id, location_id)
+      `insert into monitoring_agent_offices (agent_id, office_id)
        values ($1, $2)
-       on conflict (agent_id, location_id) do nothing`,
-      [agentId, effectiveLocationId],
+       on conflict (agent_id, office_id) do nothing`,
+      [agentId, effectiveOfficeId],
     );
   }
 

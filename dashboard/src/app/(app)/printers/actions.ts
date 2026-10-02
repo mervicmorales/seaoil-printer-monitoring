@@ -17,7 +17,9 @@ import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import { normalizePrinterReturnTo } from "@/lib/printer-navigation";
 import { normalizeMacAddress } from "@/lib/mac-address";
+import { normalizePrinterFloor } from "@/lib/printer-floor";
 import { hasAdminPrivileges } from "@/lib/roles";
+import { validateOrganizationSelection } from "@/lib/organization";
 
 function num(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -128,6 +130,18 @@ export async function createPrinterAction(
     allowTextAddress: true,
     maxAddressLength: 20,
   });
+  const organization = {
+    locationId: num(formData.get("locationId")),
+    departmentId: num(formData.get("departmentId")),
+    subunitId: num(formData.get("subunitId")),
+    costCenterId: num(formData.get("costCenterId")),
+  };
+  const rawFloor = str(formData.get("floor"));
+  const floor = normalizePrinterFloor(rawFloor);
+  if (rawFloor && !floor) fieldErrors.floor = "Select a valid location.";
+  Object.assign(fieldErrors, await validateOrganizationSelection(organization, {
+    requireSubunitWhenAvailable: Boolean(organization.departmentId),
+  }));
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   const contractId = num(formData.get("contractId"));
@@ -144,8 +158,8 @@ export async function createPrinterAction(
           serialNumber: serialNumber!,
           model,
           monthlyRate: String(num(formData.get("monthlyRate")) ?? 0),
-          locationId: num(formData.get("locationId")),
-          departmentId: num(formData.get("departmentId")),
+          floor,
+          ...organization,
           vendorId: num(formData.get("vendorId")),
           contractId,
           assignedUser: str(formData.get("assignedUser")),
@@ -195,6 +209,23 @@ export async function updatePrinterAction(
     allowTextAddress: true,
     maxAddressLength: 20,
   });
+  const organization = {
+    locationId: num(formData.get("locationId")),
+    departmentId: num(formData.get("departmentId")),
+    subunitId: num(formData.get("subunitId")),
+    costCenterId: num(formData.get("costCenterId")),
+  };
+  const rawFloor = str(formData.get("floor"));
+  const floor = normalizePrinterFloor(rawFloor);
+  if (session.role !== "support" && rawFloor && !floor) {
+    fieldErrors.floor = "Select a valid location.";
+  }
+  if (session.role !== "support") {
+    Object.assign(fieldErrors, await validateOrganizationSelection(organization, {
+      requireSubunitWhenAvailable: Boolean(organization.departmentId),
+      requireActive: false,
+    }));
+  }
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   if (newSerialNumber && !hasAdminPrivileges(session.role)) {
@@ -231,8 +262,8 @@ export async function updatePrinterAction(
             ipAddress: monitoring.ipAddress,
             macAddress: monitoring.macAddress,
             monthlyRate: String(num(formData.get("monthlyRate")) ?? 0),
-            locationId: num(formData.get("locationId")),
-            departmentId: num(formData.get("departmentId")),
+            floor,
+            ...organization,
             vendorId: num(formData.get("vendorId")),
             contractId: num(formData.get("contractId")),
             assignedUser: str(formData.get("assignedUser")),

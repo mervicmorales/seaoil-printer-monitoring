@@ -24,6 +24,7 @@ import { requireModuleFullAccess } from "@/lib/server-utils";
 import { printerDetailHref } from "@/lib/printer-navigation";
 import { queueDiscoveryScanAction } from "./actions";
 import DiscoveryScanToasts from "./DiscoveryScanToasts";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 export const dynamic = "force-dynamic";
 
@@ -130,20 +131,14 @@ export default async function DiscoverPrintersPage({
           </div>
         ) : (
           <form action={queueDiscoveryScanAction} className="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Monitoring agent</span>
-              <select
-                name="agentId"
-                required
-                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
-              >
-                {agents.map((agent) => (
-                  <option key={agent.id} value={agent.id}>
-                    {agent.name}{agent.hostname ? ` · ${agent.hostname}` : ""}{agent.status !== "online" ? " · inactive" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableDropdown
+              label="Monitoring agent"
+              name="agentId"
+              required
+              placeholder="Search monitoring agents..."
+              defaultValue={agents[0] ? String(agents[0].id) : ""}
+              options={agents.map((agent) => ({ value: String(agent.id), label: `${agent.name}${agent.hostname ? ` · ${agent.hostname}` : ""}${agent.status !== "online" ? " · inactive" : ""}` }))}
+            />
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-slate-700">Subnet (CIDR)</span>
               <input

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PRINTER_STATUSES } from "@/lib/constants";
 import { statusBadgeColor } from "@/components/ui";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 const STATUS_COLORS = {
   green: "border-emerald-300 bg-emerald-50 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-200",
@@ -25,48 +26,26 @@ export default function CreatePrinterStatusSelect({
 
   if (compact) {
     return (
-      <div className={`flex h-8 shrink-0 items-center overflow-hidden rounded-lg border shadow-sm transition focus-within:ring-2 ${statusColor}`}>
-        <label
-          htmlFor="new-printer-status"
-          className="flex h-full items-center border-r border-current/15 px-2 text-[9px] font-bold uppercase tracking-[0.09em] opacity-75"
-        >
+      <div className={`flex h-8 shrink-0 items-center rounded-lg border shadow-sm transition focus-within:ring-2 ${statusColor}`}>
+        <span className="flex h-full items-center border-r border-current/15 px-2 text-[9px] font-bold uppercase tracking-[0.09em] opacity-75">
           Asset status
-        </label>
-        <select
-          id="new-printer-status"
+        </span>
+        <SearchableDropdown
           name="status"
           form={formId}
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onValueChange={setStatus}
           required
-          className="h-full min-w-28 bg-transparent px-2.5 text-xs font-bold outline-none"
-        >
-          {PRINTER_STATUSES.map((item) => (
-            <option key={item} value={item}>{item}</option>
-          ))}
-        </select>
+          placeholder="Search statuses..."
+          options={PRINTER_STATUSES.map((item) => ({ value: item, label: item }))}
+          className="min-w-32"
+          inputClassName="!h-[1.875rem] !rounded-l-none !rounded-r-lg !border-0 !bg-transparent !px-2.5 !pr-8 !text-xs !font-bold !shadow-none !ring-0"
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor="new-printer-status" className="text-xs font-medium text-slate-600">
-        Asset Status
-      </label>
-      <select
-        id="new-printer-status"
-        name="status"
-        form={formId}
-        value={status}
-        onChange={(event) => setStatus(event.target.value)}
-        required
-        className={`min-w-48 rounded-lg border px-3.5 py-2.5 text-sm font-semibold outline-none transition focus:ring-2 ${statusColor}`}
-      >
-        {PRINTER_STATUSES.map((item) => (
-          <option key={item} value={item}>{item}</option>
-        ))}
-      </select>
-    </div>
+    <SearchableDropdown label="Asset Status" name="status" form={formId} value={status} onValueChange={setStatus} required placeholder="Search statuses..." options={PRINTER_STATUSES.map((item) => ({ value: item, label: item }))} className="min-w-48" inputClassName={`font-semibold ${statusColor}`} labelClassName="!text-xs !text-slate-600" />
   );
 }

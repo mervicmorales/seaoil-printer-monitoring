@@ -13,17 +13,21 @@ import {
 } from "lucide";
 import { IconGlyph } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
+import SearchableDropdown from "@/components/SearchableDropdown";
 import type {
   TonerExpenseExportFormat,
   TonerExpenseExportPreview,
 } from "@/lib/toner-expense-export";
 
 type LookupOption = { id: number; name: string };
+type SubunitLookupOption = LookupOption & { departmentId: number };
 type FilterState = {
   allTime: boolean;
   dateFrom: string;
   dateTo: string;
   department: string;
+  subunit: string;
+  costCenter: string;
   location: string;
   tonerType: string;
   itsName: string;
@@ -33,6 +37,8 @@ export default function TonerExpenseExportDialog({
   initialFilters,
   initialPreview,
   departments,
+  subunits,
+  costCenters,
   locations,
   tonerTypes,
   itsNames,
@@ -40,6 +46,8 @@ export default function TonerExpenseExportDialog({
   initialFilters: FilterState;
   initialPreview: TonerExpenseExportPreview;
   departments: LookupOption[];
+  subunits: SubunitLookupOption[];
+  costCenters: LookupOption[];
   locations: LookupOption[];
   tonerTypes: LookupOption[];
   itsNames: LookupOption[];
@@ -57,6 +65,11 @@ export default function TonerExpenseExportDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const query = useMemo(() => buildQuery(filters), [filters]);
+  const availableSubunits = useMemo(() => (
+    filters.department && filters.department !== "unassigned"
+      ? subunits.filter((item) => String(item.departmentId) === filters.department)
+      : subunits
+  ), [filters.department, subunits]);
   useBodyScrollLock(open);
 
   const closeDialog = useCallback((force = false) => {
@@ -147,7 +160,11 @@ export default function TonerExpenseExportDialog({
   }, [open, query]);
 
   function updateFilter<Key extends keyof FilterState>(key: Key, value: FilterState[Key]) {
-    setFilters((current) => ({ ...current, [key]: value }));
+    setFilters((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "department" && current.department !== value) next.subunit = "";
+      return next;
+    });
   }
 
   async function exportReport() {
@@ -288,7 +305,9 @@ export default function TonerExpenseExportDialog({
                         />
                       </Field>
                       <FilterField label="Department" value={filters.department} onChange={(value) => updateFilter("department", value)} options={departments} includeUnassigned />
-                      <FilterField label="Location" value={filters.location} onChange={(value) => updateFilter("location", value)} options={locations} includeUnassigned />
+                      <FilterField label="Subunit" value={filters.subunit} onChange={(value) => updateFilter("subunit", value)} options={availableSubunits} includeUnassigned />
+                      <FilterField label="Cost center" value={filters.costCenter} onChange={(value) => updateFilter("costCenter", value)} options={costCenters} includeUnassigned />
+                      <FilterField label="Office" value={filters.location} onChange={(value) => updateFilter("location", value)} options={locations} includeUnassigned />
                       <FilterField label="Toner type" value={filters.tonerType} onChange={(value) => updateFilter("tonerType", value)} options={tonerTypes} />
                       <FilterField label="ITS name" value={filters.itsName} onChange={(value) => updateFilter("itsName", value)} options={itsNames} includeUnassigned />
                     </div>
@@ -304,7 +323,7 @@ export default function TonerExpenseExportDialog({
                         active={format === "xlsx"}
                         icon={FileSpreadsheet}
                         title="Excel workbook (.xlsx)"
-                        description="Editable details plus summary, department, location, and export-information sheets."
+                        description="Editable details plus summary, department, office, and export-information sheets."
                         onClick={() => setFormat("xlsx")}
                       />
                       <FormatOption
@@ -406,15 +425,7 @@ function FilterField({
   options: LookupOption[];
   includeUnassigned?: boolean;
 }) {
-  return (
-    <Field label={label}>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className={fieldClassName}>
-        <option value="">All {label.toLowerCase()}s</option>
-        {includeUnassigned && <option value="unassigned">Unassigned</option>}
-        {options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-      </select>
-    </Field>
-  );
+  return <SearchableDropdown label={label} value={value} onValueChange={onChange} placeholder={`Search ${label.toLowerCase()}...`} options={[{ value: "", label: `All ${label.toLowerCase()}s` }, ...(includeUnassigned ? [{ value: "unassigned", label: "Unassigned" }] : []), ...options.map((option) => ({ value: String(option.id), label: option.name }))]} inputClassName={fieldClassName} labelClassName="!text-[10px] !font-bold !uppercase !tracking-[0.06em] !text-slate-500" />;
 }
 
 function FormatOption({
@@ -466,6 +477,8 @@ function buildQuery(filters: FilterState) {
     if (filters.dateTo) params.set("dateTo", filters.dateTo);
   }
   if (filters.department) params.set("department", filters.department);
+  if (filters.subunit) params.set("subunit", filters.subunit);
+  if (filters.costCenter) params.set("costCenter", filters.costCenter);
   if (filters.location) params.set("location", filters.location);
   if (filters.tonerType) params.set("tonerType", filters.tonerType);
   if (filters.itsName) params.set("itsName", filters.itsName);

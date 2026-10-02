@@ -7,6 +7,7 @@ import type { PrintOpsPrinterTarget } from "@/lib/printops";
 import PrintOpsSubmitButton from "../PrintOpsSubmitButton";
 import { printerLabel } from "./print-target-state";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 type PreviewKind = "pdf" | "image" | "text" | "unsupported";
 type PrinterOption = PrintOpsPrinterTarget & { agentId?: number };
@@ -200,53 +201,36 @@ export default function PrintFilePreview({
 
                 <div className="space-y-5 p-5 sm:p-6">
                   <Setting label="Printer">
-                    <select
+                    <SearchableDropdown
+                      ariaLabel="Printer"
                       name="target"
                       value={target}
-                      onChange={(event) => setTarget(event.target.value)}
+                      onValueChange={setTarget}
                       required
                       disabled={printers.length === 0}
-                      className={darkSelectClassName}
-                    >
-                      {printers.length === 0 && <option value="">No available printers</option>}
-                      {printers.map((printer) => (
-                        <option
-                          key={`${printer.agentId ?? selectedAgentId}-${printer.printerId}`}
-                          value={`${printer.agentId ?? selectedAgentId}|${printer.printerId}`}
-                        >
-                          {printerLabel(printer)}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Search printers..."
+                      options={printers.length === 0 ? [{ value: "", label: "No available printers", disabled: true }] : printers.map((printer) => ({ value: `${printer.agentId ?? selectedAgentId}|${printer.printerId}`, label: printerLabel(printer) }))}
+                      inputClassName={darkSelectClassName}
+                    />
                   </Setting>
 
                   <Setting label="Pages">
-                    <select name="pageMode" value={pageMode} onChange={(event) => setPageMode(event.target.value)} className={darkSelectClassName}>
-                      <option value="all">All</option>
-                      <option value="custom">Custom</option>
-                    </select>
+                    <SearchableDropdown ariaLabel="Pages" name="pageMode" value={pageMode} onValueChange={setPageMode} placeholder="Search page modes..." options={[{ value: "all", label: "All" }, { value: "custom", label: "Custom" }]} inputClassName={darkSelectClassName} />
                     {pageMode === "custom" && (
                       <input name="pageRanges" required placeholder="e.g. 1-3, 5" className={`${darkInputClassName} mt-2`} />
                     )}
                   </Setting>
 
                   <Setting label="Copies">
-                    <input name="copies" type="number" min="1" max="99" defaultValue="1" required className={darkInputClassName} />
+                    <input aria-label="Copies" name="copies" type="number" min="1" max="99" defaultValue="1" required className={darkInputClassName} />
                   </Setting>
 
                   <Setting label="Color">
-                    <select name="colorMode" value={colorMode} onChange={(event) => setColorMode(event.target.value)} className={darkSelectClassName}>
-                      <option value="color">Color</option>
-                      <option value="grayscale">Grayscale</option>
-                    </select>
+                    <SearchableDropdown ariaLabel="Color" name="colorMode" value={colorMode} onValueChange={setColorMode} placeholder="Search color modes..." options={[{ value: "color", label: "Color" }, { value: "grayscale", label: "Grayscale" }]} inputClassName={darkSelectClassName} />
                   </Setting>
 
                   <Setting label="Duplex">
-                    <select name="duplex" defaultValue="none" className={darkSelectClassName}>
-                      <option value="none">Single-sided</option>
-                      <option value="long">Double-sided · long edge</option>
-                      <option value="short">Double-sided · short edge</option>
-                    </select>
+                    <SearchableDropdown ariaLabel="Duplex" name="duplex" defaultValue="none" placeholder="Search duplex modes..." options={[{ value: "none", label: "Single-sided" }, { value: "long", label: "Double-sided · long edge" }, { value: "short", label: "Double-sided · short edge" }]} inputClassName={darkSelectClassName} />
                   </Setting>
 
                   <button
@@ -261,38 +245,19 @@ export default function PrintFilePreview({
 
                   <div className={moreSettings ? "space-y-5" : "hidden"}>
                       <Setting label="Paper size">
-                        <select name="paperSize" defaultValue="a4" className={darkSelectClassName}>
-                          <option value="a4">A4</option>
-                          <option value="letter">Letter</option>
-                          <option value="legal">Legal</option>
-                          <option value="a3">A3</option>
-                        </select>
+                        <SearchableDropdown ariaLabel="Paper size" name="paperSize" defaultValue="a4" placeholder="Search paper sizes..." options={[{ value: "a4", label: "A4" }, { value: "letter", label: "Letter" }, { value: "legal", label: "Legal" }, { value: "a3", label: "A3" }]} inputClassName={darkSelectClassName} />
                       </Setting>
                       <Setting label="Layout">
-                        <select name="orientation" value={orientation} onChange={(event) => setOrientation(event.target.value)} className={darkSelectClassName}>
-                          <option value="portrait">Portrait</option>
-                          <option value="landscape">Landscape</option>
-                        </select>
+                        <SearchableDropdown ariaLabel="Layout" name="orientation" value={orientation} onValueChange={setOrientation} placeholder="Search layouts..." options={[{ value: "portrait", label: "Portrait" }, { value: "landscape", label: "Landscape" }]} inputClassName={darkSelectClassName} />
                       </Setting>
                       <Setting label="Pages per sheet">
-                        <select name="pagesPerSheet" defaultValue="1" className={darkSelectClassName}>
-                          {[1, 2, 4, 6, 9, 16].map((value) => <option key={value} value={value}>{value}</option>)}
-                        </select>
+                        <SearchableDropdown ariaLabel="Pages per sheet" name="pagesPerSheet" defaultValue="1" placeholder="Search page counts..." options={[1, 2, 4, 6, 9, 16].map((value) => ({ value: String(value), label: String(value) }))} inputClassName={darkSelectClassName} />
                       </Setting>
                       <Setting label="Quality">
-                        <select name="quality" defaultValue="normal" className={darkSelectClassName}>
-                          <option value="draft">Draft</option>
-                          <option value="normal">Normal</option>
-                          <option value="high">High</option>
-                        </select>
+                        <SearchableDropdown ariaLabel="Quality" name="quality" defaultValue="normal" placeholder="Search quality levels..." options={[{ value: "draft", label: "Draft" }, { value: "normal", label: "Normal" }, { value: "high", label: "High" }]} inputClassName={darkSelectClassName} />
                       </Setting>
                       <Setting label="Scale">
-                        <select name="scale" defaultValue="fit" className={darkSelectClassName}>
-                          <option value="fit">Fit to page</option>
-                          <option value="100">100%</option>
-                          <option value="75">75%</option>
-                          <option value="50">50%</option>
-                        </select>
+                        <SearchableDropdown ariaLabel="Scale" name="scale" defaultValue="fit" placeholder="Search scale options..." options={[{ value: "fit", label: "Fit to page" }, { value: "100", label: "100%" }, { value: "75", label: "75%" }, { value: "50", label: "50%" }]} inputClassName={darkSelectClassName} />
                       </Setting>
                   </div>
                 </div>
@@ -314,10 +279,10 @@ export default function PrintFilePreview({
 
 function Setting({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid min-w-0 gap-2 text-sm sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-center">
+    <div className="grid min-w-0 gap-2 text-sm sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-center">
       <span className="font-semibold text-slate-600">{label}</span>
       <span className="min-w-0">{children}</span>
-    </label>
+    </div>
   );
 }
 
@@ -330,4 +295,4 @@ function getPreviewKind(file: File): PreviewKind {
 }
 
 const darkInputClassName = "w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15";
-const darkSelectClassName = `${darkInputClassName} appearance-auto`;
+const darkSelectClassName = darkInputClassName;

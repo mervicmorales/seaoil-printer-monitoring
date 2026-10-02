@@ -80,7 +80,7 @@ export default function EmployeePrinterCard({
           <div role="tabpanel">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
               <PrinterDetail label="Model" value={printer.model} />
-              <PrinterDetail label="Location" value={printer.locationName} />
+              <PrinterDetail label="Office" value={printer.locationName} />
               <PrinterDetail label="Department" value={printer.departmentName} />
               <PrinterDetail label="IP Address" value={printer.ipAddress} mono />
               <PrinterDetail label="MAC Address" value={printer.macAddress} mono />

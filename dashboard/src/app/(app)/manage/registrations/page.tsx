@@ -93,6 +93,7 @@ export default async function RegistrationsPage({
       <PageHeader
         parentTitle="Registrations"
         title="Registration Records"
+        hideTitle
       />
 
       <SuccessBanner
@@ -133,7 +134,7 @@ export default async function RegistrationsPage({
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3">Full Name / Employee ID</th>
                 <th className="px-4 py-3">Email Address</th>
-                <th className="px-4 py-3">Location / Department</th>
+                <th className="px-4 py-3">Office / Department</th>
                 <th className="px-4 py-2.5">
                   <FilterableHeading label="Priority">
                     <PrinterColumnFilter label="Priority" paramName="priority" options={priorityOptions} selectedValues={priorityFilters} currentSort={sort} sortAscValue="priority_asc" sortDescValue="priority_desc" sortAscLabel="Low to high" sortDescLabel="High to low" />
@@ -219,7 +220,7 @@ function RegistrationCard({ row }: { row: RegistrationRow }) {
         <RegistrationField label="Priority">
           {row.priority ? <Badge color={priorityColor(row.priority)}>{priorityLabel(row.priority)}</Badge> : "—"}
         </RegistrationField>
-        <RegistrationField label="Location" value={row.location || "—"} />
+        <RegistrationField label="Office" value={row.location || "—"} />
         <RegistrationField label="Department" value={row.department || "—"} />
       </dl>
       <Link

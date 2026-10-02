@@ -4,8 +4,10 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { ClipboardList, Pencil, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { Input, Select, PrimaryButton, Textarea } from "@/components/ui";
+import { Input, PrimaryButton, Textarea } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
+import SearchableDropdown from "@/components/SearchableDropdown";
+import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
 import type { TonerFormState } from "../../actions";
 
 type Lookup = { id: number; name: string };
@@ -19,6 +21,8 @@ type Txn = {
   quantity: number;
   locationId: number | null;
   departmentId: number | null;
+  subunitId: number | null;
+  costCenterId: number | null;
   itsNameId: number | null;
   remarks: string | null;
 };
@@ -36,16 +40,14 @@ export default function EditTransactionForm({
   action,
   txn,
   tonerTypes,
-  locations,
-  departments,
+  organizationOptions,
   itsNames,
   showActions = true,
 }: {
   action: (prev: TonerFormState, formData: FormData) => Promise<TonerFormState>;
   txn: Txn;
   tonerTypes: Lookup[];
-  locations: Lookup[];
-  departments: Lookup[];
+  organizationOptions: OrganizationFieldOptions;
   itsNames: Lookup[];
   showActions?: boolean;
 }) {
@@ -64,12 +66,9 @@ export default function EditTransactionForm({
           description="Update the toner, quantity, assignment, and reference information"
         />
         <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
-        <Select label="Status / Type" name="type" defaultValue={txn.type} required>
-          <option value="Delivery">Delivery</option>
-          <option value="Request">Request</option>
-        </Select>
+        <SearchableDropdown label="Status / Type" name="type" defaultValue={txn.type} required placeholder="Search transaction types..." options={[{ value: "Delivery", label: "Delivery" }, { value: "Request", label: "Request" }]} />
         <Input label="Date" name="date" type="date" defaultValue={txn.date} required />
-        <Input label="Ticket Reference" name="ticketReference" defaultValue={txn.ticketReference ?? ""} placeholder="Enter ticket or P.O number" />
+        <Input label="Ticket or R.Q" name="ticketReference" defaultValue={txn.ticketReference ?? ""} placeholder="Enter ticket or R.Q number" />
         <SearchableSelect
           label="Toner Type"
           name="tonerTypeId"
@@ -79,19 +78,15 @@ export default function EditTransactionForm({
           required
         />
         <Input label="Quantity" name="quantity" type="number" min="1" defaultValue={txn.quantity} required />
-        <SearchableSelect
-          label="Location"
-          name="locationId"
-          options={locations}
-          placeholder="Search location..."
-          defaultValue={txn.locationId}
-        />
-        <SearchableSelect
-          label="Department"
-          name="departmentId"
-          options={departments}
-          placeholder="Search department..."
-          defaultValue={txn.departmentId}
+        <OrganizationFields
+          options={organizationOptions}
+          initialLocationId={txn.locationId}
+          initialDepartmentId={txn.departmentId}
+          initialSubunitId={txn.subunitId}
+          initialCostCenterId={txn.costCenterId}
+          requiredSubunit
+          errors={state.fieldErrors}
+          className="contents"
         />
         <SearchableSelect
           label="ITS Name"

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node's type-stripping test runner requires the explicit TS extension.
-import { parseOverviewScope, resolveOverviewPeriod, sortExpenseRows, yearlyExpenseSeries } from "./overview-analytics.ts";
+import { parseOverviewScope, quarterlyExpenseSeries, resolveOverviewPeriod, sortExpenseRows, yearlyExpenseSeries } from "./overview-analytics.ts";
 
 test("overview scope accepts supported values and rejects unsafe identifiers", () => {
   assert.deepEqual(parseOverviewScope({ location: "12", department: "7", period: "90d", expenseBreakdown: "location", expenseGrain: "yearly", expenseSort: "asc" }), {
@@ -15,7 +15,7 @@ test("overview scope accepts supported values and rejects unsafe identifiers", (
   assert.deepEqual(parseOverviewScope({ location: "-1", department: "x", period: "invalid" }), {
     locationId: null,
     departmentId: null,
-    period: "ytd",
+    period: "30d",
     expenseBreakdown: "toner",
     expenseGrain: "monthly",
     expenseSort: "desc",
@@ -27,6 +27,11 @@ test("overview periods resolve to stable Manila calendar ranges", () => {
     fromDate: "2026-08-21",
     toDate: "2026-09-19",
     label: "Last 30 days",
+  });
+  assert.deepEqual(resolveOverviewPeriod("7d", "2026-09-19"), {
+    fromDate: "2026-09-13",
+    toDate: "2026-09-19",
+    label: "Last 7 days",
   });
   assert.equal(resolveOverviewPeriod("ytd", "2026-09-19").fromDate, "2026-01-01");
   assert.equal(resolveOverviewPeriod("12m", "2026-09-19").fromDate, "2025-10-01");
@@ -44,4 +49,16 @@ test("expense helpers aggregate years and support low-to-high ranking", () => {
     { name: "High", expenseCents: 500 },
     { name: "Low", expenseCents: 100 },
   ], "asc").map((row) => row.name), ["Low", "High"]);
+});
+
+test("expense helpers aggregate calendar quarters", () => {
+  const quarters = quarterlyExpenseSeries([
+    { key: "2026-01", name: "2026-01", requestLines: 1, units: 2, expenseCents: 200 },
+    { key: "2026-03", name: "2026-03", requestLines: 2, units: 3, expenseCents: 300 },
+    { key: "2026-04", name: "2026-04", requestLines: 1, units: 1, expenseCents: 100 },
+  ]);
+  assert.deepEqual(quarters.map((row) => [row.key, row.name, row.expenseCents]), [
+    ["2026-Q1", "Q1 2026", 500],
+    ["2026-Q2", "Q2 2026", 100],
+  ]);
 });

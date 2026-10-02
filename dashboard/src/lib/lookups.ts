@@ -13,11 +13,11 @@ import {
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 
 export async function getLocations() {
-  return db.select().from(locations).orderBy(asc(locations.name));
+  return db.select().from(locations).where(eq(locations.status, "active")).orderBy(asc(locations.name));
 }
 
 export async function getDepartments() {
-  return db.select().from(departments).orderBy(asc(departments.name));
+  return db.select().from(departments).where(eq(departments.status, "active")).orderBy(asc(departments.name));
 }
 
 export async function getVendors() {

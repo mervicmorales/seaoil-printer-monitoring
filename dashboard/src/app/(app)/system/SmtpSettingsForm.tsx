@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Activity, Mail, Save, Send, Server, ShieldCheck, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { Input, PrimaryButton, SecondaryButton, Select } from "@/components/ui";
+import { Input, PrimaryButton, SecondaryButton } from "@/components/ui";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 type Settings = { smtpEnabled: boolean; smtpHost: string | null; smtpPort: number | null; smtpSecurity: string; smtpUsername: string | null; smtpFrom: string | null; smtpFromName: string | null; smtpTestRecipient: string | null; smtpLastTestedAt: Date | null; passwordConfigured: boolean };
 
@@ -44,11 +45,7 @@ export default function SmtpSettingsForm({ action, settings }: { action: (formDa
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input label="SMTP Host" name="smtpHost" defaultValue={settings.smtpHost || ""} />
           <Input label="SMTP Port" name="smtpPort" type="number" min="1" max="65535" defaultValue={settings.smtpPort || 1025} />
-          <Select label="Security" name="smtpSecurity" defaultValue={settings.smtpSecurity}>
-            <option value="none">None</option>
-            <option value="starttls">STARTTLS</option>
-            <option value="tls">TLS/SSL</option>
-          </Select>
+          <SearchableDropdown label="Security" name="smtpSecurity" defaultValue={settings.smtpSecurity} placeholder="Search security modes..." options={[{ value: "none", label: "None" }, { value: "starttls", label: "STARTTLS" }, { value: "tls", label: "TLS/SSL" }]} />
           <Input label="Username" name="smtpUsername" defaultValue={settings.smtpUsername || ""} />
           <Input label="Password" name="smtpPassword" type="password" placeholder={settings.passwordConfigured ? "Leave blank to keep current password" : ""} />
           <div className="flex items-end pb-2 text-xs text-slate-500">

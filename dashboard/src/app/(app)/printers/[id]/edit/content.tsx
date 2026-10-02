@@ -6,12 +6,11 @@ import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import { RefreshCw, Save } from "lucide";
 import {
   getContracts,
-  getDepartments,
-  getLocations,
   getProvisionedMonitoringAgents,
   getTonerTypes,
   getVendors,
 } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import PrinterForm from "../../PrinterForm";
 import { updatePrinterAction } from "../../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -52,10 +51,9 @@ export async function EditPrinterPage({
     .where(eq(printerMonitoringAssignments.printerId, printerId))
     .limit(1);
 
-  const [tonerTypes, locations, departments, vendors, contracts, monitoringAgents] = await Promise.all([
+  const [tonerTypes, organizationOptions, vendors, contracts, monitoringAgents] = await Promise.all([
     getTonerTypes(),
-    getLocations(),
-    getDepartments(),
+    getOrganizationOptions({ activeOnly: false }),
     getVendors(),
     getContracts(),
     getProvisionedMonitoringAgents(),
@@ -103,8 +101,7 @@ export async function EditPrinterPage({
               monitoringAgentId: monitoringAssignment?.agentId ?? null,
             }}
             tonerTypes={tonerTypes}
-            locations={locations}
-            departments={departments}
+            organizationOptions={organizationOptions}
             vendors={vendors}
             contracts={contracts}
             monitoringAgents={monitoringAgents}

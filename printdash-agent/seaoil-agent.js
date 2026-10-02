@@ -202,7 +202,7 @@ function logAgentStartup() {
   console.log("  Poll Interval      -> " + agentConfig.pollIntervalSeconds + "s");
   console.log("  Config Refresh     -> " + agentConfig.configRefreshSeconds + "s");
   if (agentConfig.agentLocation) {
-    console.log("  Agent Location     -> " + agentConfig.agentLocation);
+    console.log("  Agent Office       -> " + agentConfig.agentLocation);
   }
   for (const warning of agentConfig.warnings) {
     console.warn("[SEAOIL Agent] Configuration warning: " + warning);

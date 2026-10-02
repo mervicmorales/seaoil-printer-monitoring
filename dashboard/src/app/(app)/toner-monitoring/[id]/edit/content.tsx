@@ -4,7 +4,8 @@ import { tonerTransactions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { Save } from "lucide";
 import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
-import { getDepartments, getItsNames, getLocations, getTonerTypes } from "@/lib/lookups";
+import { getItsNames, getTonerTypes } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import EditTransactionForm from "./EditTransactionForm";
 import { updateTransactionAction } from "../../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -16,10 +17,9 @@ export async function EditTransactionPage({ params, embedded = false }: { params
   const txn = rows[0];
   if (!txn) notFound();
 
-  const [tonerTypes, locations, departments, itsNames] = await Promise.all([
+  const [tonerTypes, organizationOptions, itsNames] = await Promise.all([
     getTonerTypes(),
-    getLocations(),
-    getDepartments(),
+    getOrganizationOptions({ activeOnly: false }),
     getItsNames(),
   ]);
 
@@ -44,8 +44,7 @@ export async function EditTransactionPage({ params, embedded = false }: { params
           action={updateTransactionAction}
           txn={txn}
           tonerTypes={tonerTypes}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           itsNames={itsNames}
           showActions={!embedded}
         />

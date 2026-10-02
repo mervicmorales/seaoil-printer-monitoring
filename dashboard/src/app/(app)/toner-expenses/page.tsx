@@ -2,6 +2,8 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   departments,
+  subunits,
+  costCenters,
   itsNames,
   locations,
   tonerTransactions,
@@ -22,13 +24,17 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
   const today = manilaDate();
   const allTime = sp.allTime === "1";
 
-  const [rows, allDepartments, allLocations, allTonerTypes, allItsNames] = await Promise.all([
+  const [rows, allDepartments, allSubunits, allCostCenters, allLocations, allTonerTypes, allItsNames] = await Promise.all([
     db
       .select({
         id: tonerTransactions.id,
         date: tonerTransactions.date,
         departmentId: tonerTransactions.departmentId,
         departmentName: departments.name,
+        subunitId: tonerTransactions.subunitId,
+        subunitName: subunits.name,
+        costCenterId: tonerTransactions.costCenterId,
+        costCenterCode: costCenters.code,
         locationId: tonerTransactions.locationId,
         locationName: locations.name,
         tonerTypeId: tonerTransactions.tonerTypeId,
@@ -40,10 +46,14 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
       .from(tonerTransactions)
       .innerJoin(tonerTypes, eq(tonerTransactions.tonerTypeId, tonerTypes.id))
       .leftJoin(departments, eq(tonerTransactions.departmentId, departments.id))
+      .leftJoin(subunits, eq(tonerTransactions.subunitId, subunits.id))
+      .leftJoin(costCenters, eq(tonerTransactions.costCenterId, costCenters.id))
       .leftJoin(locations, eq(tonerTransactions.locationId, locations.id))
       .where(eq(tonerTransactions.type, "Request"))
       .orderBy(desc(tonerTransactions.date), desc(tonerTransactions.id)),
     db.select({ id: departments.id, name: departments.name }).from(departments).orderBy(asc(departments.name)),
+    db.select({ id: subunits.id, name: subunits.name, departmentId: subunits.departmentId }).from(subunits).orderBy(asc(subunits.name)),
+    db.select({ id: costCenters.id, name: costCenters.code }).from(costCenters).orderBy(asc(costCenters.code)),
     db.select({ id: locations.id, name: locations.name }).from(locations).orderBy(asc(locations.name)),
     db.select({ id: tonerTypes.id, name: tonerTypes.name }).from(tonerTypes).orderBy(asc(tonerTypes.name)),
     db.select({ id: itsNames.id, name: itsNames.name }).from(itsNames).orderBy(asc(itsNames.name)),
@@ -56,6 +66,10 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
         date: row.date,
         departmentId: row.departmentId,
         departmentName: row.departmentName,
+        subunitId: row.subunitId,
+        subunitName: row.subunitName,
+        costCenterId: row.costCenterId,
+        costCenterCode: row.costCenterCode,
         locationId: row.locationId,
         locationName: row.locationName,
         tonerTypeId: row.tonerTypeId,
@@ -69,11 +83,15 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
         dateFrom: allTime ? "" : (sp.dateFrom ?? `${today.slice(0, 4)}-01-01`),
         dateTo: allTime ? "" : (sp.dateTo ?? today),
         department: parseLookupValue(sp.department),
+        subunit: parseLookupValue(sp.subunit),
+        costCenter: parseLookupValue(sp.costCenter),
         location: parseLookupValue(sp.location),
         tonerType: parseLookupValue(sp.tonerType),
         itsName: parseLookupValue(sp.itsName),
       }}
       departments={allDepartments}
+      subunits={allSubunits}
+      costCenters={allCostCenters}
       locations={allLocations}
       tonerTypes={allTonerTypes}
       itsNames={allItsNames}

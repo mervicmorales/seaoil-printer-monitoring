@@ -22,6 +22,8 @@ export default function AppHeader({
   const useIconOnlyNotification = [
     "/printers",
     "/repair-history",
+    "/toner-monitoring",
+    "/toner-expenses",
     "/overview",
     "/printdash",
     "/monitoring-agents",

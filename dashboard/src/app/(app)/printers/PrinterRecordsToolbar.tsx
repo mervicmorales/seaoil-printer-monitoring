@@ -77,7 +77,7 @@ export default function PrinterRecordsToolbar({
           <Search
             name="q"
             defaultValue={query}
-            placeholder="Search serial, model, IP, location or department"
+            placeholder="Search serial, model, IP, office or department"
             ariaLabel="Search printer records"
             className="shrink-0"
           />

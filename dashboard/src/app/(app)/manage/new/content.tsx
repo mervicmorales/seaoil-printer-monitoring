@@ -3,7 +3,7 @@ import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import UserForm from "../UserForm";
 import { createUserAction } from "../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
-import { getDepartments, getLocations } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 
 export async function NewUserPage({
   searchParams,
@@ -15,7 +15,7 @@ export async function NewUserPage({
   const session = await requireModuleFullAccess("manage_users");
   const params = (await searchParams) ?? {};
   const returnTo = params.returnTo === "/manage/registrations" ? "/manage/registrations" : "/manage";
-  const [locations, departments] = await Promise.all([getLocations(), getDepartments()]);
+  const organizationOptions = await getOrganizationOptions();
   return (
     <div>
       <PageHeader
@@ -36,8 +36,7 @@ export async function NewUserPage({
         <UserForm
           mode="create"
           action={createUserAction}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           returnTo={returnTo}
           employeeOnly={session.role === "support"}
           showActions={!embedded}

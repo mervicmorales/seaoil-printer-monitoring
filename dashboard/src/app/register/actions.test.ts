@@ -18,12 +18,12 @@ test("registration reports duplicate identities without creating another request
   try {
     await pool.query("BEGIN");
     // Temporary tables shadow the real tables on this connection. Roll back every fixture.
-    for (const table of ["users", "user_registration_requests", "email_verification_tokens", "system_settings", "locations", "departments"]) {
+    for (const table of ["users", "user_registration_requests", "email_verification_tokens", "system_settings", "offices", "departments", "subunits", "cost_centers", "organization_mappings"]) {
       await pool.query(`CREATE TEMP TABLE ${table} ON COMMIT DROP AS SELECT * FROM public.${table} WITH NO DATA`);
     }
     await pool.query("INSERT INTO system_settings (registration_enabled) VALUES (true)");
-    await pool.query("INSERT INTO locations (id) VALUES (1)");
-    await pool.query("INSERT INTO departments (id) VALUES (1)");
+    await pool.query("INSERT INTO offices (id, name, status) VALUES (1, 'Test Office', 'active')");
+    await pool.query("INSERT INTO departments (id, name, status) VALUES (1, 'TEST', 'active')");
     const { registerAction } = await import("./actions");
 
     const cases = [
@@ -55,6 +55,25 @@ test("registration reports duplicate identities without creating another request
         assert.equal((await pool.query("SELECT count(*)::int AS count FROM email_verification_tokens")).rows[0].count, 0);
       });
     }
+    await t.test("forged department and subunit combination", async () => {
+      await pool.query("TRUNCATE pg_temp.users, pg_temp.user_registration_requests, pg_temp.email_verification_tokens, pg_temp.subunits");
+      await pool.query("INSERT INTO departments (id, name, status) VALUES (2, 'OTHER', 'active')");
+      await pool.query("INSERT INTO subunits (id, department_id, name, status) VALUES (10, 1, 'TEST - UNIT', 'active')");
+      const form = new FormData();
+      for (const [key, value] of Object.entries({
+        fullName: "Test Employee",
+        employeeId: "SPI00001",
+        email: "test@seaoil.com.ph",
+        password: "Test-only-password1!",
+        confirmPassword: "Test-only-password1!",
+        primaryLocationId: "1",
+        departmentId: "2",
+        subunitId: "10",
+      })) form.set(key, value);
+      const result = await registerAction({}, form);
+      assert.match(result.fieldErrors?.subunitId ?? "", /does not belong/);
+      assert.equal((await pool.query("SELECT count(*)::int AS count FROM user_registration_requests")).rows[0].count, 0);
+    });
   } finally {
     await pool.query("ROLLBACK");
     delete globalForDb.__arenaNextJsPostgresqlPool;

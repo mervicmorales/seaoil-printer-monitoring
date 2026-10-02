@@ -11,6 +11,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { hasAdminPrivileges } from "@/lib/roles";
+import { validateOrganizationSelection } from "@/lib/organization";
 import { archiveStoredUpload, privateUploadPath, storedUploadUrl } from "@/lib/private-uploads";
 
 function str(v: FormDataEntryValue | null) {
@@ -177,8 +178,10 @@ export async function createReportAction(_prev: RepairFormState, formData: FormD
     serialNumber: serialNumber!,
     printerId: printer?.id ?? null,
     requestedDate: requestedDate!,
-    departmentId: num(formData.get("departmentId")) ?? printer?.departmentId ?? null,
-    locationId: num(formData.get("locationId")) ?? printer?.locationId ?? null,
+    departmentId: printer?.departmentId ?? null,
+    locationId: printer?.locationId ?? null,
+    subunitId: printer?.subunitId ?? null,
+    costCenterId: printer?.costCenterId ?? null,
     problem: problem!,
     vendorId: num(formData.get("vendorId")) ?? printer?.vendorId ?? null,
     notes: str(formData.get("remarks")),
@@ -204,6 +207,17 @@ export async function updateTicketAction(_prev: RepairFormState, formData: FormD
     return { fieldErrors: { resolution: "Resolution is required when closing a ticket." } };
   }
   const dateClosed = status === "Closed" ? str(formData.get("dateClosed")) || new Date().toISOString().slice(0, 10) : null;
+  const organization = {
+    locationId: num(formData.get("locationId")),
+    departmentId: num(formData.get("departmentId")),
+    subunitId: num(formData.get("subunitId")),
+    costCenterId: num(formData.get("costCenterId")),
+  };
+  const organizationErrors = await validateOrganizationSelection(organization, {
+    requireSubunitWhenAvailable: Boolean(organization.departmentId),
+    requireActive: false,
+  });
+  if (Object.keys(organizationErrors).length) return { fieldErrors: organizationErrors };
   const [existing] = await db
     .select({ resolutionAttachmentUrl: repairTickets.resolutionAttachmentUrl })
     .from(repairTickets)
@@ -219,8 +233,7 @@ export async function updateTicketAction(_prev: RepairFormState, formData: FormD
     await db
       .update(repairTickets)
       .set({
-        departmentId: num(formData.get("departmentId")),
-        locationId: num(formData.get("locationId")),
+        ...organization,
         problem: str(formData.get("problem")) || "",
         vendorId: num(formData.get("vendorId")),
         resolution,

@@ -51,7 +51,11 @@ export async function PrintOpsPrintPageContent({
           printerScope ?? undefined,
           assignedPrinterIds,
           session.role === "support" || session.role === "employee"
-            ? locationScope?.departmentId
+            ? {
+                departmentId: locationScope?.departmentId,
+                subunitId: locationScope?.subunitId,
+                costCenterId: locationScope?.costCenterId,
+              }
             : undefined,
         ),
     getRecentPrintOpsCommands(
@@ -105,7 +109,7 @@ export async function PrintOpsPrintPageContent({
               <p className="font-semibold">No printer available</p>
               <p className="mt-0.5 text-xs leading-5 text-amber-700">
                 {locationScoped
-                  ? "No permitted printers at your assigned location and department are currently online."
+                  ? "No permitted printers at your assigned office and department are currently online."
                   : showAgentControls
                     ? "No assigned printers are currently online. Refresh an online office agent above."
                     : "No assigned printers are currently online."}
@@ -159,7 +163,7 @@ export async function PrintOpsPrintPageContent({
             <div className="hidden lg:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead className="bg-slate-50/95 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
-                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Location / Department</th><th className="px-4 py-3">Printer Model / Serial Number</th><th className="px-4 py-3">Date Requested</th><th className="px-4 py-3">Status</th></tr>
+                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Office / Department</th><th className="px-4 py-3">Printer Model / Serial Number</th><th className="px-4 py-3">Date Requested</th><th className="px-4 py-3">Status</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {commands.map((command) => {

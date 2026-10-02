@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import { ArrowLeft, Building2, KeyRound, LoaderCircle, Mail, MailCheck, Send, UserRound } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { gooeyToast } from "goey-toast";
-import SearchableSelect from "@/components/SearchableSelect";
+import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
 import { Input, PrimaryButton } from "@/components/ui";
 import { registerAction, resendVerificationAction, type RegistrationState } from "./actions";
 
@@ -86,7 +86,7 @@ function ResendSubmit({ remainingSeconds }: { remainingSeconds: number }) {
   );
 }
 
-export default function RegisterForm({ locations, departments }: { locations: { id: number; name: string }[]; departments: { id: number; name: string }[] }) {
+export default function RegisterForm({ organizationOptions }: { organizationOptions: OrganizationFieldOptions }) {
   const [state, action] = useActionState<RegistrationState, FormData>(submitRegistration, {});
 
   useEffect(() => {
@@ -103,25 +103,15 @@ export default function RegisterForm({ locations, departments }: { locations: { 
         <Input id="registration-email" label="SEAOIL Email" name="email" type="email" placeholder="name@seaoil.com.ph" autoComplete="email" required error={state.fieldErrors?.email} />
       </FormSection>
 
-      <FormSection icon={Building2} title="Work assignment" description="Select your primary office location and department.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SearchableSelect
-            label="Location"
-            name="primaryLocationId"
-            options={locations}
-            placeholder="Search location..."
-            required
-            error={state.fieldErrors?.primaryLocationId}
-          />
-          <SearchableSelect
-            label="Department"
-            name="departmentId"
-            options={departments}
-            placeholder="Search department..."
-            required
-            error={state.fieldErrors?.departmentId}
-          />
-        </div>
+      <FormSection icon={Building2} title="Work assignment" description="Select your office, department, subunit, and applicable cost center.">
+        <OrganizationFields
+          options={organizationOptions}
+          locationFieldName="primaryLocationId"
+          requiredLocation
+          requiredDepartment
+          requiredSubunit
+          errors={state.fieldErrors}
+        />
       </FormSection>
 
       <FormSection icon={KeyRound} title="Account security" description="Choose the password you will use after approval.">

@@ -12,7 +12,9 @@ import {
 import { db } from "@/db";
 import {
   departments,
+  costCenters,
   locations,
+  subunits,
   userRegistrationRequests,
   users,
 } from "@/db/schema";
@@ -47,11 +49,15 @@ export async function RegistrationDetailPage({
       request: userRegistrationRequests,
       location: locations.name,
       department: departments.name,
+      subunit: subunits.name,
+      costCenter: costCenters.code,
       reviewer: users.fullName,
     })
     .from(userRegistrationRequests)
     .leftJoin(locations, eq(locations.id, userRegistrationRequests.primaryLocationId))
     .leftJoin(departments, eq(departments.id, userRegistrationRequests.departmentId))
+    .leftJoin(subunits, eq(subunits.id, userRegistrationRequests.subunitId))
+    .leftJoin(costCenters, eq(costCenters.id, userRegistrationRequests.costCenterId))
     .leftJoin(users, eq(users.id, userRegistrationRequests.reviewedBy))
     .where(eq(userRegistrationRequests.id, registrationId))
     .limit(1);
@@ -68,8 +74,10 @@ export async function RegistrationDetailPage({
     ["Email Verified", request.emailVerifiedAt ? formatDateTime(request.emailVerifiedAt) : "No"],
   ];
   const assignmentDetails: Array<[string, DetailValue]> = [
-    ["Location", row.location],
+    ["Office", row.location],
     ["Department", row.department],
+    ["Subunit", row.subunit],
+    ["Cost Center", row.costCenter],
     ["Created", formatDateTime(request.createdAt)],
   ];
   const reviewDetails: Array<[string, DetailValue]> = [

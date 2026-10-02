@@ -17,7 +17,7 @@ const EMPLOYEE_CONTENT: AboutContent = {
   eyebrow: "Employee workspace",
   title: "SEAOIL PrintOps",
   description:
-    "A secure workspace for SEAOIL employees to print and scan using available workplace devices across company locations. It keeps everyday document services accessible wherever employees are assigned.",
+    "A secure workspace for SEAOIL employees to print and scan using available workplace devices across company offices. It keeps everyday document services accessible wherever employees are assigned.",
   features: [
     { icon: Printer, label: "Print using available workplace devices" },
     { icon: ScanLine, label: "Scan documents through connected scanners" },
@@ -29,7 +29,7 @@ const MANAGEMENT_CONTENT: AboutContent = {
   eyebrow: "Management workspace",
   title: "SEAOIL Printer Management System",
   description:
-    "A centralized workspace for authorized SEAOIL teams to manage printers and support employee print services across company locations. It brings device monitoring, toner, repairs, user access, printing, and scanning into one operational view.",
+    "A centralized workspace for authorized SEAOIL teams to manage printers and support employee print services across company offices. It brings device monitoring, toner, repairs, user access, printing, and scanning into one operational view.",
   features: [
     { icon: Printer, label: "Monitor printers and workplace device availability" },
     { icon: FileCheck2, label: "Coordinate toner, repairs, and service records" },

@@ -204,7 +204,7 @@ export default function RequestPrinterAccessDialog({
                         ? scope.agentNames.join(", ")
                         : "No online monitoring agent is currently available."}
                       {scope.mode === "assigned-location" && scope.agentNames.length > 0
-                        ? " · Network address hidden by the connection; using your assigned location."
+                        ? " · Network address hidden by the connection; using your assigned office."
                         : ""}
                     </p>
                   </div>
@@ -263,7 +263,7 @@ export default function RequestPrinterAccessDialog({
                               : <Badge color="blue">Requestable</Badge>}
                         </div>
                         <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-xs">
-                          <RequestDetail icon={MapPin} label="Location" value={printer.locationName} />
+                          <RequestDetail icon={MapPin} label="Office" value={printer.locationName} />
                           <RequestDetail icon={Printer} label="Department" value={printer.departmentName} />
                           <RequestDetail icon={Wifi} label="IP Address" value={printer.ipAddress} mono />
                           <RequestDetail icon={Wifi} label="Agent" value={printer.agentName} />

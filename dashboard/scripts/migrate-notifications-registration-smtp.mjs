@@ -11,7 +11,7 @@ alter table toner_inventory add column if not exists alert_state text not null d
 update toner_inventory set alert_state = case when stock <= 0 then 'empty' when stock <= critical_stock_threshold then 'critical' when stock <= low_stock_threshold then 'low' else 'normal' end;
 
 alter table users add column if not exists employee_id text;
-alter table users add column if not exists primary_location_id integer references locations(id) on delete set null;
+alter table users add column if not exists primary_office_id integer references offices(id) on delete set null;
 alter table users add column if not exists department_id integer references departments(id) on delete set null;
 alter table users add column if not exists account_status text not null default 'active';
 alter table users add column if not exists email_verified_at timestamptz;
@@ -50,7 +50,7 @@ create table if not exists user_registration_requests (
   email text not null,
   username text not null,
   password_hash text not null,
-  primary_location_id integer references locations(id),
+  primary_office_id integer references offices(id),
   department_id integer references departments(id),
   source text not null default 'self_registration',
   user_id integer references users(id) on delete set null,
@@ -64,7 +64,7 @@ create table if not exists user_registration_requests (
   deletion_reason text
 );
 alter table user_registration_requests alter column employee_id drop not null;
-alter table user_registration_requests alter column primary_location_id drop not null;
+alter table user_registration_requests alter column primary_office_id drop not null;
 alter table user_registration_requests alter column department_id drop not null;
 alter table user_registration_requests add column if not exists source text not null default 'self_registration';
 alter table user_registration_requests add column if not exists user_id integer references users(id) on delete set null;

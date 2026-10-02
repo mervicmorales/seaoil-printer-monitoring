@@ -9,6 +9,7 @@ import type { RepairFormState } from "./actions";
 import Link from "next/link";
 import { notifyActionPromise } from "@/lib/toast-notifications";
 import SearchInput from "@/components/SearchInput";
+import type { OrganizationFieldOptions } from "@/components/OrganizationFields";
 
 type Lookup = { id: number; name: string };
 
@@ -23,15 +24,13 @@ function SubmitButton() {
 
 export default function ReportIssueForm({
   action,
-  locations,
-  departments,
+  organizationOptions,
   vendors,
   today,
   showActions = true,
 }: {
   action: (prev: RepairFormState, formData: FormData) => Promise<RepairFormState>;
-  locations: Lookup[];
-  departments: Lookup[];
+  organizationOptions: OrganizationFieldOptions;
   vendors: Lookup[];
   today: string;
   showActions?: boolean;
@@ -39,6 +38,8 @@ export default function ReportIssueForm({
   const [state, formAction] = useActionState(action, {});
   const [locationId, setLocationId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  const [subunitId, setSubunitId] = useState("");
+  const [costCenterId, setCostCenterId] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [lookupMsg, setLookupMsg] = useState("");
   const [lookupState, setLookupState] = useState<"idle" | "loading" | "found" | "not-found" | "error">("idle");
@@ -48,6 +49,8 @@ export default function ReportIssueForm({
     lookupSequence.current += 1;
     setLocationId("");
     setDepartmentId("");
+    setSubunitId("");
+    setCostCenterId("");
     setVendorId("");
     setLookupMsg("");
     setLookupState("idle");
@@ -88,12 +91,16 @@ export default function ReportIssueForm({
       if (data.found) {
         setLocationId(data.locationId ? String(data.locationId) : "");
         setDepartmentId(data.departmentId ? String(data.departmentId) : "");
+        setSubunitId(data.subunitId ? String(data.subunitId) : "");
+        setCostCenterId(data.costCenterId ? String(data.costCenterId) : "");
         setVendorId(data.vendorId ? String(data.vendorId) : "");
-        setLookupMsg(`Printer found. Department, Location and Vendor auto-filled.`);
+        setLookupMsg("Printer found. Organizational assignment and vendor auto-filled.");
         setLookupState("found");
       } else {
         setLocationId("");
         setDepartmentId("");
+        setSubunitId("");
+        setCostCenterId("");
         setVendorId("");
         setLookupMsg("No printer serial found in the records.");
         setLookupState("not-found");
@@ -141,7 +148,7 @@ export default function ReportIssueForm({
         <input type="hidden" name="departmentId" value={departmentId} />
         <Input
           label="Department"
-          value={departments.find((item) => String(item.id) === departmentId)?.name ?? ""}
+          value={organizationOptions.departments.find((item) => String(item.id) === departmentId)?.name ?? ""}
           placeholder="Auto-filled from printer inventory"
           readOnly
           disabled
@@ -149,8 +156,26 @@ export default function ReportIssueForm({
         />
         <input type="hidden" name="locationId" value={locationId} />
         <Input
-          label="Location"
-          value={locations.find((item) => String(item.id) === locationId)?.name ?? ""}
+          label="Office"
+          value={organizationOptions.locations.find((item) => String(item.id) === locationId)?.name ?? ""}
+          placeholder="Auto-filled from printer inventory"
+          readOnly
+          disabled
+          className="bg-slate-100 text-slate-600"
+        />
+        <input type="hidden" name="subunitId" value={subunitId} />
+        <Input
+          label="Subunit"
+          value={organizationOptions.subunits.find((item) => String(item.id) === subunitId)?.name ?? ""}
+          placeholder="Auto-filled from printer inventory"
+          readOnly
+          disabled
+          className="bg-slate-100 text-slate-600"
+        />
+        <input type="hidden" name="costCenterId" value={costCenterId} />
+        <Input
+          label="Cost Center"
+          value={organizationOptions.costCenters.find((item) => String(item.id) === costCenterId)?.code ?? ""}
           placeholder="Auto-filled from printer inventory"
           readOnly
           disabled

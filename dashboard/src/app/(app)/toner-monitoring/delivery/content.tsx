@@ -1,6 +1,7 @@
 import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import { PackageCheck } from "lucide";
-import { getDepartments, getItsNames, getLocations, getVisibleTonerTypes } from "@/lib/lookups";
+import { getItsNames, getVisibleTonerTypes } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import { createDeliveryAction } from "../actions";
 import TonerDeliveryRequestForm from "../TonerDeliveryRequestForm";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -12,10 +13,9 @@ export async function DeliveryTonerPage({
   embedded?: boolean;
 }) {
   await requireModuleFullAccess("toner_monitoring");
-  const [tonerTypes, locations, departments, itsNames] = await Promise.all([
+  const [tonerTypes, organizationOptions, itsNames] = await Promise.all([
     getVisibleTonerTypes(),
-    getLocations(),
-    getDepartments(),
+    getOrganizationOptions(),
     getItsNames(),
   ]);
 
@@ -40,8 +40,7 @@ export async function DeliveryTonerPage({
           mode="delivery"
           action={createDeliveryAction}
           tonerTypes={tonerTypes}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           itsNames={itsNames}
           today={todayISO()}
           showActions={!embedded}

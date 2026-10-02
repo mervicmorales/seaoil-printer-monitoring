@@ -1,6 +1,7 @@
 import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import { Send } from "lucide";
-import { getDepartments, getLocations, getVendors } from "@/lib/lookups";
+import { getVendors } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import ReportIssueForm from "../ReportIssueForm";
 import { createReportAction } from "../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -8,7 +9,7 @@ import { todayISO } from "@/lib/format";
 
 export async function ReportIssuePage({ embedded = false }: { embedded?: boolean }) {
   await requireModuleFullAccess("repair");
-  const [locations, departments, vendors] = await Promise.all([getLocations(), getDepartments(), getVendors()]);
+  const [organizationOptions, vendors] = await Promise.all([getOrganizationOptions(), getVendors()]);
 
   return (
     <div>
@@ -29,8 +30,7 @@ export async function ReportIssuePage({ embedded = false }: { embedded?: boolean
       <Card className={embedded ? "!border-0 p-0" : "p-5 sm:p-6"}>
         <ReportIssueForm
           action={createReportAction}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           vendors={vendors}
           today={todayISO()}
           showActions={!embedded}

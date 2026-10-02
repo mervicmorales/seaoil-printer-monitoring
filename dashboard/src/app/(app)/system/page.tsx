@@ -1,202 +1,104 @@
-import { db } from "@/db";
-import { locations, departments, itsNames, tonerTypes, tonerInventory, vendors } from "@/db/schema";
-import { asc, eq } from "drizzle-orm";
-import {
-  BellRing,
-  Building2,
-  Droplets,
-  Mail,
-  MapPin,
-  Truck,
-  UserRound,
-} from "lucide";
-import { PageHeader, Card } from "@/components/ui";
-import SuccessBanner from "@/components/SuccessBanner";
-import Tabs from "@/components/Tabs";
-import LookupTable from "@/components/LookupTable";
-import VendorManager from "./VendorManager";
-import TonerTypeManager from "./TonerTypeManager";
-import ReminderSettingsForm from "./ReminderSettingsForm";
-import SmtpSettingsForm from "./SmtpSettingsForm";
-import { getSystemSettings, requireModuleFullAccess } from "@/lib/server-utils";
-import { hasAdminPrivileges } from "@/lib/roles";
-import {
-  addLocationAction,
-  updateLocationAction,
-  deleteLocationAction,
-  addDepartmentAction,
-  updateDepartmentAction,
-  deleteDepartmentAction,
-  addItsNameAction,
-  deleteItsNameAction,
-  addTonerTypeAction,
-  updateTonerTypeAction,
-  deleteTonerTypeAction,
-  updateThresholdAction,
-  updateAlertCardVisibilityAction,
-  addVendorAction,
-  updateVendorAction,
-  deleteVendorAction,
-  updateSettingsAction,
-  updateSmtpSettingsAction,
-} from "./actions";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Building2, ChevronRight, Droplets, Mail, Truck, UserRound } from "lucide";
+import { MorphIcon } from "morphicons/react";
+import { PageHeader } from "@/components/ui";
+import { requireModuleFullAccess } from "@/lib/server-utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function SystemPage({ searchParams }: { searchParams: Promise<{ tab?: string; success?: string; error?: string }> }) {
-  const session = await requireModuleFullAccess("system");
-  const sp = await searchParams;
+const legacyRoutes: Record<string, string> = {
+  email: "/system/notifications?tab=email",
+  reminders: "/system/notifications?tab=reminders",
+  locations: "/system/organization?tab=offices",
+  offices: "/system/organization?tab=offices",
+  departments: "/system/organization?tab=departments",
+  subunits: "/system/organization?tab=subunits",
+  "cost-centers": "/system/organization?tab=cost-centers",
+  "organization-import": "/system/organization?tab=import",
+  "organization-history": "/system/organization?tab=history",
+  toner: "/system/toner-types",
+  its: "/system/its-names",
+  vendors: "/system/vendors",
+};
 
-  const [allLocations, allDepartments, allItsNames, tonerRows, allVendors, settings] = await Promise.all([
-    db.select().from(locations).orderBy(asc(locations.name)),
-    db.select().from(departments).orderBy(asc(departments.name)),
-    db.select().from(itsNames).orderBy(asc(itsNames.name)),
-    db
-      .select({
-        id: tonerTypes.id,
-        name: tonerTypes.name,
-        unitCost: tonerTypes.unitCost,
-        stock: tonerInventory.stock,
-        threshold: tonerInventory.lowStockThreshold,
-        criticalThreshold: tonerInventory.criticalStockThreshold,
-        showAlertCard: tonerTypes.showAlertCard,
-      })
-      .from(tonerTypes)
-      .leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id))
-      .orderBy(asc(tonerTypes.name)),
-    db.select().from(vendors).orderBy(asc(vendors.name)),
-    getSystemSettings(),
-  ]);
-  const publicSmtpSettings = {
-    smtpEnabled: settings.smtpEnabled,
-    smtpHost: settings.smtpHost,
-    smtpPort: settings.smtpPort,
-    smtpSecurity: settings.smtpSecurity,
-    smtpUsername: settings.smtpUsername,
-    smtpFrom: settings.smtpFrom,
-    smtpFromName: settings.smtpFromName,
-    smtpTestRecipient: settings.smtpTestRecipient,
-    smtpLastTestedAt: settings.smtpLastTestedAt,
-    passwordConfigured: Boolean(settings.smtpPasswordEncrypted),
-  };
+const sections = [
+  {
+    href: "/system/notifications",
+    title: "Email and notifications",
+    description: "SMTP delivery, toner reminders, and system alert preferences.",
+    icon: Mail,
+    meta: "Email / SMTP · Toner reminders",
+  },
+  {
+    href: "/system/organization",
+    title: "Organization data",
+    description: "Offices, departments, subunits, cost centers, and Excel imports.",
+    icon: Building2,
+    meta: "Reference data · Import history",
+  },
+  {
+    href: "/system/toner-types",
+    title: "Toner types",
+    description: "Inventory labels, unit costs, thresholds, and alert visibility.",
+    icon: Droplets,
+    meta: "Inventory configuration",
+  },
+  {
+    href: "/system/its-names",
+    title: "ITS names",
+    description: "Support names available in printer and service records.",
+    icon: UserRound,
+    meta: "Support reference data",
+  },
+  {
+    href: "/system/vendors",
+    title: "Vendors and suppliers",
+    description: "Service-provider contacts and account-management records.",
+    icon: Truck,
+    meta: "Supplier directory",
+  },
+];
+
+export default async function SystemPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; success?: string; error?: string }>;
+}) {
+  await requireModuleFullAccess("system");
+  const sp = await searchParams;
+  if (sp.tab && legacyRoutes[sp.tab]) {
+    const params = new URLSearchParams();
+    if (sp.success) params.set("success", sp.success);
+    if (sp.error) params.set("error", sp.error);
+    const suffix = params.size ? `${legacyRoutes[sp.tab].includes("?") ? "&" : "?"}${params}` : "";
+    redirect(`${legacyRoutes[sp.tab]}${suffix}`);
+  }
 
   return (
-    <div className="flex h-[calc(100dvh-7rem)] min-h-[36rem] flex-col">
-      <PageHeader title="System Settings" subtitle="Manage reference data, notifications, integrations, and monitoring preferences." />
-      <SuccessBanner
-        message={sp.success}
-        errorMessage={sp.error}
-        showInline={false}
-      />
-
-      <Tabs
-        fillHeight
-        defaultKey={sp.tab}
-        tabs={[
-          {
-            key: "email",
-            label: "Email / SMTP",
-            icon: Mail,
-            content: <Card className="h-full overflow-auto p-5 sm:p-6">{hasAdminPrivileges(session.role) ? <SmtpSettingsForm action={updateSmtpSettingsAction} settings={publicSmtpSettings} /> : <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">Administrator access is required.</p>}</Card>,
-          },
-          {
-            key: "locations",
-            label: "Locations",
-            icon: MapPin,
-            content: (
-              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
-                <LookupTable
-                  items={allLocations}
-                  addAction={addLocationAction}
-                  updateAction={updateLocationAction}
-                  deleteAction={deleteLocationAction}
-                  placeholder="e.g. Head Office"
-                  readOnly={!hasAdminPrivileges(session.role)}
-                  fillHeight
-                  title="Office locations"
-                  description="Locations used for printer, user, and monitoring assignments."
-                />
-              </Card>
-            ),
-          },
-          {
-            key: "departments",
-            label: "Departments",
-            icon: Building2,
-            content: (
-              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
-                <LookupTable
-                  items={allDepartments}
-                  addAction={addDepartmentAction}
-                  updateAction={updateDepartmentAction}
-                  deleteAction={deleteDepartmentAction}
-                  placeholder="e.g. IT Services"
-                  readOnly={!hasAdminPrivileges(session.role)}
-                  fillHeight
-                  title="Departments"
-                  description="Departments used to organize users and printer assignments."
-                />
-              </Card>
-            ),
-          },
-          {
-            key: "toner",
-            label: "Toner Types",
-            icon: Droplets,
-            content: (
-              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
-                <TonerTypeManager
-                  items={tonerRows.map((t) => ({
-                    id: t.id,
-                    name: t.name,
-                    unitCost: Number(t.unitCost ?? 0),
-                    stock: t.stock ?? 0,
-                    threshold: t.threshold ?? 5,
-                    criticalThreshold: t.criticalThreshold ?? 2,
-                    showAlertCard: t.showAlertCard,
-                  }))}
-                  addAction={addTonerTypeAction}
-                  updateAction={updateTonerTypeAction}
-                  deleteAction={deleteTonerTypeAction}
-                  thresholdAction={updateThresholdAction}
-                  visibilityAction={updateAlertCardVisibilityAction}
-                  isAdmin={hasAdminPrivileges(session.role)}
-                />
-              </Card>
-            ),
-          },
-          {
-            key: "vendors",
-            label: "Vendor / Supplier",
-            icon: Truck,
-            content: (
-              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
-                <VendorManager vendors={allVendors} addAction={addVendorAction} updateAction={updateVendorAction} deleteAction={deleteVendorAction} readOnly={!hasAdminPrivileges(session.role)} />
-              </Card>
-            ),
-          },
-          {
-            key: "its",
-            label: "ITS Names",
-            icon: UserRound,
-            content: (
-              <Card className="h-full min-h-0 overflow-hidden p-5 sm:p-6">
-                <LookupTable items={allItsNames} addAction={addItsNameAction} deleteAction={deleteItsNameAction} editable={false} readOnly={!hasAdminPrivileges(session.role)} placeholder="e.g. Patrick" fillHeight title="ITS names" description="Support names available in printer and service records." />
-              </Card>
-            ),
-          },
-          {
-            key: "reminders",
-            label: "Toner Reminder & Email",
-            icon: BellRing,
-            content: (
-              <Card className="h-full overflow-auto p-5 sm:p-6">
-                <ReminderSettingsForm action={updateSettingsAction} settings={settings} readOnly={!hasAdminPrivileges(session.role)} />
-              </Card>
-            ),
-          },
-        ]}
-      />
+    <div className="space-y-5">
+      <PageHeader title="System Settings" parentTitle="Administration" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {sections.map((section) => (
+          <Link
+            key={section.href}
+            href={section.href}
+            className="group flex min-h-40 flex-col justify-between rounded-lg border border-[#dfe6ee] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#9bb9d2] hover:shadow-[0_14px_32px_rgba(15,23,42,0.08)] focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171]">
+                <MorphIcon icon={section.icon} size={20} strokeWidth={2} reducedMotion="user" />
+              </span>
+              <MorphIcon icon={ChevronRight} size={18} strokeWidth={2} reducedMotion="user" className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#014171]" />
+            </div>
+            <div className="mt-5">
+              <h2 className="text-base font-bold text-slate-800">{section.title}</h2>
+              <p className="mt-1 text-sm leading-5 text-slate-500">{section.description}</p>
+              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#014171]">{section.meta}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

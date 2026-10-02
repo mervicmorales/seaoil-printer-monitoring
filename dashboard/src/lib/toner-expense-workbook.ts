@@ -29,7 +29,7 @@ export async function buildTonerExpenseWorkbook(
   addSummarySheet(workbook, report, actor, generatedAt);
   addDetailsSheet(workbook, report);
   addDepartmentSheet(workbook, report);
-  addLocationSheet(workbook, report);
+  addOfficeSheet(workbook, report);
   addExportInformationSheet(workbook, report, actor, generatedAt);
 
   return workbook.xlsx.writeBuffer();
@@ -57,7 +57,9 @@ function addSummarySheet(
   const filterRows = [
     ["Period", report.filterLabels.period],
     ["Department", report.filterLabels.department],
-    ["Location", report.filterLabels.location],
+    ["Subunit", report.filterLabels.subunit],
+    ["Cost center", report.filterLabels.costCenter],
+    ["Office", report.filterLabels.location],
     ["Toner type", report.filterLabels.tonerType],
     ["ITS name", report.filterLabels.itsName],
   ];
@@ -115,7 +117,9 @@ function addDetailsSheet(workbook: ExcelJS.Workbook, report: TonerExpenseExportR
     { header: "Date", key: "date", width: 13 },
     { header: "Ticket Reference", key: "ticketReference", width: 20 },
     { header: "Department", key: "department", width: 27 },
-    { header: "Location", key: "location", width: 27 },
+    { header: "Subunit", key: "subunit", width: 30 },
+    { header: "Cost Center", key: "costCenter", width: 22 },
+    { header: "Office", key: "location", width: 27 },
     { header: "Toner Type", key: "tonerType", width: 24 },
     { header: "Quantity", key: "quantity", width: 12 },
     { header: "Unit Cost (PHP)", key: "unitCost", width: 18 },
@@ -133,6 +137,8 @@ function addDetailsSheet(workbook: ExcelJS.Workbook, report: TonerExpenseExportR
       date: expense.date,
       ticketReference: expense.ticketReference,
       department: expense.department,
+      subunit: expense.subunit,
+      costCenter: expense.costCenter,
       location: expense.location,
       tonerType: expense.tonerType,
       quantity: expense.quantity,
@@ -142,16 +148,16 @@ function addDetailsSheet(workbook: ExcelJS.Workbook, report: TonerExpenseExportR
       remarks: expense.remarks,
       recordedAt: expense.recordedAt,
     });
-    row.getCell(9).numFmt = CURRENCY_FORMAT;
-    row.getCell(10).numFmt = CURRENCY_FORMAT;
-    row.getCell(13).numFmt = "dd mmm yyyy hh:mm";
+    row.getCell(11).numFmt = CURRENCY_FORMAT;
+    row.getCell(12).numFmt = CURRENCY_FORMAT;
+    row.getCell(15).numFmt = "dd mmm yyyy hh:mm";
     styleDataRow(row);
   }
 
-  sheet.autoFilter = { from: "A1", to: "M1" };
-  sheet.getColumn(8).alignment = { horizontal: "right" };
-  sheet.getColumn(9).alignment = { horizontal: "right" };
+  sheet.autoFilter = { from: "A1", to: "O1" };
   sheet.getColumn(10).alignment = { horizontal: "right" };
+  sheet.getColumn(11).alignment = { horizontal: "right" };
+  sheet.getColumn(12).alignment = { horizontal: "right" };
   sheet.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
   sheet.headerFooter.oddFooter = "SEAOIL PrintOps toner expense details | Page &P of &N";
 }
@@ -181,13 +187,13 @@ function addDepartmentSheet(workbook: ExcelJS.Workbook, report: TonerExpenseExpo
   sheet.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 }
 
-function addLocationSheet(workbook: ExcelJS.Workbook, report: TonerExpenseExportReport) {
-  const sheet = workbook.addWorksheet("Location Breakdown", {
+function addOfficeSheet(workbook: ExcelJS.Workbook, report: TonerExpenseExportReport) {
+  const sheet = workbook.addWorksheet("Office Breakdown", {
     views: [{ state: "frozen", ySplit: 1, showGridLines: false }],
     properties: { tabColor: { argb: "0F766E" } },
   });
   sheet.columns = [
-    { header: "Location", key: "name", width: 36 },
+    { header: "Office", key: "name", width: 36 },
     { header: "Request Records", key: "requestLines", width: 18 },
     { header: "Units", key: "units", width: 13 },
     { header: "Expense (PHP)", key: "expense", width: 19 },
@@ -223,7 +229,9 @@ function addExportInformationSheet(
     ["Maximum export size", "50,000 request records"],
     ["Period", report.filterLabels.period],
     ["Department", report.filterLabels.department],
-    ["Location", report.filterLabels.location],
+    ["Subunit", report.filterLabels.subunit],
+    ["Cost center", report.filterLabels.costCenter],
+    ["Office", report.filterLabels.location],
     ["Toner type", report.filterLabels.tonerType],
     ["ITS name", report.filterLabels.itsName],
     ["Calculation", "Requested quantity × current toner type unit cost"],

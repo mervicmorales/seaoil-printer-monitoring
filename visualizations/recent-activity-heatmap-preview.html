@@ -1,0 +1,55 @@
+<div id="recent-activity-heatmap-preview" class="viz-dotted-background">
+  <style>
+    #recent-activity-heatmap-preview {
+      --ra-bg: light-dark(#fff, #111827); --ra-surface: light-dark(#f8fafc, #172033);
+      --ra-text: light-dark(#1e293b, #e5edf7); --ra-muted: light-dark(#64748b, #9fb0c6);
+      --ra-border: light-dark(#dbe4ef, #2b3a50); --ra-accent: light-dark(#014171, #38bdf8);
+      --ra-purple: light-dark(#7c3aed, #a78bfa); display:flex; justify-content:center; padding:20px; color:var(--ra-text);
+    }
+    #recent-activity-heatmap-preview * { box-sizing:border-box; }
+    #recent-activity-heatmap-preview .panel { width:min(100%,820px); overflow:hidden; border:1px solid var(--ra-border); border-top:3px solid var(--ra-purple); border-radius:12px; background:var(--ra-bg); box-shadow:0 2px 8px light-dark(rgb(15 23 42 / 8%),rgb(0 0 0 / 24%)); font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+    #recent-activity-heatmap-preview .header,#recent-activity-heatmap-preview .heatmap,#recent-activity-heatmap-preview .row { padding:14px 18px; }
+    #recent-activity-heatmap-preview .header { display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--ra-border); }
+    #recent-activity-heatmap-preview .eyebrow { margin:0 0 3px; color:var(--ra-accent); font-size:11px; font-weight:500; letter-spacing:.13em; text-transform:uppercase; }
+    #recent-activity-heatmap-preview h2 { margin:0; font-size:17px; font-weight:500; }
+    #recent-activity-heatmap-preview .subtitle,#recent-activity-heatmap-preview .date,#recent-activity-heatmap-preview .detail,#recent-activity-heatmap-preview .legend { color:var(--ra-muted); font-size:12px; }
+    #recent-activity-heatmap-preview .subtitle { margin:3px 0 0; }
+    #recent-activity-heatmap-preview .sample { flex:none; border-radius:999px; background:var(--ra-surface); padding:5px 9px; color:var(--ra-muted); font-size:11px; font-weight:500; }
+    #recent-activity-heatmap-preview .heatmap { border-bottom:1px solid var(--ra-border); background:var(--ra-surface); }
+    #recent-activity-heatmap-preview .heatmap-title { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    #recent-activity-heatmap-preview .heatmap-title strong { font-size:13px; font-weight:500; }
+    #recent-activity-heatmap-preview .grid { display:grid; grid-template-columns:70px repeat(14,minmax(12px,1fr)); gap:5px; align-items:center; }
+    #recent-activity-heatmap-preview .label { overflow:hidden; color:var(--ra-muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+    #recent-activity-heatmap-preview .day { min-width:0; text-align:center; color:var(--ra-muted); font-size:10px; }
+    #recent-activity-heatmap-preview .cell { aspect-ratio:1; min-height:12px; border-radius:3px; background:color-mix(in srgb,var(--ra-accent) calc(var(--level) * 22%),var(--ra-border)); }
+    #recent-activity-heatmap-preview .legend { display:flex; align-items:center; justify-content:flex-end; gap:5px; margin-top:10px; }
+    #recent-activity-heatmap-preview .legend .cell { width:13px; min-height:13px; }
+    #recent-activity-heatmap-preview .list-heading { padding:10px 18px 8px; color:var(--ra-muted); font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; }
+    #recent-activity-heatmap-preview .row { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:11px; align-items:center; border-top:1px solid var(--ra-border); }
+    #recent-activity-heatmap-preview .icon { display:grid; width:32px; height:32px; place-items:center; border-radius:8px; background:color-mix(in srgb,var(--ra-accent) 10%,var(--ra-bg)); color:var(--ra-accent); }
+    #recent-activity-heatmap-preview .title { margin:0; font-size:13px; font-weight:500; }
+    #recent-activity-heatmap-preview .detail { margin:3px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #recent-activity-heatmap-preview .date { white-space:nowrap; }
+    @media(max-width:560px){#recent-activity-heatmap-preview{padding:12px}#recent-activity-heatmap-preview .grid{grid-template-columns:58px repeat(7,minmax(15px,1fr))}#recent-activity-heatmap-preview .grid>*:nth-child(n+9){display:none}#recent-activity-heatmap-preview .row{grid-template-columns:32px minmax(0,1fr)}#recent-activity-heatmap-preview .date{display:none}}
+  </style>
+  <section class="panel" aria-labelledby="ra-preview-title">
+    <header class="header"><div><p class="eyebrow">System timeline</p><h2 id="ra-preview-title">Recent activity</h2><p class="subtitle">Activity density and the latest permission-aware updates</p></div><span class="sample">Sample preview</span></header>
+    <div class="heatmap">
+      <div class="heatmap-title"><strong>Last 14 days</strong><span class="date">Oct 1, 2026</span></div>
+      <div class="grid" role="img" aria-label="Fourteen-day activity heatmap grouped by activity type">
+        <span></span><span class="day">18</span><span class="day">19</span><span class="day">20</span><span class="day">21</span><span class="day">22</span><span class="day">23</span><span class="day">24</span><span class="day">25</span><span class="day">26</span><span class="day">27</span><span class="day">28</span><span class="day">29</span><span class="day">30</span><span class="day">1</span>
+        <span class="label">Toner</span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:4"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:4"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:4"></span>
+        <span class="label">Repairs</span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span>
+        <span class="label">Alerts</span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:4"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:4"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:4"></span><span class="cell" style="--level:3"></span>
+        <span class="label">Accounts</span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span>
+        <span class="label">Printers</span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:2"></span>
+        <span class="label">Agents</span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span>
+      </div>
+      <div class="legend"><span>Less</span><span class="cell" style="--level:0"></span><span class="cell" style="--level:1"></span><span class="cell" style="--level:2"></span><span class="cell" style="--level:3"></span><span class="cell" style="--level:4"></span><span>More</span></div>
+    </div>
+    <div class="list-heading">Latest updates</div>
+    <div class="row"><span class="icon"><i data-lucide="bell-ring" aria-hidden="true"></i></span><div><p class="title">Printer alert detected</p><p class="detail">Canon MF240 · WQD44159 · Taipan Office</p></div><time class="date">4m ago</time></div>
+    <div class="row"><span class="icon"><i data-lucide="droplets" aria-hidden="true"></i></span><div><p class="title">Toner requested</p><p class="detail">2 × CF283X · ACCT · Taipan Office</p></div><time class="date">18m ago</time></div>
+    <div class="row"><span class="icon"><i data-lucide="wrench" aria-hidden="true"></i></span><div><p class="title">Repair ticket updated</p><p class="detail">PR-2026-0142 · Under repair</p></div><time class="date">1h ago</time></div>
+  </section>
+</div>

@@ -2,12 +2,11 @@ import { Plus } from "lucide";
 import { PageHeader, Card, PrimaryButton, IconGlyph } from "@/components/ui";
 import {
   getContracts,
-  getDepartments,
-  getLocations,
   getProvisionedMonitoringAgents,
   getTonerTypes,
   getVendors,
 } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import PrinterForm from "../PrinterForm";
 import { createPrinterAction } from "../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -34,10 +33,9 @@ export async function NewPrinterPage({
   const returnTo = normalizePrinterReturnTo(
     typeof params.returnTo === "string" ? params.returnTo : null,
   );
-  const [tonerTypes, locations, departments, vendors, contracts, monitoringAgents] = await Promise.all([
+  const [tonerTypes, organizationOptions, vendors, contracts, monitoringAgents] = await Promise.all([
     getTonerTypes(),
-    getLocations(),
-    getDepartments(),
+    getOrganizationOptions(),
     getVendors(),
     getContracts(),
     getProvisionedMonitoringAgents(),
@@ -76,8 +74,11 @@ export async function NewPrinterPage({
             serialNumber: value("serial", 255),
             model: value("model", 255) || null,
             monthlyRate: null,
+            floor: null,
             locationId: null,
             departmentId: null,
+            subunitId: null,
+            costCenterId: null,
             vendorId: null,
             contractId: null,
             assignedUser: null,
@@ -86,8 +87,7 @@ export async function NewPrinterPage({
             monitoringAgentId,
           }}
           tonerTypes={tonerTypes}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           vendors={vendors}
           contracts={contracts}
           monitoringAgents={monitoringAgents}

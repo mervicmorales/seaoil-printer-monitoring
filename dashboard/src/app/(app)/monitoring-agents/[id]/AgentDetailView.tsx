@@ -83,11 +83,11 @@ export default function AgentDetailView({
       </div>
 
       <div className={`grid ${embedded ? "min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3" : "gap-5 xl:grid-cols-2"}`}>
-        <DetailSection compact={embedded} icon={Server} title="Agent identity" description="Registered identity and the office locations served by this agent.">
+        <DetailSection compact={embedded} icon={Server} title="Agent identity" description="Registered identity and the offices served by this agent.">
           <DetailField label="Agent name" value={agent.name} />
           <DetailField label="Agent key" value={agent.agentKey} mono />
-          <DetailField label="Primary location" value={agent.location || "Not assigned"} />
-          <DetailField label="Assigned locations" value={agent.assignedLocations.length ? agent.assignedLocations.join(", ") : "None"} wide />
+          <DetailField label="Primary office" value={agent.location || "Not assigned"} />
+          <DetailField label="Assigned offices" value={agent.assignedLocations.length ? agent.assignedLocations.join(", ") : "None"} wide />
         </DetailSection>
 
         <DetailSection compact={embedded} icon={Cpu} title="Runtime information" description="Non-sensitive application and host details reported by the agent.">

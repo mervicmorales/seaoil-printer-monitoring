@@ -13,7 +13,7 @@
     "db:docker:logs": "docker compose --env-file .env.docker logs -f db",
     "db:push:docker": "drizzle-kit push --config=drizzle.docker.config.ts",
     "db:seed:docker": "node --env-file=.env.docker scripts/seed.mjs",
-    "db:setup:docker": "npm run db:docker:up && npm run db:push:docker && npm run db:seed:docker",
+    "db:setup:docker": "npm run db:docker:up && npm run db:migrate:office-naming:docker && npm run db:push:docker && npm run db:seed:docker",
     "monitoring:agent": "node scripts/monitoring-agent-credentials.mjs",
     "monitoring:agent:create": "node scripts/monitoring-agent-credentials.mjs create",
     "monitoring:agent:rotate": "node scripts/monitoring-agent-credentials.mjs rotate",
@@ -31,6 +31,8 @@
     "db:migrate:remove-brand:docker": "node --env-file=.env.docker scripts/remove-printer-brand.mjs",
     "db:migrate:mac": "node --env-file=.env.local scripts/add-printer-mac-address.mjs",
     "db:migrate:mac:docker": "node --env-file=.env.docker scripts/add-printer-mac-address.mjs",
+    "db:migrate:printer-floor": "node --env-file=.env.local scripts/add-printer-floor.mjs",
+    "db:migrate:printer-floor:docker": "node --env-file=.env.docker scripts/add-printer-floor.mjs",
     "db:migrate:printer-permissions": "node --env-file=.env.local scripts/add-user-printer-permissions.mjs",
     "db:migrate:printer-permissions:docker": "node --env-file=.env.docker scripts/add-user-printer-permissions.mjs",
     "db:migrate:printer-access-requests": "node --env-file=.env.local scripts/add-printer-access-requests.mjs",
@@ -38,7 +40,11 @@
     "db:migrate:agent-management": "node --env-file=.env.local scripts/migrate-agent-management.mjs",
     "db:migrate:agent-management:docker": "node --env-file=.env.docker scripts/migrate-agent-management.mjs",
     "db:migrate:toner-unit-cost": "node --env-file=.env.local scripts/add-toner-unit-cost.mjs",
-    "db:migrate:toner-unit-cost:docker": "node --env-file=.env.docker scripts/add-toner-unit-cost.mjs"
+    "db:migrate:toner-unit-cost:docker": "node --env-file=.env.docker scripts/add-toner-unit-cost.mjs",
+    "db:migrate:organization": "node --env-file=.env.local scripts/migrate-organization-data.mjs",
+    "db:migrate:organization:docker": "node --env-file=.env.docker scripts/migrate-organization-data.mjs",
+    "db:migrate:office-naming": "node --env-file=.env.local scripts/migrate-office-naming.mjs",
+    "db:migrate:office-naming:docker": "node --env-file=.env.docker scripts/migrate-office-naming.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -59,6 +65,7 @@
     "pg": "8.20.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "react-grid-layout": "^2.2.4",
     "zod": "^4.4.3"
   },
   "overrides": {

@@ -196,6 +196,8 @@ export async function approveRegistrationAction(formData: FormData) {
           passwordHash: request.passwordHash,
           primaryLocationId: request.primaryLocationId,
           departmentId: request.departmentId,
+          subunitId: request.subunitId,
+          costCenterId: request.costCenterId,
           role: "employee",
           accountStatus: "active",
           emailVerifiedAt: request.emailVerifiedAt,

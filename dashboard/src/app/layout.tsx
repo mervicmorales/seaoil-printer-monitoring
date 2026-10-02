@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import "goey-toast/styles.css";
 import "feral-blob/blob.css";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 import ToastProvider from "@/components/ToastProvider";
 
 export const metadata: Metadata = {

@@ -9,6 +9,8 @@ export type TonerExpenseExportFilters = {
   dateFrom: string;
   dateTo: string;
   department: TonerExpenseLookupFilter;
+  subunit: TonerExpenseLookupFilter;
+  costCenter: TonerExpenseLookupFilter;
   location: TonerExpenseLookupFilter;
   tonerType: TonerExpenseLookupFilter;
   itsName: TonerExpenseLookupFilter;
@@ -17,6 +19,8 @@ export type TonerExpenseExportFilters = {
 export type TonerExpenseExportFilterLabels = {
   period: string;
   department: string;
+  subunit: string;
+  costCenter: string;
   location: string;
   tonerType: string;
   itsName: string;
@@ -28,6 +32,8 @@ export type TonerExpenseExportRow = {
   date: string;
   ticketReference: string;
   department: string;
+  subunit: string;
+  costCenter: string;
   location: string;
   tonerType: string;
   quantity: number;
@@ -74,7 +80,9 @@ export function parseTonerExpenseExportFilters(
     dateFrom,
     dateTo,
     department: parseLookup(params.get("department"), "Department", errors),
-    location: parseLookup(params.get("location"), "Location", errors),
+    subunit: parseLookup(params.get("subunit"), "Subunit", errors),
+    costCenter: parseLookup(params.get("costCenter"), "Cost center", errors),
+    location: parseLookup(params.get("location"), "Office", errors),
     tonerType: parseLookup(params.get("tonerType"), "Toner type", errors),
     itsName: parseLookup(params.get("itsName"), "ITS name", errors),
   } satisfies TonerExpenseExportFilters;
@@ -106,7 +114,9 @@ export function buildTonerExpenseCsv(rows: readonly TonerExpenseExportRow[]) {
     "Date",
     "Ticket Reference",
     "Department",
-    "Location",
+    "Subunit",
+    "Cost Center",
+    "Office",
     "Toner Type",
     "Quantity",
     "Unit Cost (PHP)",
@@ -121,6 +131,8 @@ export function buildTonerExpenseCsv(rows: readonly TonerExpenseExportRow[]) {
     row.date,
     row.ticketReference,
     row.department,
+    row.subunit,
+    row.costCenter,
     row.location,
     row.tonerType,
     row.quantity,

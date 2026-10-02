@@ -31,14 +31,14 @@ try {
     select employee.id, assignment.agent_id, printer.id
     from users employee
     inner join printers printer
-      on printer.location_id = employee.primary_location_id
+      on printer.office_id = employee.primary_office_id
       and printer.department_id = employee.department_id
       and printer.status = 'Active'
     inner join printer_monitoring_assignments assignment
       on assignment.printer_id = printer.id
     inner join monitoring_agents agent
       on agent.id = assignment.agent_id
-      and agent.location_id = employee.primary_location_id
+      and agent.office_id = employee.primary_office_id
     where employee.role = 'employee'
     on conflict (user_id, printer_id) do nothing
   `);

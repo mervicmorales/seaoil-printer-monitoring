@@ -12,6 +12,8 @@ test("Excel export includes editable detail and management sheets", async () => 
       dateFrom: "2026-01-01",
       dateTo: "2026-09-17",
       department: null,
+      subunit: null,
+      costCenter: null,
       location: null,
       tonerType: null,
       itsName: null,
@@ -19,7 +21,9 @@ test("Excel export includes editable detail and management sheets", async () => 
     filterLabels: {
       period: "01 Jan 2026 to 17 Sep 2026",
       department: "All departments",
-      location: "All locations",
+      subunit: "All subunits",
+      costCenter: "All cost centers",
+      location: "All offices",
       tonerType: "All toner types",
       itsName: "All ITS names",
     },
@@ -29,6 +33,8 @@ test("Excel export includes editable detail and management sheets", async () => 
       date: "2026-09-17",
       ticketReference: "INC-100",
       department: "Information Technology",
+      subunit: "IT - Infrastructure",
+      costCenter: "IT_INFRA",
       location: "Head Office",
       tonerType: "HP 151A Black",
       quantity: 2,
@@ -62,13 +68,13 @@ test("Excel export includes editable detail and management sheets", async () => 
     "Summary",
     "Expense Details",
     "Department Breakdown",
-    "Location Breakdown",
+    "Office Breakdown",
     "Export Information",
   ]);
   const details = workbook.getWorksheet("Expense Details");
   assert.ok(details);
   assert.equal(details.getCell("A2").value, 42);
   assert.equal(details.getCell("E2").value, "Information Technology");
-  assert.equal(details.getCell("J2").value, 7_000);
-  assert.equal(details.autoFilter, "A1:M1");
+  assert.equal(details.getCell("L2").value, 7_000);
+  assert.equal(details.autoFilter, "A1:O1");
 });

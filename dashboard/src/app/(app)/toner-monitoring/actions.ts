@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 import { processTonerInventoryAlert } from "@/lib/inventory-alerts";
 import { randomUUID } from "crypto";
+import { validateOrganizationSelection } from "@/lib/organization";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -51,12 +52,18 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
   const tonerTypeIds = [...new Set(formData.getAll("tonerTypeIds").map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0))];
   const locationId = num(formData.get("locationId"));
   const departmentId = num(formData.get("departmentId"));
+  const subunitId = num(formData.get("subunitId"));
+  const costCenterId = num(formData.get("costCenterId"));
   const itsNameId = num(formData.get("itsNameId"));
 
   const fieldErrors: Record<string, string> = {};
   if (!date) fieldErrors.date = "Date is required.";
   if (!Number.isSafeInteger(quantity) || quantity! <= 0) fieldErrors.quantity = "Quantity must be a positive whole number.";
   if (!tonerTypeIds.length) fieldErrors.tonerTypeIds = "Select at least one toner type.";
+  Object.assign(fieldErrors, await validateOrganizationSelection(
+    { locationId, departmentId, subunitId, costCenterId },
+    { requireSubunitWhenAvailable: Boolean(departmentId) },
+  ));
   if (Object.keys(fieldErrors).length) return { fieldErrors };
   if (!(await allTonerTypesAreVisible(tonerTypeIds))) {
     return { fieldErrors: { tonerTypeIds: "One or more selected toner types are hidden. Refresh and select a visible toner type." } };
@@ -76,6 +83,8 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
         quantity: quantity!,
         locationId,
         departmentId,
+        subunitId,
+        costCenterId,
         itsNameId,
         remarks,
       });
@@ -102,15 +111,21 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
   const tonerTypeIds = [...new Set(formData.getAll("tonerTypeIds").map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0))];
   const locationId = num(formData.get("locationId"));
   const departmentId = num(formData.get("departmentId"));
+  const subunitId = num(formData.get("subunitId"));
+  const costCenterId = num(formData.get("costCenterId"));
   const itsNameId = num(formData.get("itsNameId"));
 
   const fieldErrors: Record<string, string> = {};
   if (!date) fieldErrors.date = "Date is required.";
   if (!Number.isSafeInteger(quantity) || quantity! <= 0) fieldErrors.quantity = "Quantity must be a positive whole number.";
   if (!tonerTypeIds.length) fieldErrors.tonerTypeIds = "Select at least one toner type.";
-  if (!locationId) fieldErrors.locationId = "Location is required.";
+  if (!locationId) fieldErrors.locationId = "Office is required.";
   if (!departmentId) fieldErrors.departmentId = "Department is required.";
   if (!itsNameId) fieldErrors.itsNameId = "ITS Name is required.";
+  Object.assign(fieldErrors, await validateOrganizationSelection(
+    { locationId, departmentId, subunitId, costCenterId },
+    { requireLocation: true, requireDepartment: true, requireSubunitWhenAvailable: true },
+  ));
   if (Object.keys(fieldErrors).length) return { fieldErrors };
   if (!(await allTonerTypesAreVisible(tonerTypeIds))) {
     return { fieldErrors: { tonerTypeIds: "One or more selected toner types are hidden. Refresh and select a visible toner type." } };
@@ -145,6 +160,8 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
           quantity: quantity!,
           locationId,
           departmentId,
+          subunitId,
+          costCenterId,
           itsNameId,
           remarks,
         });
@@ -176,6 +193,12 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
   const tonerTypeId = num(formData.get("tonerTypeId"));
   const submittedType = str(formData.get("type"));
   const ticketReference = str(formData.get("ticketReference"));
+  const organization = {
+    locationId: num(formData.get("locationId")),
+    departmentId: num(formData.get("departmentId")),
+    subunitId: num(formData.get("subunitId")),
+    costCenterId: num(formData.get("costCenterId")),
+  };
 
   if (!date || !Number.isSafeInteger(quantity) || quantity! <= 0 || !Number.isSafeInteger(tonerTypeId) || tonerTypeId! < 1) {
     return { error: "Date, toner type and a positive whole-number quantity are required." };
@@ -183,6 +206,13 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
   if (submittedType && submittedType !== "Delivery" && submittedType !== "Request") {
     return { error: "Select a valid transaction type." };
   }
+  const organizationErrors = await validateOrganizationSelection(organization, {
+    requireLocation: submittedType === "Request",
+    requireDepartment: submittedType === "Request",
+    requireSubunitWhenAvailable: Boolean(organization.departmentId),
+    requireActive: false,
+  });
+  if (Object.keys(organizationErrors).length) return { fieldErrors: organizationErrors };
 
   let affectedTypes: number[] = [];
   try {
@@ -214,8 +244,7 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
         tonerTypeId: tonerTypeId!,
         type,
         ticketReference,
-        locationId: num(formData.get("locationId")),
-        departmentId: num(formData.get("departmentId")),
+        ...organization,
         itsNameId: num(formData.get("itsNameId")),
         remarks: str(formData.get("remarks")),
       }).where(eq(tonerTransactions.id, id!));

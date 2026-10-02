@@ -88,8 +88,10 @@ export async function queueDurablePrintAction(formData: FormData) {
   const userPermissionFilter = session.role === "employee" || session.role === "support"
     ? sql`and (
           (
-            printers.location_id = ${locationScope?.locationId ?? null}
+            printers.office_id = ${locationScope?.locationId ?? null}
             and printers.department_id = ${locationScope?.departmentId ?? null}
+            ${locationScope?.subunitId ? sql`and printers.subunit_id = ${locationScope.subunitId}` : sql``}
+            ${locationScope?.costCenterId ? sql`and printers.cost_center_id = ${locationScope.costCenterId}` : sql``}
           )
           or exists (
             select 1
@@ -108,13 +110,13 @@ export async function queueDurablePrintAction(formData: FormData) {
   }>(sql`
     select
       coalesce(printers.asset_tag, printers.serial_number) as name,
-      locations.name as location,
+      offices.name as location,
       departments.name as department,
       printers.model,
       printers.serial_number as "serialNumber"
     from printer_monitoring_assignments assignments
     inner join printers on printers.id = assignments.printer_id
-    left join locations on locations.id = printers.location_id
+    left join offices on offices.id = printers.office_id
     left join departments on departments.id = printers.department_id
     inner join lateral (
       select online
@@ -232,6 +234,8 @@ export async function queueScanAction(formData: FormData) {
           userId: session.id,
           locationId: locationScope.locationId,
           departmentId: locationScope.departmentId,
+          subunitId: locationScope.subunitId,
+          costCenterId: locationScope.costCenterId,
         }
       : undefined,
   );
@@ -279,7 +283,7 @@ async function requirePrintServiceRequest(operation: "print" | "scan") {
     redirectWith(
       returnTo,
       "error",
-      "Your account needs an assigned location and department before you can use printer services.",
+      "Your account needs an assigned office and department before you can use printer services.",
     );
   }
   const locationScope = accountScope;
@@ -330,7 +334,7 @@ async function validateScanDevice(
   deviceId: string,
   source: string,
   returnTo: string,
-  accountScope?: { userId: number; locationId: number; departmentId?: number },
+  accountScope?: { userId: number; locationId: number; departmentId?: number; subunitId?: number; costCenterId?: number },
 ) {
   const recentSyncs = await db
     .select({ result: printOpsCommands.result })
@@ -364,8 +368,10 @@ async function validateScanDevice(
       and printer.status = 'Active'
       and (
         (
-          printer.location_id = ${accountScope.locationId}
+          printer.office_id = ${accountScope.locationId}
           and printer.department_id = ${accountScope.departmentId ?? null}
+          ${accountScope.subunitId ? sql`and printer.subunit_id = ${accountScope.subunitId}` : sql``}
+          ${accountScope.costCenterId ? sql`and printer.cost_center_id = ${accountScope.costCenterId}` : sql``}
         )
         or exists (
           select 1

@@ -30,6 +30,8 @@ export type PrintOpsAgent = {
 export type PrintOpsLocationScope = {
   locationId: number;
   departmentId?: number;
+  subunitId?: number;
+  costCenterId?: number;
 };
 
 export async function getPrintOpsLocationScope(
@@ -39,6 +41,8 @@ export async function getPrintOpsLocationScope(
     .select({
       locationId: users.primaryLocationId,
       departmentId: users.departmentId,
+      subunitId: users.subunitId,
+      costCenterId: users.costCenterId,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -48,6 +52,8 @@ export async function getPrintOpsLocationScope(
   return {
     locationId: employee.locationId,
     departmentId: employee.departmentId,
+    subunitId: employee.subunitId ?? undefined,
+    costCenterId: employee.costCenterId ?? undefined,
   };
 }
 
@@ -78,8 +84,10 @@ type MonitoredPrinterRow = {
   printer_id: number;
   name: string;
   ip: string | null;
-  location_id: number | null;
+  office_id: number | null;
   department_id: number | null;
+  subunit_id: number | null;
+  cost_center_id: number | null;
   department: string | null;
   location: string | null;
   model: string | null;
@@ -93,7 +101,7 @@ type MonitoredPrinterRow = {
 export async function getPrintOpsAgents(
   locationScope?: PrintOpsLocationScope,
   allowedPrinterIds?: ReadonlySet<number>,
-  automaticallyAllowedDepartmentId?: number,
+  automaticScope?: Pick<PrintOpsLocationScope, "departmentId" | "subunitId" | "costCenterId">,
   includeAllCoveredLocationPrinters = false,
 ): Promise<PrintOpsAgent[]> {
   const [agents, agentLocationRows, syncCommands, assignedPrinterResult] = await Promise.all([
@@ -147,10 +155,12 @@ export async function getPrintOpsAgents(
         printers.id as printer_id,
         coalesce(printers.asset_tag, printers.serial_number) as name,
         printers.ip_address as ip,
-        printers.location_id,
+        printers.office_id,
         printers.department_id,
+        printers.subunit_id,
+        printers.cost_center_id,
         departments.name as department,
-        locations.name as location,
+        offices.name as location,
         printers.model,
         printers.serial_number,
         latest_readings.online,
@@ -163,7 +173,7 @@ export async function getPrintOpsAgents(
         on latest_readings.printer_id = printers.id
         and latest_readings.agent_id = assignments.agent_id
       left join departments on departments.id = printers.department_id
-      left join locations on locations.id = printers.location_id
+      left join offices on offices.id = printers.office_id
       order by assignments.agent_id, departments.name, printers.asset_tag, printers.serial_number
     `),
   ]);
@@ -205,10 +215,13 @@ export async function getPrintOpsAgents(
       if (!locationScope) return true;
 
       const explicitlyAllowed = allowedPrinterIds?.has(printer.printer_id) === true;
-      const atAssignedLocation = printer.location_id === locationScope.locationId;
-      const inAutomaticDepartment = automaticallyAllowedDepartmentId === undefined ||
-        printer.department_id === automaticallyAllowedDepartmentId;
-      return explicitlyAllowed || (atAssignedLocation && inAutomaticDepartment);
+      const atAssignedOffice = printer.office_id === locationScope.locationId;
+      const inAutomaticAssignment = (
+        (automaticScope?.departmentId === undefined || printer.department_id === automaticScope.departmentId)
+        && (automaticScope?.subunitId === undefined || printer.subunit_id === automaticScope.subunitId)
+        && (automaticScope?.costCenterId === undefined || printer.cost_center_id === automaticScope.costCenterId)
+      );
+      return explicitlyAllowed || (atAssignedOffice && inAutomaticAssignment);
     });
     const visiblePrinterIds = new Set(monitoredPrinters.map((printer) => printer.printer_id));
     const onlinePrinterIds = new Set(

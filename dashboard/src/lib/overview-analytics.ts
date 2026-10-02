@@ -1,6 +1,6 @@
-export const OVERVIEW_PERIODS = ["30d", "90d", "12m", "ytd", "all"] as const;
+export const OVERVIEW_PERIODS = ["7d", "30d", "90d", "12m", "ytd", "all"] as const;
 export const OVERVIEW_EXPENSE_BREAKDOWNS = ["toner", "location", "department"] as const;
-export const OVERVIEW_EXPENSE_GRAINS = ["monthly", "yearly"] as const;
+export const OVERVIEW_EXPENSE_GRAINS = ["monthly", "quarterly", "yearly"] as const;
 export const OVERVIEW_EXPENSE_SORTS = ["desc", "asc"] as const;
 
 export type OverviewPeriod = (typeof OVERVIEW_PERIODS)[number];
@@ -21,7 +21,7 @@ export function parseOverviewScope(values: Record<string, string | string[] | un
   return {
     locationId: positiveInteger(first(values.location)),
     departmentId: positiveInteger(first(values.department)),
-    period: member(first(values.period), OVERVIEW_PERIODS, "ytd"),
+    period: member(first(values.period), OVERVIEW_PERIODS, "30d"),
     expenseBreakdown: member(first(values.expenseBreakdown), OVERVIEW_EXPENSE_BREAKDOWNS, "toner"),
     expenseGrain: member(first(values.expenseGrain), OVERVIEW_EXPENSE_GRAINS, "monthly"),
     expenseSort: member(first(values.expenseSort), OVERVIEW_EXPENSE_SORTS, "desc"),
@@ -37,7 +37,7 @@ export function resolveOverviewPeriod(period: OverviewPeriod, today: string) {
     const start = new Date(Date.UTC(year, month - 12, 1));
     return { fromDate: isoDate(start), toDate: today, label: "Last 12 months" };
   }
-  const days = period === "30d" ? 30 : 90;
+  const days = period === "7d" ? 7 : period === "30d" ? 30 : 90;
   const start = new Date(current);
   start.setUTCDate(start.getUTCDate() - (days - 1));
   return { fromDate: isoDate(start), toDate: today, label: `Last ${days} days` };
@@ -56,6 +56,24 @@ export function yearlyExpenseSeries(
     years.set(key, current);
   }
   return [...years.values()].sort((left, right) => left.key.localeCompare(right.key));
+}
+
+export function quarterlyExpenseSeries(
+  months: readonly { key: string; name: string; requestLines: number; units: number; expenseCents: number }[],
+) {
+  const quarters = new Map<string, { key: string; name: string; requestLines: number; units: number; expenseCents: number }>();
+  for (const month of months) {
+    const [year, monthNumber] = month.key.split("-").map(Number);
+    if (!Number.isInteger(year) || !Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) continue;
+    const quarter = Math.ceil(monthNumber / 3);
+    const key = `${year}-Q${quarter}`;
+    const current = quarters.get(key) ?? { key, name: `Q${quarter} ${year}`, requestLines: 0, units: 0, expenseCents: 0 };
+    current.requestLines += month.requestLines;
+    current.units += month.units;
+    current.expenseCents += month.expenseCents;
+    quarters.set(key, current);
+  }
+  return [...quarters.values()].sort((left, right) => left.key.localeCompare(right.key));
 }
 
 export function sortExpenseRows<T extends { expenseCents: number; name: string }>(

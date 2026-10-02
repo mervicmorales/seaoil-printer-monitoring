@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { departments, locations, users } from "@/db/schema";
+import { costCenters, departments, locations, subunits, users } from "@/db/schema";
 import { desc, eq, ilike, or } from "drizzle-orm";
 import { Eye, SearchX } from "lucide";
 import { PageHeader, TableCard, Badge, IconGlyph } from "@/components/ui";
@@ -30,15 +30,21 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
     accountStatus: users.accountStatus,
     location: locations.name,
     department: departments.name,
+    subunit: subunits.name,
+    costCenter: costCenters.code,
   }).from(users)
     .leftJoin(locations, eq(users.primaryLocationId, locations.id))
     .leftJoin(departments, eq(users.departmentId, departments.id))
+    .leftJoin(subunits, eq(users.subunitId, subunits.id))
+    .leftJoin(costCenters, eq(users.costCenterId, costCenters.id))
     .where(query ? or(
       ilike(users.fullName, `%${query}%`),
       ilike(users.employeeId, `%${query}%`),
       ilike(users.email, `%${query}%`),
       ilike(locations.name, `%${query}%`),
       ilike(departments.name, `%${query}%`),
+      ilike(subunits.name, `%${query}%`),
+      ilike(costCenters.code, `%${query}%`),
     ) : undefined)
     .orderBy(desc(users.createdAt), desc(users.id));
   const statusOptions = uniqueFilterOptions(baseUsers.map((user) => ({
@@ -75,7 +81,7 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3">Full Name / Employee ID</th>
                 <th className="px-4 py-3">Email Address</th>
-                <th className="px-4 py-3">Location / Department</th>
+                <th className="px-4 py-3">Office / Department</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-2.5">
                   <div className="flex min-w-0 items-center justify-between gap-2">
@@ -103,7 +109,10 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
                     <p className="mt-0.5 text-xs text-slate-500">{u.employeeId || "—"}</p>
                   </td>
                   <td className="px-4 py-3 align-top">{u.email || "—"}</td>
-                  <td className="px-4 py-3 align-top">{[u.location, u.department].filter(Boolean).join(" / ") || "—"}</td>
+                  <td className="px-4 py-3 align-top">
+                    <p>{[u.location, u.department].filter(Boolean).join(" / ") || "—"}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{[u.subunit, u.costCenter].filter(Boolean).join(" · ") || "No subunit / cost center"}</p>
+                  </td>
                   <td className="px-4 py-3 align-top"><Badge color={u.role === "super_admin" ? "orange" : u.role === "admin" ? "blue" : "gray"}>{roleLabel(u.role)}</Badge></td>
                   <td className="px-4 py-3 align-top"><Badge color={u.accountStatus === "active" ? "green" : "red"}>{u.accountStatus}</Badge></td>
                   <td className="px-4 py-3 text-right align-top">

@@ -60,7 +60,7 @@ export function summarizeTonerExpenses(records: readonly TonerExpenseRecord[]): 
     const departmentKey = record.departmentId === null ? "unassigned" : String(record.departmentId);
     const departmentName = record.departmentName?.trim() || "Unassigned department";
     const locationKey = record.locationId === null ? "unassigned" : String(record.locationId);
-    const locationName = record.locationName?.trim() || "Unassigned location";
+    const locationName = record.locationName?.trim() || "Unassigned office";
     const tonerKey = String(record.tonerTypeId);
     const monthKey = record.date.slice(0, 7);
 

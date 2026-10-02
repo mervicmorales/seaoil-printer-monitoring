@@ -50,12 +50,14 @@ export async function getEmployeePrinterRequestScope(
       printer.serial_number,
       printer.model,
       printer.ip_address,
-      location.name as location_name,
+      office.name as location_name,
       department.name as department_name,
       (
         (
-          printer.location_id = employee.primary_location_id
+          printer.office_id = employee.primary_office_id
           and printer.department_id = employee.department_id
+          and (employee.subunit_id is null or printer.subunit_id = employee.subunit_id)
+          and (employee.cost_center_id is null or printer.cost_center_id = employee.cost_center_id)
         )
         or exists (
           select 1
@@ -72,12 +74,12 @@ export async function getEmployeePrinterRequestScope(
       and agent.status = 'online'
       and agent.last_seen >= ${cutoff}
       and (
-        agent.location_id = employee.primary_location_id
+        agent.office_id = employee.primary_office_id
         or exists (
           select 1
-          from monitoring_agent_locations agent_location
-          where agent_location.agent_id = agent.id
-            and agent_location.location_id = employee.primary_location_id
+          from monitoring_agent_offices agent_office
+          where agent_office.agent_id = agent.id
+            and agent_office.office_id = employee.primary_office_id
         )
       )
     inner join printer_monitoring_assignments assignment
@@ -85,14 +87,14 @@ export async function getEmployeePrinterRequestScope(
     inner join printers printer
       on printer.id = assignment.printer_id
       and printer.status = 'Active'
-    left join locations location on location.id = printer.location_id
+    left join offices office on office.id = printer.office_id
     left join departments department on department.id = printer.department_id
     left join printer_access_requests request
       on request.user_id = employee.id
       and request.printer_id = printer.id
     where employee.id = ${userId}
       and employee.role in ('employee', 'support')
-    order by location.name, department.name, printer.model, printer.serial_number
+    order by office.name, department.name, printer.model, printer.serial_number
   `);
 
   const clientIp = getClientIpv4(requestHeaders);

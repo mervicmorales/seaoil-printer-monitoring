@@ -19,12 +19,17 @@ export function PageHeader({
   title,
   actions,
   parentTitle,
+  hideTitle = false,
 }: {
   title: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
   parentTitle?: string;
+  hideTitle?: boolean;
 }) {
+  const sectionTitle = parentTitle || pageHeaderSection(title);
+  const showPageTitle = !hideTitle && sectionTitle.trim().toLowerCase() !== title.trim().toLowerCase();
+
   return (
     <PageHeaderPortal>
       <div className="flex flex-col justify-between gap-2.5 sm:flex-row sm:items-center sm:gap-5">
@@ -32,14 +37,19 @@ export function PageHeader({
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />
             <span className="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-[11px]">
-              {parentTitle || pageHeaderSection(title)}
+              {sectionTitle}
             </span>
-            <span className="shrink-0 text-slate-400" aria-hidden="true">
-              <IconGlyph icon={ChevronRight} size={13} />
-            </span>
-            <h1 className="truncate text-sm font-medium tracking-[-0.01em] text-slate-800 sm:text-[15px]">
-              {title}
-            </h1>
+            {showPageTitle && (
+              <>
+                <span className="shrink-0 text-slate-400" aria-hidden="true">
+                  <IconGlyph icon={ChevronRight} size={13} />
+                </span>
+                <h1 className="truncate text-sm font-medium tracking-[-0.01em] text-slate-800 sm:text-[15px]">
+                  {title}
+                </h1>
+              </>
+            )}
+            {!showPageTitle && <h1 className="sr-only">{title}</h1>}
           </div>
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -213,29 +223,6 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement> & {
         required={required}
         className={`w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15 disabled:bg-slate-100 disabled:text-slate-500 ${className || ""}`}
       />
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </div>
-  );
-}
-
-export function Select(
-  props: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string; error?: string; required?: boolean },
-) {
-  const { label, error, required, className, children, ...rest } = props;
-  return (
-    <div>
-      {label && (
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-          {label} {required && <span className="text-red-500">*</span>}
-        </label>
-      )}
-      <select
-        {...rest}
-        required={required}
-        className={`w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15 disabled:bg-slate-100 disabled:text-slate-500 ${className || ""}`}
-      >
-        {children}
-      </select>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );

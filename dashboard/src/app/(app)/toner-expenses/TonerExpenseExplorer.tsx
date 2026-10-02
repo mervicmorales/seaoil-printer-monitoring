@@ -8,11 +8,11 @@ import {
   CircleDollarSign,
   Droplets,
   FilterX,
-  MapPin,
   PackageCheck,
   ReceiptText,
 } from "lucide";
 import { Card, EmptyState, IconGlyph, PageHeader } from "@/components/ui";
+import SearchableDropdown from "@/components/SearchableDropdown";
 import TonerExpenseExportDialog from "./TonerExpenseExportDialog";
 import { tonerExpenseExportPreview } from "@/lib/toner-expense-export";
 import { summarizeTonerExpenses } from "@/lib/toner-expenses";
@@ -23,11 +23,14 @@ import {
 } from "@/lib/toner-expense-groups";
 
 type LookupOption = { id: number; name: string };
+type SubunitLookupOption = LookupOption & { departmentId: number };
 type FilterState = {
   allTime: boolean;
   dateFrom: string;
   dateTo: string;
   department: string;
+  subunit: string;
+  costCenter: string;
   location: string;
   tonerType: string;
   itsName: string;
@@ -41,6 +44,8 @@ export default function TonerExpenseExplorer({
   records,
   initialFilters,
   departments,
+  subunits,
+  costCenters,
   locations,
   tonerTypes,
   itsNames,
@@ -49,6 +54,8 @@ export default function TonerExpenseExplorer({
   records: TonerExpenseViewRecord[];
   initialFilters: FilterState;
   departments: LookupOption[];
+  subunits: SubunitLookupOption[];
+  costCenters: LookupOption[];
   locations: LookupOption[];
   tonerTypes: LookupOption[];
   itsNames: LookupOption[];
@@ -56,24 +63,46 @@ export default function TonerExpenseExplorer({
 }) {
   const [filters, setFilters] = useState(initialFilters);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expandedCostCenters, setExpandedCostCenters] = useState<Set<string>>(new Set());
+  const availableSubunits = useMemo(() => (
+    filters.department && filters.department !== "unassigned"
+      ? subunits.filter((item) => String(item.departmentId) === filters.department)
+      : subunits
+  ), [filters.department, subunits]);
   const filteredRecords = useMemo(() => records.filter((record) => matchesFilters(record, filters)), [records, filters]);
   const summary = useMemo(() => summarizeTonerExpenses(filteredRecords), [filteredRecords]);
   const grouped = useMemo(() => groupTonerRequests(filteredRecords), [filteredRecords]);
+  const costCenterCount = useMemo(() => new Set(filteredRecords.map((record) => record.costCenterId == null ? "unassigned" : String(record.costCenterId))).size, [filteredRecords]);
   const priceCoverage = summary.requestLines ? Math.round((summary.pricedRequestLines / summary.requestLines) * 100) : 0;
-  const activeFilters = [filters.department, filters.location, filters.tonerType, filters.itsName].filter(Boolean).length + (filters.allTime ? 0 : 1);
+  const activeFilters = [filters.department, filters.subunit, filters.costCenter, filters.location, filters.tonerType, filters.itsName].filter(Boolean).length + (filters.allTime ? 0 : 1);
 
   function updateFilter<Key extends keyof FilterState>(key: Key, value: FilterState[Key]) {
-    setFilters((current) => ({ ...current, [key]: value }));
+    setFilters((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "department" && current.department !== value) next.subunit = "";
+      return next;
+    });
     setExpanded(new Set());
+    setExpandedCostCenters(new Set());
   }
 
   function resetFilters() {
-    setFilters({ ...initialFilters, department: "", location: "", tonerType: "", itsName: "" });
+    setFilters({ ...initialFilters, department: "", subunit: "", costCenter: "", location: "", tonerType: "", itsName: "" });
     setExpanded(new Set());
+    setExpandedCostCenters(new Set());
   }
 
   function toggleDepartment(key: string) {
     setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleCostCenter(key: string) {
+    setExpandedCostCenters((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -90,6 +119,8 @@ export default function TonerExpenseExplorer({
             initialFilters={filters}
             initialPreview={tonerExpenseExportPreview(summary)}
             departments={departments}
+            subunits={subunits}
+            costCenters={costCenters}
             locations={locations}
             tonerTypes={tonerTypes}
             itsNames={itsNames}
@@ -125,7 +156,7 @@ export default function TonerExpenseExplorer({
             <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-white text-amber-600"><IconGlyph icon={CircleDollarSign} size={16} /></span>
             <div><p className="text-xs font-bold">Missing unit costs</p><p className="mt-0.5 text-xs leading-5 text-amber-800">These toner requests count as units but add ₱0.00 to expenses: {summary.unpricedTonerTypes.join(", ")}.</p></div>
           </div>
-          {canManageCosts && <Link href="/system?tab=toner" className="shrink-0 text-xs font-bold text-amber-900 underline decoration-amber-400 underline-offset-4">Set unit costs</Link>}
+          {canManageCosts && <Link href="/system/toner-types" className="shrink-0 text-xs font-bold text-amber-900 underline decoration-amber-400 underline-offset-4">Set unit costs</Link>}
         </div>
       )}
 
@@ -134,15 +165,17 @@ export default function TonerExpenseExplorer({
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Request analysis</p>
             <h2 className="mt-1 text-base font-bold text-[#014171]">Toner requests by department</h2>
-            <p className="mt-1 text-xs text-slate-500">Select a department row to see every requested location and its toner types.</p>
+            <p className="mt-1 text-xs text-slate-500">Select a department row to see every requested cost center and its toner types.</p>
           </div>
-          <div className="flex shrink-0 items-center gap-2 text-xs text-slate-500"><IconGlyph icon={MapPin} size={14} /><span>{integer.format(summary.locations.length)} {pluralize(summary.locations.length, "location")} in this view</span></div>
+          <div className="flex shrink-0 items-center gap-2 text-xs text-slate-500"><IconGlyph icon={CircleDollarSign} size={14} /><span>{integer.format(costCenterCount)} {pluralize(costCenterCount, "cost center")} in this view</span></div>
         </div>
 
         <div className="border-b border-slate-200 bg-slate-50/70 p-4 sm:p-5">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <FilterField label="Department" value={filters.department} onChange={(value) => updateFilter("department", value)} options={departments} includeUnassigned />
-            <FilterField label="Location" value={filters.location} onChange={(value) => updateFilter("location", value)} options={locations} includeUnassigned />
+            <FilterField label="Subunit" value={filters.subunit} onChange={(value) => updateFilter("subunit", value)} options={availableSubunits} includeUnassigned />
+            <FilterField label="Cost center" value={filters.costCenter} onChange={(value) => updateFilter("costCenter", value)} options={costCenters} includeUnassigned />
+            <FilterField label="Office" value={filters.location} onChange={(value) => updateFilter("location", value)} options={locations} includeUnassigned />
             <FilterField label="Toner type" value={filters.tonerType} onChange={(value) => updateFilter("tonerType", value)} options={tonerTypes} />
             <FilterField label="Requested by" value={filters.itsName} onChange={(value) => updateFilter("itsName", value)} options={itsNames} includeUnassigned />
           </div>
@@ -157,22 +190,29 @@ export default function TonerExpenseExplorer({
         </div>
 
         <div className="flex flex-col gap-1 border-b border-slate-200 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <span>Showing <strong className="text-slate-800">{grouped.length}</strong> {pluralize(grouped.length, "department")}, <strong className="text-slate-800">{summary.locations.length}</strong> {pluralize(summary.locations.length, "location")}, and <strong className="text-slate-800">{summary.tonerTypes.length}</strong> {pluralize(summary.tonerTypes.length, "toner type")}</span>
+          <span>Showing <strong className="text-slate-800">{grouped.length}</strong> {pluralize(grouped.length, "department")}, <strong className="text-slate-800">{costCenterCount}</strong> {pluralize(costCenterCount, "cost center")}, and <strong className="text-slate-800">{summary.tonerTypes.length}</strong> {pluralize(summary.tonerTypes.length, "toner type")}</span>
           <span>{activeFilters} active filter{activeFilters === 1 ? "" : "s"}</span>
         </div>
 
         {grouped.length ? (
           <div className="max-h-[38rem] overflow-auto overscroll-contain">
-            <table className="w-full min-w-[850px] table-fixed text-left text-xs">
-              <colgroup><col className="w-[25%]" /><col className="w-[31%]" /><col className="w-[11%]" /><col className="w-[9%]" /><col className="w-[9%]" /><col className="w-[15%]" /></colgroup>
+            <table className="w-full min-w-[760px] table-fixed text-left text-xs">
+              <colgroup><col className="w-[28%]" /><col className="w-[36%]" /><col className="w-[11%]" /><col className="w-[10%]" /><col className="w-[15%]" /></colgroup>
               <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-[10px] font-bold uppercase tracking-[0.07em] text-slate-500 backdrop-blur-sm">
-                <tr><th className="px-5 py-3">Department / location</th><th className="px-3 py-3">Toner type requests</th><th className="px-3 py-3 text-right">Records</th><th className="px-3 py-3 text-right">Units</th><th className="px-3 py-3 text-right">Share</th><th className="px-5 py-3 text-right">Estimated expense</th></tr>
+                <tr><th className="px-5 py-3">Department / Cost Center</th><th className="px-3 py-3">Toner type requests</th><th className="px-3 py-3 text-right">Records</th><th className="px-3 py-3 text-right">Units</th><th className="px-5 py-3 text-right">Estimated expense</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {grouped.map((department) => {
                   const isExpanded = expanded.has(department.key);
                   return (
-                    <DepartmentRows key={department.key} department={department} expanded={isExpanded} totalExpenseCents={summary.totalExpenseCents} onToggle={() => toggleDepartment(department.key)} />
+                    <DepartmentRows
+                      key={department.key}
+                      department={department}
+                      expanded={isExpanded}
+                      expandedCostCenters={expandedCostCenters}
+                      onToggle={() => toggleDepartment(department.key)}
+                      onToggleCostCenter={toggleCostCenter}
+                    />
                   );
                 })}
               </tbody>
@@ -186,25 +226,82 @@ export default function TonerExpenseExplorer({
   );
 }
 
-function DepartmentRows({ department, expanded, totalExpenseCents, onToggle }: { department: ReturnType<typeof groupTonerRequests>[number]; expanded: boolean; totalExpenseCents: number; onToggle: () => void }) {
+function DepartmentRows({
+  department,
+  expanded,
+  expandedCostCenters,
+  onToggle,
+  onToggleCostCenter,
+}: {
+  department: ReturnType<typeof groupTonerRequests>[number];
+  expanded: boolean;
+  expandedCostCenters: Set<string>;
+  onToggle: () => void;
+  onToggleCostCenter: (key: string) => void;
+}) {
   return (
     <>
       <tr className={`transition ${expanded ? "bg-sky-50/70" : "bg-white hover:bg-slate-50"}`}>
-        <td className="px-5 py-3.5"><button type="button" onClick={onToggle} aria-expanded={expanded} className="group flex w-full items-center gap-3 text-left"><span className={`flex size-7 shrink-0 items-center justify-center rounded-lg border transition ${expanded ? "border-[#014171] bg-[#014171] text-white" : "-rotate-90 border-slate-200 bg-white text-slate-500 group-hover:border-slate-300"}`}><IconGlyph icon={ChevronDown} size={14} /></span><span className="min-w-0"><span className="block truncate font-bold text-slate-800">{department.name}</span><span className="mt-0.5 block text-[10px] text-slate-500">{department.locations.length} {pluralize(department.locations.length, "location")} · {expanded ? "Hide details" : "View locations"}</span></span></button></td>
+        <td className="px-5 py-3.5"><button type="button" onClick={onToggle} aria-expanded={expanded} className="group flex w-full items-center gap-3 text-left"><span className={`flex size-7 shrink-0 items-center justify-center rounded-lg border transition ${expanded ? "border-[#014171] bg-[#014171] text-white" : "-rotate-90 border-slate-200 bg-white text-slate-500 group-hover:border-slate-300"}`}><IconGlyph icon={ChevronDown} size={14} /></span><span className="min-w-0"><span className="block truncate font-bold text-slate-800">{department.name}</span><span className="mt-0.5 block text-[10px] text-slate-500">{department.costCenters.length} {pluralize(department.costCenters.length, "cost center")} · {expanded ? "Hide details" : "View cost centers"}</span></span></button></td>
         <td className="px-3 py-3.5"><TonerPills rows={department.tonerTypes} /></td>
         <NumberCell value={department.requestLines} />
         <NumberCell value={department.units} strong />
-        <td className="px-3 py-3.5 text-right tabular-nums text-slate-600">{percentage(department.expenseCents, totalExpenseCents)}%</td>
         <td className="px-5 py-3.5 text-right font-bold tabular-nums text-[#014171]">{currency.format(department.expenseCents / 100)}</td>
       </tr>
-      {expanded && department.locations.map((location) => (
-        <tr key={`${department.key}-${location.key}`} className="border-t border-sky-100 bg-sky-50/35">
-          <td className="px-5 py-3 pl-16"><div className="flex items-center gap-2"><span className="text-[#4f7fa9]"><IconGlyph icon={MapPin} size={13} /></span><span className="font-semibold text-slate-700">{location.name}</span></div></td>
-          <td className="px-3 py-3"><TonerPills rows={location.tonerTypes} /></td>
-          <NumberCell value={location.requestLines} />
-          <NumberCell value={location.units} />
-          <td className="px-3 py-3 text-right tabular-nums text-slate-500">{percentage(location.expenseCents, department.expenseCents)}% <span className="sr-only">of department</span></td>
-          <td className="px-5 py-3 text-right font-semibold tabular-nums text-slate-700">{currency.format(location.expenseCents / 100)}</td>
+      {expanded && department.costCenters.map((costCenter) => {
+        const expansionKey = `${department.key}:${costCenter.key}`;
+        const costCenterExpanded = expandedCostCenters.has(expansionKey);
+        return (
+          <CostCenterRows
+            key={expansionKey}
+            costCenter={costCenter}
+            expanded={costCenterExpanded}
+            onToggle={() => onToggleCostCenter(expansionKey)}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function CostCenterRows({
+  costCenter,
+  expanded,
+  onToggle,
+}: {
+  costCenter: TonerRequestGroup;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <tr className="border-t border-sky-100 bg-sky-50/35">
+        <td className="px-5 py-3 pl-16">
+          <button type="button" onClick={onToggle} aria-expanded={expanded} className="group flex w-full items-center gap-2 text-left">
+            <span className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition ${expanded ? "border-[#4f7fa9] bg-[#4f7fa9] text-white" : "-rotate-90 border-sky-200 bg-white text-[#4f7fa9] group-hover:border-[#4f7fa9]"}`}><IconGlyph icon={ChevronDown} size={12} /></span>
+            <span className="min-w-0">
+              <span className="block truncate font-semibold text-slate-700">{costCenter.name}</span>
+              <span className="mt-0.5 block text-[10px] text-slate-500">{costCenter.tonerTypes.length} {pluralize(costCenter.tonerTypes.length, "toner type")} · {expanded ? "Hide costing" : "View costing"}</span>
+            </span>
+          </button>
+        </td>
+        <td className="px-3 py-3"><TonerPills rows={costCenter.tonerTypes} /></td>
+        <NumberCell value={costCenter.requestLines} />
+        <NumberCell value={costCenter.units} />
+        <td className="px-5 py-3 text-right font-semibold tabular-nums text-slate-700">{currency.format(costCenter.expenseCents / 100)}</td>
+      </tr>
+      {expanded && costCenter.tonerTypes.map((tonerType) => (
+        <tr key={`${costCenter.key}-${tonerType.key}`} className="border-t border-slate-100 bg-white">
+          <td className="px-5 py-3 pl-24 text-[10px] font-bold uppercase tracking-[0.07em] text-slate-400">Toner costing</td>
+          <td className="px-3 py-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-bold text-slate-700">{tonerType.name}</span>
+              <span className="text-[10px] text-slate-500">{formatUnitCost(tonerType)} per unit</span>
+            </div>
+          </td>
+          <NumberCell value={tonerType.requestLines} />
+          <NumberCell value={tonerType.units} />
+          <td className="px-5 py-3 text-right font-bold tabular-nums text-[#014171]">{currency.format(tonerType.expenseCents / 100)}</td>
         </tr>
       ))}
     </>
@@ -223,18 +320,20 @@ function NumberCell({ value, strong = false }: { value: number; strong?: boolean
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.06em] text-slate-500">{label}</span>{children}</label>; }
 
 function FilterField({ label, value, onChange, options, includeUnassigned = false }: { label: string; value: string; onChange: (value: string) => void; options: LookupOption[]; includeUnassigned?: boolean }) {
-  return <Field label={label}><select value={value} onChange={(event) => onChange(event.target.value)} className={fieldClassName}><option value="">All {label.toLowerCase()}</option>{includeUnassigned && <option value="unassigned">Unassigned</option>}{options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></Field>;
+  return <SearchableDropdown label={label} value={value} onValueChange={onChange} placeholder={`Search ${label.toLowerCase()}...`} options={[{ value: "", label: `All ${label.toLowerCase()}` }, ...(includeUnassigned ? [{ value: "unassigned", label: "Unassigned" }] : []), ...options.map((option) => ({ value: String(option.id), label: option.name }))]} inputClassName={fieldClassName} labelClassName="!text-[10px] !font-bold !uppercase !tracking-[0.06em] !text-slate-500" />;
 }
 
 function matchesFilters(record: TonerExpenseViewRecord, filters: FilterState) {
   if (!filters.allTime && filters.dateFrom && record.date < filters.dateFrom) return false;
   if (!filters.allTime && filters.dateTo && record.date > filters.dateTo) return false;
   return matchesLookup(filters.department, record.departmentId)
+    && matchesLookup(filters.subunit, record.subunitId ?? null)
+    && matchesLookup(filters.costCenter, record.costCenterId ?? null)
     && matchesLookup(filters.location, record.locationId)
     && matchesLookup(filters.tonerType, record.tonerTypeId)
     && matchesLookup(filters.itsName, record.itsNameId);
 }
 
 function matchesLookup(filter: string, value: number | null) { return !filter || (filter === "unassigned" ? value === null : String(value) === filter); }
-function percentage(value: number, total: number) { return total > 0 ? Math.round((value / total) * 100) : 0; }
+function formatUnitCost(row: TonerRequestGroup) { return currency.format(row.units > 0 ? row.expenseCents / row.units / 100 : 0); }
 function pluralize(value: number, noun: string) { return value === 1 ? noun : `${noun}s`; }

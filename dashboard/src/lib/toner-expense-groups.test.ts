@@ -9,16 +9,18 @@ const base = {
   departmentName: "Operations",
   locationId: 10,
   locationName: "Head Office",
+  costCenterId: 1000,
+  costCenterCode: "OPS-HO",
   tonerTypeId: 100,
   tonerTypeName: "TN-100",
   itsNameId: null,
   unitCostCents: 2_500,
 };
 
-test("groups toner requests by department, location, and toner type", () => {
+test("groups toner requests by department, cost center, and toner type", () => {
   const records: TonerExpenseViewRecord[] = [
     { ...base, id: 1, quantity: 2 },
-    { ...base, id: 2, locationId: 11, locationName: "Depot", quantity: 1 },
+    { ...base, id: 2, costCenterId: 1001, costCenterCode: "OPS-DEPOT", quantity: 1 },
     { ...base, id: 3, tonerTypeId: 101, tonerTypeName: "TN-200", quantity: 3 },
     { ...base, id: 4, departmentId: 2, departmentName: "Finance", quantity: 1 },
   ];
@@ -30,9 +32,9 @@ test("groups toner requests by department, location, and toner type", () => {
   assert.equal(operations.requestLines, 3);
   assert.equal(operations.units, 6);
   assert.equal(operations.expenseCents, 15_000);
-  assert.deepEqual(operations.locations.map((row) => [row.name, row.units]), [
-    ["Head Office", 5],
-    ["Depot", 1],
+  assert.deepEqual(operations.costCenters.map((row) => [row.name, row.units]), [
+    ["OPS-HO", 5],
+    ["OPS-DEPOT", 1],
   ]);
   assert.deepEqual(operations.tonerTypes.map((row) => [row.name, row.units]), [
     ["TN-100", 3],

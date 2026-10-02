@@ -27,7 +27,7 @@ export default function GeneralSettings() {
           <p>
           This website was made only for SEAOIL Philippines Inc. and is for internal use only.
           It is used to centrally manage the printer fleet, toner inventory, service contracts and
-          repair tickets across all SEAOIL locations. Unauthorized use, distribution, or access by
+          repair tickets across all SEAOIL offices. Unauthorized use, distribution, or access by
           parties outside of SEAOIL Philippines Inc. is strictly prohibited.
           </p>
           <div className="mt-4 flex items-center gap-2 border-t border-amber-200 pt-4 text-xs font-semibold text-slate-600">

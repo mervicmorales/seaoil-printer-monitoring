@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
       id: printers.id,
       locationId: printers.locationId,
       departmentId: printers.departmentId,
+      subunitId: printers.subunitId,
+      costCenterId: printers.costCenterId,
       vendorId: printers.vendorId,
       vendorName: vendors.name,
     })

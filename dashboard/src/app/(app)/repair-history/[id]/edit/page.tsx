@@ -3,7 +3,8 @@ import { db } from "@/db";
 import { repairTickets } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { PageHeader, Card } from "@/components/ui";
-import { getDepartments, getLocations, getVendors } from "@/lib/lookups";
+import { getVendors } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import EditTicketForm from "./EditTicketForm";
 import { updateTicketAction } from "../../actions";
 import { requireAdmin } from "@/lib/server-utils";
@@ -18,7 +19,7 @@ export default async function EditTicketPage({ params }: { params: Promise<{ id:
   const ticket = rows[0];
   if (!ticket) notFound();
 
-  const [locations, departments, vendors] = await Promise.all([getLocations(), getDepartments(), getVendors()]);
+  const [organizationOptions, vendors] = await Promise.all([getOrganizationOptions({ activeOnly: false }), getVendors()]);
 
   return (
     <div>
@@ -36,8 +37,7 @@ export default async function EditTicketPage({ params }: { params: Promise<{ id:
         <EditTicketForm
           action={updateTicketAction}
           ticket={ticket}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           vendors={vendors}
         />
       </Card>

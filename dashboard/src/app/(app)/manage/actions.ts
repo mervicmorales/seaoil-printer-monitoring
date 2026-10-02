@@ -29,6 +29,7 @@ import { sendEmail } from "@/lib/email";
 import { buildPasswordResetEmail, buildUserAccountVerificationEmail } from "@/lib/email-templates";
 import { canManageRole, hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
 import type { PrinterPermissionState } from "./PrinterPermissionsPanel";
+import { validateOrganizationSelection } from "@/lib/organization";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -89,6 +90,8 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
   const employeeId = str(formData.get("employeeId"))?.toUpperCase() ?? null;
   const primaryLocationId = num(formData.get("primaryLocationId"));
   const departmentId = num(formData.get("departmentId"));
+  const subunitId = num(formData.get("subunitId"));
+  const costCenterId = num(formData.get("costCenterId"));
   const password = String(formData.get("password") || "");
   const role = roleValue(formData.get("role"));
 
@@ -105,10 +108,22 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
   if (!username) fieldErrors.username = "Username is required.";
   if (employeeId && !isValidEmployeeId(employeeId)) fieldErrors.employeeId = EMPLOYEE_ID_RULE_TEXT;
   if (role === "employee" && !employeeId) fieldErrors.employeeId = "Employee ID is required for employees.";
-  if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for Employee and Support accounts.";
+  if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Office is required for Employee and Support accounts.";
   if ((role === "employee" || role === "support") && !departmentId) fieldErrors.departmentId = "Department is required for Employee and Support accounts.";
   if (!password) fieldErrors.password = "Password is required.";
   else if (!isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
+  Object.assign(fieldErrors, await validateOrganizationSelection(
+    { locationId: primaryLocationId, departmentId, subunitId, costCenterId },
+    {
+      requireLocation: role === "employee" || role === "support",
+      requireDepartment: role === "employee" || role === "support",
+      requireSubunitWhenAvailable: role === "employee" || role === "support",
+    },
+  ));
+  if (fieldErrors.locationId) {
+    fieldErrors.primaryLocationId = fieldErrors.locationId;
+    delete fieldErrors.locationId;
+  }
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   const rawToken = randomBytes(32).toString("base64url");
@@ -129,6 +144,8 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
           employeeId,
           primaryLocationId,
           departmentId,
+          subunitId,
+          costCenterId,
           accountStatus: "pending_email",
           emailVerifiedAt: null,
         })
@@ -153,6 +170,8 @@ export async function createUserAction(_prev: UserFormState, formData: FormData)
         passwordHash,
         primaryLocationId,
         departmentId,
+        subunitId,
+        costCenterId,
         source: "manual",
         userId: inserted.id,
         status: "pending_email",
@@ -191,6 +210,8 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   const employeeId = str(formData.get("employeeId"))?.toUpperCase() ?? null;
   const primaryLocationId = num(formData.get("primaryLocationId"));
   const departmentId = num(formData.get("departmentId"));
+  const subunitId = num(formData.get("subunitId"));
+  const costCenterId = num(formData.get("costCenterId"));
   const password = String(formData.get("password") || "");
   const role = roleValue(formData.get("role"));
 
@@ -198,6 +219,8 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
     role: users.role,
     primaryLocationId: users.primaryLocationId,
     departmentId: users.departmentId,
+    subunitId: users.subunitId,
+    costCenterId: users.costCenterId,
   }).from(users).where(eq(users.id, id)).limit(1);
   if (!target) return { error: "User not found." };
   if (!canManageRole(actor.role, target.role)) {
@@ -214,14 +237,29 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
   if (!username) fieldErrors.username = "Username is required.";
   if (employeeId && !isValidEmployeeId(employeeId)) fieldErrors.employeeId = EMPLOYEE_ID_RULE_TEXT;
   if (role === "employee" && !employeeId) fieldErrors.employeeId = "Employee ID is required for employees.";
-  if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Location is required for Employee and Support accounts.";
+  if ((role === "employee" || role === "support") && !primaryLocationId) fieldErrors.primaryLocationId = "Office is required for Employee and Support accounts.";
   if ((role === "employee" || role === "support") && !departmentId) fieldErrors.departmentId = "Department is required for Employee and Support accounts.";
   if (password && !isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
+  Object.assign(fieldErrors, await validateOrganizationSelection(
+    { locationId: primaryLocationId, departmentId, subunitId, costCenterId },
+    {
+      requireLocation: role === "employee" || role === "support",
+      requireDepartment: role === "employee" || role === "support",
+      requireSubunitWhenAvailable: role === "employee" || role === "support",
+      requireActive: false,
+    },
+  ));
+  if (fieldErrors.locationId) {
+    fieldErrors.primaryLocationId = fieldErrors.locationId;
+    delete fieldErrors.locationId;
+  }
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   const assignmentChanged = (
     target.primaryLocationId !== primaryLocationId ||
     target.departmentId !== departmentId
+    || target.subunitId !== subunitId
+    || target.costCenterId !== costCenterId
   );
 
   try {
@@ -233,6 +271,8 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
       employeeId,
       primaryLocationId,
       departmentId,
+      subunitId,
+      costCenterId,
     };
     if (password) {
       updateValues.passwordHash = await hashPassword(password);
@@ -470,6 +510,8 @@ async function getPrinterPermissionAccount(userId: number, actorRole: UserRole) 
       role: users.role,
       locationId: users.primaryLocationId,
       departmentId: users.departmentId,
+      subunitId: users.subunitId,
+      costCenterId: users.costCenterId,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -481,7 +523,7 @@ async function getPrinterPermissionAccount(userId: number, actorRole: UserRole) 
     throw new Error("Only an Admin or Super Admin can configure Support printer permissions.");
   }
   if (!account.locationId) {
-    throw new Error("Assign a location to this account before configuring printer permissions.");
+    throw new Error("Assign an office to this account before configuring printer permissions.");
   }
   if (!account.departmentId) {
     throw new Error("Assign a department to this account before configuring printer permissions.");
@@ -507,7 +549,7 @@ async function validatePermissionAgent(agentId: number, locationId: number) {
       isNull(monitoringAgents.tokenRevokedAt),
     ))
     .limit(1);
-  if (!agent) throw new Error("The selected agent is not available at this account's location.");
+  if (!agent) throw new Error("The selected agent is not available at this account's office.");
   return agent;
 }
 
@@ -573,6 +615,8 @@ export async function updatePrinterPermissionsAction(
             id: printers.id,
             departmentId: printers.departmentId,
             locationId: printers.locationId,
+            subunitId: printers.subunitId,
+            costCenterId: printers.costCenterId,
           })
           .from(printers)
           .innerJoin(
@@ -590,7 +634,9 @@ export async function updatePrinterPermissionsAction(
     const additionalPrinters = validPrinters.filter(
       (printer) => (
         printer.locationId !== account.locationId ||
-        printer.departmentId !== account.departmentId
+        printer.departmentId !== account.departmentId ||
+        (account.subunitId !== null && printer.subunitId !== account.subunitId) ||
+        (account.costCenterId !== null && printer.costCenterId !== account.costCenterId)
       ),
     );
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { departments, locations, printerAccessRequests, printers, userModuleAccess, userPrinterPermissions, users } from "@/db/schema";
+import { costCenters, departments, locations, printerAccessRequests, printers, subunits, userModuleAccess, userPrinterPermissions, users } from "@/db/schema";
 import { Card, IconGlyph, PageHeader, SecondaryButton } from "@/components/ui";
 import DeleteButton from "@/components/DeleteButton";
 import SuccessBanner from "@/components/SuccessBanner";
@@ -78,9 +78,13 @@ export async function ViewUserPage({
       user: users,
       location: locations.name,
       department: departments.name,
+      subunit: subunits.name,
+      costCenter: costCenters.code,
     }).from(users)
       .leftJoin(locations, eq(users.primaryLocationId, locations.id))
       .leftJoin(departments, eq(users.departmentId, departments.id))
+      .leftJoin(subunits, eq(users.subunitId, subunits.id))
+      .leftJoin(costCenters, eq(users.costCenterId, costCenters.id))
       .where(eq(users.id, userId))
       .limit(1),
     db.select().from(userModuleAccess).where(eq(userModuleAccess.userId, userId)),
@@ -123,6 +127,8 @@ export async function ViewUserPage({
               .where(and(
                 eq(printers.locationId, user.primaryLocationId),
                 eq(printers.departmentId, user.departmentId),
+                user.subunitId ? eq(printers.subunitId, user.subunitId) : undefined,
+                user.costCenterId ? eq(printers.costCenterId, user.costCenterId) : undefined,
                 eq(printers.status, "Active"),
               ))
           : Promise.resolve([]),
@@ -174,8 +180,10 @@ export async function ViewUserPage({
                         ["Username", user.username],
                         ["Role", roleLabel(user.role)],
                         ["Status", user.accountStatus],
-                        ["Location", record.location],
+                        ["Office", record.location],
                         ["Department", record.department],
+                        ["Subunit", record.subunit],
+                        ["Cost Center", record.costCenter],
                       ]}
                     />
                   </div>

@@ -65,7 +65,7 @@ export default async function MonitoringAlertsPage({
         printer_alerts.printer_id,
         printers.model,
         printers.serial_number,
-        locations.name as location_name,
+        offices.name as location_name,
         departments.name as department_name,
         monitoring_agents.name as agent_name,
         printer_alerts.type,
@@ -79,7 +79,7 @@ export default async function MonitoringAlertsPage({
         ) as event_at
       from printer_alerts
       inner join printers on printers.id = printer_alerts.printer_id
-      left join locations on locations.id = printers.location_id
+      left join offices on offices.id = printers.office_id
       left join departments on departments.id = printers.department_id
       left join monitoring_agents on monitoring_agents.id = printer_alerts.agent_id
       ${statusCondition}
@@ -141,7 +141,7 @@ export default async function MonitoringAlertsPage({
             </p>
             <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
               {alertsResult.rows.length > 0
-                ? "Clear or change the Location and Agent filters in the table header."
+                ? "Clear or change the Office and Agent filters in the table header."
                 : status === "active"
                 ? "New printer monitoring issues will appear here when reported by a PrintDash agent."
                 : "Resolved printer monitoring events will appear here for reference."}
@@ -172,8 +172,8 @@ export default async function MonitoringAlertsPage({
                     <th className="px-4 py-3">Alert</th>
                     <th className="px-4 py-3">Model / SN:</th>
                     <th className="px-4 py-2.5">
-                      <FilterableHeading label="Location / Department">
-                        <PrinterColumnFilter label="Location" paramName="location" options={locationOptions} selectedValues={locationFilters} />
+                      <FilterableHeading label="Office / Department">
+                        <PrinterColumnFilter label="Office" paramName="location" options={locationOptions} selectedValues={locationFilters} />
                       </FilterableHeading>
                     </th>
                     <th className="px-4 py-2.5">
@@ -318,7 +318,7 @@ function AlertCard({
           </Link>
           <span className="mt-0.5 block break-all font-mono text-[11px] text-slate-500">{alert.serial_number}</span>
         </AlertDetail>
-        <AlertDetail icon={BellRing} label="Location / Department">
+        <AlertDetail icon={BellRing} label="Office / Department">
           <span className="font-semibold text-slate-700">{alert.location_name ?? "Not assigned"}</span>
           <span className="mt-0.5 block text-xs text-slate-500">{alert.department_name ?? "Not assigned"}</span>
         </AlertDetail>

@@ -20,6 +20,7 @@ import PrintDashStatusToasts, {
 } from "./PrintDashStatusToasts";
 import CollapsibleFilterPanel from "@/components/CollapsibleFilterPanel";
 import SearchInput from "@/components/SearchInput";
+import SearchableDropdown from "@/components/SearchableDropdown";
 import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 
@@ -113,11 +114,11 @@ export default async function PrintDashPage({
       or printers.serial_number ilike ${pattern}
       or printers.model ilike ${pattern}
       or coalesce(printers.ip_address, '') ilike ${pattern}
-      or coalesce(locations.name, '') ilike ${pattern}
+      or coalesce(offices.name, '') ilike ${pattern}
       or coalesce(departments.name, '') ilike ${pattern}
     )`);
   }
-  if (locationId !== null) filters.push(sql`printers.location_id = ${locationId}`);
+  if (locationId !== null) filters.push(sql`printers.office_id = ${locationId}`);
   if (status === "online") {
     filters.push(sql`
       (${freshCondition})
@@ -198,7 +199,7 @@ export default async function PrintDashPage({
         printers.serial_number,
         printers.model,
         printers.ip_address,
-        locations.name as location_name,
+        offices.name as location_name,
         departments.name as department_name,
         latest_readings.id as reading_id,
         latest_readings.online,
@@ -223,7 +224,7 @@ export default async function PrintDashPage({
         latest_consumable.status as consumable_status,
         coalesce(latest_toners.items, '[]'::jsonb) as toner_consumables
       from printers
-      left join locations on locations.id = printers.location_id
+      left join offices on offices.id = printers.office_id
       left join departments on departments.id = printers.department_id
       left join latest_readings on latest_readings.printer_id = printers.id
       left join monitoring_agents on monitoring_agents.id = latest_readings.agent_id
@@ -268,7 +269,7 @@ export default async function PrintDashPage({
         printers.model,
         printers.serial_number
     `),
-    db.execute<LocationRow>(sql`select id, name from locations order by name`),
+    db.execute<LocationRow>(sql`select id, name from offices order by name`),
   ]);
 
   const summary = summaryResult.rows[0] ?? {
@@ -318,37 +319,11 @@ export default async function PrintDashPage({
             name="q"
             defaultValue={query}
             submitOnChange
-            placeholder="Name, model, serial, IP, location…"
+            placeholder="Name, model, serial, IP, office…"
             aria-label="Search monitored printers"
           />
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">Monitoring status</span>
-            <select
-              name="status"
-              defaultValue={status}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40"
-            >
-              <option value="">All statuses</option>
-              <option value="online">Online</option>
-              <option value="offline">Offline</option>
-              <option value="warning">Warning</option>
-              <option value="stale">Stale</option>
-              <option value="not-monitored">Not monitored</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">Location</span>
-            <select
-              name="location"
-              defaultValue={locationId?.toString() ?? ""}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40"
-            >
-              <option value="">All locations</option>
-              {locationsResult.rows.map((location) => (
-                <option key={location.id} value={location.id}>{location.name}</option>
-              ))}
-            </select>
-          </label>
+          <SearchableDropdown label="Monitoring status" name="status" defaultValue={status} autoSubmit placeholder="Search statuses..." options={[{ value: "", label: "All statuses" }, { value: "online", label: "Online" }, { value: "offline", label: "Offline" }, { value: "warning", label: "Warning" }, { value: "stale", label: "Stale" }, { value: "not-monitored", label: "Not monitored" }]} />
+          <SearchableDropdown label="Office" name="location" defaultValue={locationId?.toString() ?? ""} autoSubmit placeholder="Search offices..." options={[{ value: "", label: "All offices" }, ...locationsResult.rows.map((location) => ({ value: String(location.id), label: location.name }))]} />
           <div className="flex items-end sm:justify-start xl:justify-end">
             <Link
               href="/printdash"
@@ -402,7 +377,7 @@ export default async function PrintDashPage({
                 </colgroup>
                 <thead className="bg-slate-50 text-[11px] uppercase text-slate-500">
                   <tr>
-                    <th className="whitespace-nowrap px-4 py-3">Location / Department</th>
+                    <th className="whitespace-nowrap px-4 py-3">Office / Department</th>
                     <th className="whitespace-nowrap px-4 py-3">IP Address</th>
                     <th className="whitespace-nowrap px-4 py-3">Model / Serial Number</th>
                     <th className="whitespace-nowrap px-4 py-3">Status</th>
@@ -520,7 +495,7 @@ function PrinterMonitoringCard({
 
       <dl className="mt-4 grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-4 text-xs">
         <MonitoringDetail
-          label="Location / Department"
+          label="Office / Department"
           value={`${printer.location_name ?? "Unassigned"} / ${printer.department_name ?? "No department"}`}
         />
         <div className="min-w-0">

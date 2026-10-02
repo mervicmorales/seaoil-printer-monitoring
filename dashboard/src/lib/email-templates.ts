@@ -257,8 +257,8 @@ export function buildAgentStatusEmail({
   const title = offline ? "Monitoring Agent Offline" : "Monitoring Agent Recovered";
   const eventLabel = offline ? "Detected At" : "Recovered At";
   const body = offline
-    ? "The monitoring agent is no longer reporting to the SEAOIL Printer Management System. Printer readings from this location may be unavailable until connectivity is restored."
-    : "The monitoring agent has resumed reporting to the SEAOIL Printer Management System. Printer monitoring for this location is operational again.";
+    ? "The monitoring agent is no longer reporting to the SEAOIL Printer Management System. Printer readings from this office may be unavailable until connectivity is restored."
+    : "The monitoring agent has resumed reporting to the SEAOIL Printer Management System. Printer monitoring for this office is operational again.";
   return {
     subject,
     text: textEmail([
@@ -268,7 +268,7 @@ export function buildAgentStatusEmail({
       "",
       `Agent Name: ${agentName}`,
       `Agent Key: ${agentKey}`,
-      `Location: ${location}`,
+      `Office: ${location}`,
       `${offline ? "Last Seen" : "Previous Last Seen"}: ${previousLastSeen}`,
       `${eventLabel}: ${occurredAt}`,
     ]),
@@ -287,7 +287,7 @@ export function buildAgentStatusEmail({
       details: [
         { label: "Agent Name", value: agentName, emphasis: true },
         { label: "Agent Key", value: agentKey },
-        { label: "Location", value: location },
+        { label: "Office", value: location },
         { label: offline ? "Last Seen" : "Previous Last Seen", value: previousLastSeen },
         { label: eventLabel, value: occurredAt },
       ],
@@ -334,7 +334,7 @@ export function buildPrinterAccessRequestEmail({
       `Employee Email: ${employeeEmail}`,
       `Printer Serial Number: ${printerSerialNumber}`,
       `Printer Model: ${printerModel || "Not provided"}`,
-      `Location: ${location || "Not provided"}`,
+      `Office: ${location || "Not provided"}`,
       `Department: ${department || "Not provided"}`,
       `IP Address: ${ipAddress || "Not provided"}`,
       `Monitoring Agent: ${agentName}`,
@@ -356,7 +356,7 @@ export function buildPrinterAccessRequestEmail({
         { label: "Employee Email", value: employeeEmail },
         { label: "Printer Serial Number", value: printerSerialNumber, emphasis: true },
         { label: "Printer Model", value: printerModel || "Not provided" },
-        { label: "Location", value: location || "Not provided" },
+        { label: "Office", value: location || "Not provided" },
         { label: "Department", value: department || "Not provided" },
         { label: "IP Address", value: ipAddress || "Not provided" },
         { label: "Monitoring Agent", value: agentName },
@@ -405,7 +405,7 @@ export function buildPrinterAccessRequestCompose({
     "──────────────────────────────",
     `Serial Number: ${printerSerialNumber}`,
     `Model: ${printerModel || "Not provided"}`,
-    `Location: ${location || "Not provided"}`,
+    `Office: ${location || "Not provided"}`,
     `Department: ${department || "Not provided"}`,
     `IP Address: ${ipAddress || "Not provided"}`,
     `Monitoring Agent: ${agentName}`,

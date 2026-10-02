@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { PrintOpsPrinterTarget } from "@/lib/printops";
 import PrintFilePreview from "./PrintFilePreview";
 import { getDefaultPrintTarget } from "./print-target-state";
+import SearchableDropdown from "@/components/SearchableDropdown";
 
 export type AgentOption = {
   id: number;
@@ -33,26 +34,23 @@ export default function PrintTargetSelect({
   return (
     <>
       {!hideAgentSelector && (
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Office agent</span>
-          <select
+        <div className="block">
+          <SearchableDropdown
+            label="Office agent"
             value={agentId}
-            onChange={(event) => setAgentId(event.target.value)}
+            onValueChange={setAgentId}
             required
-            className={selectClassName}
-          >
-            {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name}{agent.printers.length === 0 ? " · no available printers" : ""}
-              </option>
-            ))}
-          </select>
+            placeholder="Search office agents..."
+            options={agents.map((agent) => ({ value: String(agent.id), label: `${agent.name}${agent.printers.length === 0 ? " · no available printers" : ""}` }))}
+            inputClassName={selectClassName}
+            labelClassName="!font-semibold"
+          />
           <span className="mt-1.5 block text-xs text-slate-500">
             {selectedAgent
               ? `${selectedAgent.printers.length} available ${selectedAgent.printers.length === 1 ? "printer" : "printers"}`
               : "Select the office agent that will process this print request."}
           </span>
-        </label>
+        </div>
       )}
       <PrintFilePreview
         key={agentId}

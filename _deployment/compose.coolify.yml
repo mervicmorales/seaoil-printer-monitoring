@@ -34,15 +34,19 @@ services:
       - sh
       - -c
       - >-
+        node scripts/migrate-office-naming.mjs &&
         npx drizzle-kit push --config=drizzle.docker.config.ts --force &&
         node scripts/migrate-notifications-registration-smtp.mjs &&
         node scripts/migrate-monitoring-assignments.mjs &&
         node scripts/add-printer-mac-address.mjs &&
+        node scripts/add-printer-floor.mjs &&
         node scripts/migrate-auth-security.mjs &&
         node scripts/migrate-repair-ticket-sequence.mjs &&
         node scripts/add-user-printer-permissions.mjs &&
         node scripts/migrate-monitoring-agent-locations.mjs &&
-        node scripts/add-printer-access-requests.mjs
+        node scripts/add-printer-access-requests.mjs &&
+        node scripts/migrate-organization-data.mjs &&
+        node scripts/migrate-office-naming.mjs
 
   dashboard:
     image: seaoil-printer-monitoring-dashboard:coolify

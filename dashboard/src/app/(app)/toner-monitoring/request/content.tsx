@@ -1,6 +1,7 @@
 import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import { Send } from "lucide";
-import { getDepartments, getItsNames, getLocations, getVisibleTonerTypesWithInventory } from "@/lib/lookups";
+import { getItsNames, getVisibleTonerTypesWithInventory } from "@/lib/lookups";
+import { getOrganizationOptions } from "@/lib/organization";
 import { createRequestAction } from "../actions";
 import TonerDeliveryRequestForm from "../TonerDeliveryRequestForm";
 import { requireModuleFullAccess } from "@/lib/server-utils";
@@ -12,10 +13,9 @@ export async function RequestTonerPage({
   embedded?: boolean;
 }) {
   await requireModuleFullAccess("toner_monitoring");
-  const [tonerTypes, locations, departments, itsNames] = await Promise.all([
+  const [tonerTypes, organizationOptions, itsNames] = await Promise.all([
     getVisibleTonerTypesWithInventory(),
-    getLocations(),
-    getDepartments(),
+    getOrganizationOptions(),
     getItsNames(),
   ]);
 
@@ -23,7 +23,7 @@ export async function RequestTonerPage({
     <div>
       <PageHeader
         title="Request Toner"
-        subtitle="Record toner issued to a location or department."
+        subtitle="Record toner issued to an office or department."
         actions={embedded ? (
           <PrimaryButton
             type="submit"
@@ -40,8 +40,7 @@ export async function RequestTonerPage({
           mode="request"
           action={createRequestAction}
           tonerTypes={tonerTypes}
-          locations={locations}
-          departments={departments}
+          organizationOptions={organizationOptions}
           itsNames={itsNames}
           today={todayISO()}
           showActions={!embedded}

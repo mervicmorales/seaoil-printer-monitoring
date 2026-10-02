@@ -180,7 +180,7 @@ export async function ViewContractPage({
                 <tr>
                   <th className="px-4 py-3">Serial Number</th>
                   <th className="px-4 py-3">Model</th>
-                  <th className="px-4 py-3">Location / Department</th>
+                  <th className="px-4 py-3">Office / Department</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>

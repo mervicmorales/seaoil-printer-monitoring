@@ -1831,7 +1831,7 @@ select option{background:var(--surface)}
       <div class="field"><label>IP Address *</label><input id="f-ip" placeholder="192.168.18.x"/></div>
     </div>
     <div class="field"><label>SNMP Community</label><input id="f-community" value="public"/></div>
-    <div class="field"><label>Location / Department</label><input id="f-location" placeholder="Floor 2, HR Dept…"/></div>
+    <div class="field"><label>Office / Department</label><input id="f-location" placeholder="Floor 2, HR Dept…"/></div>
     <div class="modal-footer">
       <button class="btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="savePrinter()">Save</button>
@@ -2006,7 +2006,7 @@ function traysPanel(p) {
 function infoPanel(p) {
   const items=[['IP',p.ip],['Model',p.model],['Serial',p.serial||'—'],['MAC',p.mac||'—'],
     ['Uptime',p.uptime||'—'],['Memory',p.memKB?Math.round(p.memKB/1024)+'MB':'—'],
-    ['Location',p.location||'—'],
+    ['Office',p.location||'—'],
     ['Community',p.community||'public'],['Checked',p.lastChecked?new Date(p.lastChecked).toLocaleTimeString():'—']];
   const grid=items.map(([l,v])=>\`<div class="info-item"><div class="info-label">\${l}</div><div class="info-value">\${esc(String(v||'—'))}</div></div>\`).join('');
   const con=p.console_msg?'<div style="margin-top:10px"><div class="info-label" style="font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Console</div><div class="console-msg">'+esc(p.console_msg)+'</div></div>':'';
@@ -2046,17 +2046,15 @@ function printCardPanel(p) {
     </div>
     <div class="print-opts">
       <div class="field-sm"><label>CUPS Printer</label>
-        <select id="po-printer-\${pid}"><option value="">Loading…</option></select>
+        <input id="po-printer-\${pid}" list="po-printer-options-\${pid}" autocomplete="off" placeholder="Search printers…"/>
+        <datalist id="po-printer-options-\${pid}"></datalist>
       </div>
       <div class="field-sm"><label>Copies</label>
         <input type="number" id="po-copies-\${pid}" value="1" min="1" max="99"/>
       </div>
       <div class="field-sm"><label>Duplex</label>
-        <select id="po-duplex-\${pid}">
-          <option value="none">Single sided</option>
-          <option value="long">Double (long edge)</option>
-          <option value="short">Double (short edge)</option>
-        </select>
+        <input id="po-duplex-\${pid}" list="po-duplex-options-\${pid}" autocomplete="off" value="Single sided"/>
+        <datalist id="po-duplex-options-\${pid}"><option value="Single sided"></option><option value="Double (long edge)"></option><option value="Double (short edge)"></option></datalist>
       </div>
     </div>
     <button class="btn-primary" onclick="submitPrint('\${pid}')">🖨 Send to Printer</button>
@@ -2078,17 +2076,15 @@ function renderPrintView() {
       </div>
       <div class="print-opts">
         <div class="field-sm"><label>Printer</label>
-          <select id="po-printer-main"><option value="">Loading…</option></select>
+          <input id="po-printer-main" list="po-printer-options-main" autocomplete="off" placeholder="Search printers…"/>
+          <datalist id="po-printer-options-main"></datalist>
         </div>
         <div class="field-sm"><label>Copies</label>
           <input type="number" id="po-copies-main" value="1" min="1" max="99"/>
         </div>
         <div class="field-sm"><label>Duplex</label>
-          <select id="po-duplex-main">
-            <option value="none">Single sided</option>
-            <option value="long">Double (long edge)</option>
-            <option value="short">Double (short edge)</option>
-          </select>
+          <input id="po-duplex-main" list="po-duplex-options-main" autocomplete="off" value="Single sided"/>
+          <datalist id="po-duplex-options-main"><option value="Single sided"></option><option value="Double (long edge)"></option><option value="Double (short edge)"></option></datalist>
         </div>
       </div>
       <button class="btn-primary" style="width:100%;padding:12px" onclick="submitPrint('main')">🖨 Send to Printer</button>
@@ -2128,12 +2124,10 @@ async function renderScansView() {
       <div class="scan-header">
         <div style="font-weight:700;color:#f1f5f9">\${scans.length} file\${scans.length!==1?'s':''} in scan folder</div>
         <div style="display:flex;gap:8px">
-          <select id="scan-device" class="btn-outline btn-sm" style="cursor:pointer"></select>
-          <select id="scan-source" class="btn-outline btn-sm" style="cursor:pointer">
-            <option value="Flatbed">Flatbed (Glass)</option>
-            <option value="ADF">ADF Simplex</option>
-            <option value="ADF Duplex">ADF Duplex</option>
-          </select>
+          <input id="scan-device" list="scan-device-options" class="btn-outline btn-sm" autocomplete="off" placeholder="Search scanners…"/>
+          <datalist id="scan-device-options"></datalist>
+          <input id="scan-source" list="scan-source-options" class="btn-outline btn-sm" autocomplete="off" value="Flatbed"/>
+          <datalist id="scan-source-options"><option value="Flatbed">Flatbed (Glass)</option><option value="ADF">ADF Simplex</option><option value="ADF Duplex">ADF Duplex</option></datalist>
           <button class="btn-primary btn-sm" id="scan-now-btn" onclick="triggerScanNow()">🖨 Scan Now</button>
           <button class="btn-outline btn-sm" onclick="renderScansView()">↻ Refresh</button>
         </div>
@@ -2144,10 +2138,12 @@ async function renderScansView() {
         <tbody>\${rows}</tbody>
       </table>\`;
     const devs = await fetch('/api/scans/devices').then(x=>x.json()).then(x=>x.devices||[]).catch(()=>[]);
-    const devSel = document.getElementById('scan-device');
-    devSel.innerHTML = devs.length
-      ? devs.map(d=>'<option value="'+esc(d.id)+'">'+esc(d.label)+'</option>').join('')
-      : '<option value="">No scanners found</option>';
+    const devInput = document.getElementById('scan-device');
+    const devList = document.getElementById('scan-device-options');
+    devInput._devices = devs;
+    devList.innerHTML = devs.map(d=>'<option value="'+esc(d.label)+'"></option>').join('');
+    devInput.value = devs[0]?.label || '';
+    devInput.placeholder = devs.length ? 'Search scanners…' : 'No scanners found';
   } catch { document.getElementById('content').innerHTML='<div class="empty">⚠ Could not load scans</div>'; }
 }
 
@@ -2158,7 +2154,9 @@ async function deleteScan(name) {
 }
 
 async function triggerScanNow() {
-  const device = document.getElementById('scan-device').value;
+  const deviceInput = document.getElementById('scan-device');
+  const deviceValue = deviceInput.value.trim();
+  const device = (deviceInput._devices||[]).find(item=>item.label===deviceValue)?.id || deviceValue;
   const source = document.getElementById('scan-source').value;
   const btn = document.getElementById('scan-now-btn');
   const status = document.getElementById('scan-now-status');
@@ -2383,7 +2381,8 @@ async function renderUsersView() {
         <div class="field"><label>Password</label><input id="nu-password" type="password" placeholder="••••••••"/></div>
       </div>
       <div class="field" style="max-width:200px"><label>Role</label>
-        <select id="nu-role"><option value="user">User (Print + Scans only)</option><option value="admin">Admin (Full access)</option></select>
+        <input id="nu-role" list="nu-role-options" autocomplete="off" value="user" placeholder="Search roles…"/>
+        <datalist id="nu-role-options"><option value="user">User (Print + Scans only)</option><option value="admin">Admin (Full access)</option></datalist>
       </div>
       <button class="btn-primary" onclick="addUser()">Create User</button>
       <div id="users-status" class="settings-status"></div>
@@ -2520,11 +2519,12 @@ function dzFile(id,f){ if(!f)return; printFiles[id]=f; document.getElementById('
 
 async function populatePrinterSelects() {
   await loadCupsPrinters();
-  document.querySelectorAll('[id^="po-printer-"]').forEach(sel=>{
-    sel.innerHTML=cupsPrinters.length
-      ?cupsPrinters.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')
-      +'<option value="">-- manual entry --</option>'
-      :'<option value="">No CUPS printers found</option>';
+  document.querySelectorAll('[id^="po-printer-"]').forEach(input=>{
+    const suffix=input.id.slice('po-printer-'.length);
+    const list=document.getElementById('po-printer-options-'+suffix);
+    if (list) list.innerHTML=cupsPrinters.map(p=>'<option value="'+esc(p)+'"></option>').join('');
+    if (!input.value && cupsPrinters.length) input.value=cupsPrinters[0];
+    input.placeholder=cupsPrinters.length?'Search printers…':'No CUPS printers found';
   });
 }
 
@@ -2532,7 +2532,8 @@ async function submitPrint(id) {
   const file=printFiles[id];
   const printer=document.getElementById('po-printer-'+id)?.value;
   const copies=document.getElementById('po-copies-'+id)?.value||'1';
-  const duplex=document.getElementById('po-duplex-'+id)?.value||'none';
+  const duplexLabel=document.getElementById('po-duplex-'+id)?.value||'Single sided';
+  const duplex=({'Single sided':'none','Double (long edge)':'long','Double (short edge)':'short'})[duplexLabel]||'none';
   if (!file) { showPrintStatus(id,'⚠ Please select a file first','err'); return; }
   if (!printer) { showPrintStatus(id,'⚠ Please select a printer','err'); return; }
   showPrintStatus(id,'<span class="spin"></span> Sending to printer…','ok');

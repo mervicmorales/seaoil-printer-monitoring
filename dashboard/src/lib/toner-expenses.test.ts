@@ -59,7 +59,7 @@ test("summarizes toner expenses by department, toner type, and month", () => {
     ["2026-02", 45000],
   ]);
   assert.deepEqual(summary.locations.map((row) => [row.name, row.expenseCents]), [
-    ["Unassigned location", 45000],
+    ["Unassigned office", 45000],
     ["Head Office", 40000],
   ]);
 });
