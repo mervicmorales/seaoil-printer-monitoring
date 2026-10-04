@@ -54,13 +54,13 @@ const gridContainerPadding = [0, 0] as const;
 
 const defaultLayouts: ResponsiveLayouts<DashboardBreakpoint> = {
   lg: [
-    item("expenses", 0, 0, 6, 13, 5, 6),
-    item("movement", 6, 0, 6, 13, 4, 7),
-    item("accounts", 0, 13, 4, 5, 4, 3),
-    item("fleet", 4, 13, 5, 5, 5, 3),
-    item("inventory", 9, 13, 3, 19, 3, 5),
-    item("operations", 0, 18, 9, 14, 6, 8),
-    item("recent", 0, 32, 12, 10, 4, 5),
+    item("expenses", 0, 0, 6, 16, 5, 6),
+    item("movement", 6, 0, 6, 16, 4, 7),
+    item("accounts", 0, 16, 4, 5, 4, 3),
+    item("fleet", 4, 16, 5, 5, 5, 3),
+    item("inventory", 9, 16, 3, 19, 3, 5),
+    item("operations", 0, 21, 9, 14, 6, 8),
+    item("recent", 0, 35, 12, 10, 4, 5),
   ],
   md: [
     item("accounts", 0, 0, 8, 5, 4, 3),

@@ -14,14 +14,37 @@ export type DitherInventoryPoint = {
   balance: number;
   delivered: number;
   requested: number;
+  highlightedRequested: number;
+};
+
+type DitherParticle = {
+  hx: number;
+  hy: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  alpha: number;
 };
 
 const integer = new Intl.NumberFormat("en-PH");
 
-export default function DitherInventoryGrowthChart({ points }: { points: DitherInventoryPoint[] }) {
+export default function DitherInventoryGrowthChart({
+  points,
+  highlightedScopeLabel,
+  highlightedRequested = 0,
+}: {
+  points: DitherInventoryPoint[];
+  highlightedScopeLabel?: string;
+  highlightedRequested?: number;
+}) {
   const { canvasRef, rect, isVisible, reducedMotion, size } = useCanvasSetup();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
+  const animationTickRef = useRef<(timestamp: number) => void>(() => undefined);
+  const particlesRef = useRef<DitherParticle[]>([]);
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const maximum = useMemo(() => Math.max(1, ...points.map((point) => point.balance)), [points]);
   const chartMaximum = Math.max(1, Math.ceil(maximum * 1.12));
@@ -37,30 +60,69 @@ export default function DitherInventoryGrowthChart({ points }: { points: DitherI
     const { width, height } = rect.current;
     if (!canvas || !context || !points.length || width === 0 || height === 0) return;
 
+    particlesRef.current = buildParticles(width, height, points, chartMaximum);
+    pointerRef.current = null;
     const startedAt = performance.now();
     const duration = reducedMotion ? 0 : 420;
+    let previousFrame = startedAt;
 
     const draw = (timestamp: number) => {
       if (!isVisible.current) {
         animationRef.current = window.requestAnimationFrame(draw);
         return;
       }
+      const delta = Math.max(0.25, Math.min(2.5, (timestamp - previousFrame) / 16.67));
+      previousFrame = timestamp;
       const progress = duration === 0 ? 1 : Math.min(1, (timestamp - startedAt) / duration);
-      renderChart(context, canvas, width, height, points, chartMaximum, easeOut(progress));
-      if (progress < 1) animationRef.current = window.requestAnimationFrame(draw);
+      const particlesBusy = reducedMotion
+        ? false
+        : updateParticles(particlesRef.current, pointerRef.current, delta, width);
+      renderChart(
+        context,
+        canvas,
+        width,
+        height,
+        points,
+        chartMaximum,
+        easeOut(progress),
+        particlesRef.current,
+        Boolean(highlightedScopeLabel),
+      );
+      if (progress < 1 || particlesBusy) animationRef.current = window.requestAnimationFrame(draw);
+      else animationRef.current = null;
     };
 
+    animationTickRef.current = draw;
     animationRef.current = window.requestAnimationFrame(draw);
     return () => {
       if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
     };
-  }, [canvasRef, chartMaximum, isVisible, points, rect, reducedMotion, size.height, size.width]);
+  }, [canvasRef, chartMaximum, highlightedScopeLabel, isVisible, points, rect, reducedMotion, size.height, size.width]);
+
+  const wakeParticles = () => {
+    if (reducedMotion || animationRef.current !== null) return;
+    animationRef.current = window.requestAnimationFrame(animationTickRef.current);
+  };
 
   const selectFromPointer = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = wrapperRef.current?.getBoundingClientRect();
     if (!bounds || !points.length) return;
     const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
     setActiveIndex(Math.round(ratio * Math.max(0, points.length - 1)));
+    if (!reducedMotion) {
+      pointerRef.current = {
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      };
+      wakeParticles();
+    }
+  };
+
+  const clearPointer = () => {
+    pointerRef.current = null;
+    setActiveIndex(null);
+    wakeParticles();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -90,7 +152,11 @@ export default function DitherInventoryGrowthChart({ points }: { points: DitherI
             role="group"
             aria-label="Interactive inventory balance chart. Use the left and right arrow keys to review each period."
             onPointerMove={selectFromPointer}
-            onPointerLeave={() => setActiveIndex(null)}
+            onPointerLeave={clearPointer}
+            onPointerUp={(event) => {
+              if (event.pointerType !== "mouse") clearPointer();
+            }}
+            onPointerCancel={clearPointer}
             onFocus={() => setActiveIndex((current) => current ?? points.length - 1)}
             onBlur={() => setActiveIndex(null)}
             onKeyDown={handleKeyDown}
@@ -116,6 +182,12 @@ export default function DitherInventoryGrowthChart({ points }: { points: DitherI
                   <p className="flex justify-between gap-4"><span>Balance</span><strong className="tabular-nums text-[#014171]">{integer.format(activePoint.balance)}</strong></p>
                   <p className="flex justify-between gap-4"><span>Delivered</span><strong className="tabular-nums text-emerald-700">+{integer.format(activePoint.delivered)}</strong></p>
                   <p className="flex justify-between gap-4"><span>Requested</span><strong className="tabular-nums text-rose-700">−{integer.format(activePoint.requested)}</strong></p>
+                  {highlightedScopeLabel && (
+                    <p className="flex justify-between gap-4 border-t border-slate-100 pt-0.5 text-amber-700">
+                      <span className="max-w-24 truncate" title={highlightedScopeLabel}>{highlightedScopeLabel}</span>
+                      <strong className="tabular-nums">−{integer.format(activePoint.highlightedRequested)}</strong>
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -131,8 +203,9 @@ export default function DitherInventoryGrowthChart({ points }: { points: DitherI
         <Legend color="bg-[#014171]" label="Stock balance" />
         <Legend color="bg-emerald-500" label="Delivery" />
         <Legend color="bg-rose-500" label="Request" />
+        {highlightedScopeLabel && <Legend color="bg-[#ffd100]" label={`${highlightedScopeLabel}: ${integer.format(highlightedRequested)} requested`} />}
       </div>
-      <p className="sr-only">{points.map((point) => `${point.label}: ${point.balance} units, ${point.delivered} delivered, ${point.requested} requested`).join(". ")}</p>
+      <p className="sr-only">{points.map((point) => `${point.label}: ${point.balance} units, ${point.delivered} delivered, ${point.requested} requested${highlightedScopeLabel ? `, ${point.highlightedRequested} requested by ${highlightedScopeLabel}` : ""}`).join(". ")}</p>
     </div>
   );
 }
@@ -145,6 +218,8 @@ function renderChart(
   points: DitherInventoryPoint[],
   maximum: number,
   progress: number,
+  particles: DitherParticle[],
+  showDepartmentRequests: boolean,
 ) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const plotTop = height * 0.08;
@@ -175,20 +250,30 @@ function renderChart(
   context.rect(0, 0, revealX, height);
   context.clip();
 
-  const cell = Math.max(4, Math.round(width / 120));
   context.fillStyle = "#0b70a8";
-  for (let cellX = 0; cellX <= width; cellX += cell) {
-    const ratio = width > 0 ? cellX / width : 0;
-    const pointIndex = Math.min(points.length - 1, Math.floor(ratio * Math.max(1, points.length - 1)));
-    const curveY = y(points[pointIndex]?.balance ?? 0);
-    for (let cellY = curveY + cell; cellY <= plotBottom; cellY += cell) {
-      const depth = (cellY - curveY) / Math.max(1, plotBottom - curveY);
-      const noise = hash(cellX, cellY);
-      if (noise < 0.22 + depth * 0.42) continue;
-      const size = cell * (0.24 + depth * 0.3 + noise * 0.16);
-      context.globalAlpha = 0.2 + depth * 0.22;
-      context.fillRect(cellX - size / 2, cellY - size / 2, size, size);
+  for (const particle of particles) {
+    const speed = Math.hypot(particle.vx, particle.vy);
+    context.globalAlpha = particle.alpha;
+    if (speed < 0.25) {
+      context.fillRect(
+        particle.x - particle.size / 2,
+        particle.y - particle.size / 2,
+        particle.size,
+        particle.size,
+      );
+      continue;
     }
+    const stretch = Math.min(2.4, 1 + speed * 0.13);
+    context.save();
+    context.translate(particle.x, particle.y);
+    context.rotate(Math.atan2(particle.vy, particle.vx));
+    context.fillRect(
+      -(particle.size * stretch) / 2,
+      -particle.size / (2 * Math.sqrt(stretch)),
+      particle.size * stretch,
+      particle.size / Math.sqrt(stretch),
+    );
+    context.restore();
   }
   context.globalAlpha = 1;
 
@@ -215,8 +300,112 @@ function renderChart(
     context.strokeStyle = "#ffffff";
     context.stroke();
   });
+
+  if (showDepartmentRequests) {
+    points.forEach((point, index) => {
+      if (point.highlightedRequested <= 0) return;
+      const pointXValue = x(index);
+      const pointYValue = y(point.balance);
+      context.beginPath();
+      context.arc(pointXValue, pointYValue, 6, 0, Math.PI * 2);
+      context.fillStyle = "#ffd100";
+      context.fill();
+      context.lineWidth = 2;
+      context.strokeStyle = "#ffffff";
+      context.stroke();
+      context.beginPath();
+      context.arc(pointXValue, pointYValue, 2, 0, Math.PI * 2);
+      context.fillStyle = "#014171";
+      context.fill();
+    });
+  }
   context.restore();
   context.restore();
+}
+
+function buildParticles(
+  width: number,
+  height: number,
+  points: DitherInventoryPoint[],
+  maximum: number,
+) {
+  const plotTop = height * 0.08;
+  const plotBottom = height * 0.92;
+  const plotHeight = plotBottom - plotTop;
+  const y = (value: number) => plotBottom - (Math.max(0, value) / maximum) * plotHeight;
+  const cell = Math.max(4, Math.round(width / 120));
+  const candidates: DitherParticle[] = [];
+
+  for (let cellX = 0; cellX <= width; cellX += cell) {
+    const ratio = width > 0 ? cellX / width : 0;
+    const pointIndex = Math.min(points.length - 1, Math.floor(ratio * Math.max(1, points.length - 1)));
+    const curveY = y(points[pointIndex]?.balance ?? 0);
+    for (let cellY = curveY + cell; cellY <= plotBottom; cellY += cell) {
+      const depth = (cellY - curveY) / Math.max(1, plotBottom - curveY);
+      const noise = hash(cellX, cellY);
+      if (noise < 0.22 + depth * 0.42) continue;
+      const size = cell * (0.24 + depth * 0.3 + noise * 0.16);
+      candidates.push({
+        hx: cellX,
+        hy: cellY,
+        x: cellX,
+        y: cellY,
+        vx: 0,
+        vy: 0,
+        size,
+        alpha: 0.2 + depth * 0.22,
+      });
+    }
+  }
+
+  const targetCount = Math.max(220, Math.min(720, Math.round((width * height) / 320)));
+  if (candidates.length <= targetCount) return candidates;
+  return Array.from({ length: targetCount }, (_, index) => (
+    candidates[Math.floor((index * candidates.length) / targetCount)]!
+  ));
+}
+
+function updateParticles(
+  particles: DitherParticle[],
+  pointer: { x: number; y: number } | null,
+  delta: number,
+  width: number,
+) {
+  const reach = Math.max(44, Math.min(76, width * 0.13));
+  let busy = pointer !== null;
+
+  for (const particle of particles) {
+    if (pointer) {
+      const dx = particle.x - pointer.x;
+      const dy = particle.y - pointer.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < reach && distance > 0.01) {
+        const force = Math.pow(1 - distance / reach, 2) * 1.55;
+        particle.vx += (dx / distance) * force * delta;
+        particle.vy += (dy / distance) * force * delta;
+      }
+    }
+
+    particle.vx = (particle.vx + (particle.hx - particle.x) * 0.055 * delta) * Math.pow(0.82, delta);
+    particle.vy = (particle.vy + (particle.hy - particle.y) * 0.055 * delta) * Math.pow(0.82, delta);
+    particle.x += particle.vx * delta;
+    particle.y += particle.vy * delta;
+
+    const settled = Math.abs(particle.hx - particle.x) < 0.05
+      && Math.abs(particle.hy - particle.y) < 0.05
+      && Math.abs(particle.vx) < 0.02
+      && Math.abs(particle.vy) < 0.02;
+    if (settled) {
+      particle.x = particle.hx;
+      particle.y = particle.hy;
+      particle.vx = 0;
+      particle.vy = 0;
+    } else {
+      busy = true;
+    }
+  }
+
+  return busy;
 }
 
 function pointX(index: number, count: number) {

@@ -1,10 +1,18 @@
-export const INVENTORY_MOVEMENT_PERIODS = ["7d", "30d", "90d"] as const;
+export const INVENTORY_MOVEMENT_PERIODS = ["7d", "30d", "90d", "12m"] as const;
 export type InventoryMovementPeriod = (typeof INVENTORY_MOVEMENT_PERIODS)[number];
 
 export type InventoryMovementRecord = {
   date: string;
   type: string;
   quantity: number;
+  departmentKey?: string;
+  officeKey?: string;
+  tonerKey?: string;
+};
+
+export type InventoryMovementHighlight = {
+  dimension: "department" | "office" | "toner";
+  key: string;
 };
 
 export type InventoryWaterfallStep = {
@@ -16,6 +24,7 @@ export type InventoryWaterfallStep = {
   delta: number;
   deliveries: number;
   requests: number;
+  highlightedRequests: number;
 };
 
 export type InventoryWaterfall = {
@@ -23,6 +32,7 @@ export type InventoryWaterfall = {
   endingStock: number;
   delivered: number;
   requested: number;
+  highlightedRequested: number;
   steps: InventoryWaterfallStep[];
 };
 
@@ -31,15 +41,19 @@ export function buildInventoryWaterfall(
   today: string,
   period: InventoryMovementPeriod,
   movements: readonly InventoryMovementRecord[],
+  highlight?: InventoryMovementHighlight,
 ): InventoryWaterfall {
-  const periodDays = period === "7d" ? 7 : period === "30d" ? 30 : 90;
   const endDate = parseDate(today);
-  const startDate = new Date(endDate);
-  startDate.setUTCDate(endDate.getUTCDate() - (periodDays - 1));
+  const startDate = period === "12m"
+    ? new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth() - 12, 1))
+    : rollingStartDate(endDate, period === "7d" ? 7 : period === "30d" ? 30 : 90);
   const startKey = isoDate(startDate);
   const periodMovements = movements.filter((movement) => movement.date >= startKey && movement.date <= today);
   const delivered = sumType(periodMovements, "delivery");
   const requested = sumType(periodMovements, "request");
+  const highlightedRequested = highlight
+    ? sumHighlightedRequests(periodMovements, highlight)
+    : 0;
   const startingStock = Math.max(0, currentStock - delivered + requested);
   const buckets = buildBuckets(startDate, endDate, period);
   let runningStock = startingStock;
@@ -52,6 +66,7 @@ export function buildInventoryWaterfall(
     delta: startingStock,
     deliveries: 0,
     requests: 0,
+    highlightedRequests: 0,
   }];
 
   for (const bucket of buckets) {
@@ -69,6 +84,7 @@ export function buildInventoryWaterfall(
       delta,
       deliveries: bucketDeliveries,
       requests: bucketRequests,
+      highlightedRequests: highlight ? sumHighlightedRequests(rows, highlight) : 0,
     });
     runningStock = nextStock;
   }
@@ -82,9 +98,10 @@ export function buildInventoryWaterfall(
     delta: currentStock,
     deliveries: 0,
     requests: 0,
+    highlightedRequests: 0,
   });
 
-  return { startingStock, endingStock: currentStock, delivered, requested, steps };
+  return { startingStock, endingStock: currentStock, delivered, requested, highlightedRequested, steps };
 }
 
 function buildBuckets(startDate: Date, endDate: Date, period: InventoryMovementPeriod) {
@@ -135,6 +152,27 @@ function sumType(movements: readonly InventoryMovementRecord[], type: string) {
   return movements.reduce((sum, movement) => movement.type.trim().toLowerCase() === type ? sum + movement.quantity : sum, 0);
 }
 
+function sumHighlightedRequests(movements: readonly InventoryMovementRecord[], highlight: InventoryMovementHighlight) {
+  return movements.reduce((sum, movement) => (
+    movement.type.trim().toLowerCase() === "request"
+      && movementKey(movement, highlight.dimension) === highlight.key
+      ? sum + movement.quantity
+      : sum
+  ), 0);
+}
+
+function movementKey(movement: InventoryMovementRecord, dimension: InventoryMovementHighlight["dimension"]) {
+  if (dimension === "department") return movement.departmentKey;
+  if (dimension === "office") return movement.officeKey;
+  return movement.tonerKey;
+}
+
+function rollingStartDate(endDate: Date, days: number) {
+  const startDate = new Date(endDate);
+  startDate.setUTCDate(endDate.getUTCDate() - (days - 1));
+  return startDate;
+}
+
 function eachDate(startDate: Date, endDate: Date) {
   const dates: Date[] = [];
   const cursor = new Date(startDate);
@@ -157,4 +195,3 @@ function parseDate(value: string) {
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
-

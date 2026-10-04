@@ -22,7 +22,7 @@ export function parseOverviewScope(values: Record<string, string | string[] | un
     locationId: positiveInteger(first(values.location)),
     departmentId: positiveInteger(first(values.department)),
     period: member(first(values.period), OVERVIEW_PERIODS, "30d"),
-    expenseBreakdown: member(first(values.expenseBreakdown), OVERVIEW_EXPENSE_BREAKDOWNS, "toner"),
+    expenseBreakdown: member(first(values.expenseBreakdown), OVERVIEW_EXPENSE_BREAKDOWNS, "department"),
     expenseGrain: member(first(values.expenseGrain), OVERVIEW_EXPENSE_GRAINS, "monthly"),
     expenseSort: member(first(values.expenseSort), OVERVIEW_EXPENSE_SORTS, "desc"),
   };

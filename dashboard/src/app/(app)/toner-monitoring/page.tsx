@@ -275,18 +275,19 @@ export default async function TonerMonitoringPage({
           <table className="w-full table-fixed text-left text-sm">
             <caption className="sr-only">Toner delivery and request records</caption>
             <colgroup>
-              <col className="w-[8%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
               <col className="w-[10%]" />
               <col className="w-[11%]" />
-              <col className="w-[12%]" />
               <col className="w-[7%]" />
-              <col className="w-[14%]" />
-              <col className="w-[18%]" />
-              <col className="w-[20%]" />
+              <col className="w-[13%]" />
+              <col className="w-[16%]" />
+              <col className="w-[11%]" />
+              <col className="w-[13%]" />
             </colgroup>
             <thead className="border-b border-slate-200 bg-slate-50/95 text-[11px] uppercase tracking-[0.055em] text-slate-500 backdrop-blur-sm">
               <tr className="whitespace-nowrap">
-                <th className="px-4 py-2.5">
+                <th className="px-3 py-2.5">
                   <FilterableHeading label="Status">
                     <PrinterColumnFilter label="Status" paramName="status" options={statusOptions} selectedValues={statusFilters} currentSort={sort} sortAscValue="status_asc" sortDescValue="status_desc" />
                   </FilterableHeading>
@@ -313,13 +314,14 @@ export default async function TonerMonitoringPage({
                     <PrinterColumnFilter label="Sub-unit" paramName="subunit" options={subunitOptions} selectedValues={subunitFilters} currentSort={sort} />
                   </FilterableHeading>
                 </th>
-                <th className="px-4 py-3">ITS Name</th>
+                <th className="px-3 py-3">ITS Name</th>
+                <th className="px-2 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginated.items.map((t) => (
                 <tr key={t.id} className="align-middle transition-colors even:bg-slate-50/25 hover:bg-sky-50/45">
-                  <td className="px-4 py-3.5"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
+                  <td className="px-3 py-3.5"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
                   <td className="px-4 py-3.5">
                     <time dateTime={t.date} className="whitespace-nowrap font-semibold tabular-nums text-slate-700">
                       {formatTonerDate(t.date)}
@@ -353,14 +355,15 @@ export default async function TonerMonitoringPage({
                       {t.subunitName || "—"}
                     </p>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate font-medium text-slate-700">
-                        {t.itsName || <span className="text-slate-300">—</span>}
-                      </span>
+                  <td className="px-3 py-3">
+                    <span className="block min-w-0 truncate font-medium text-slate-700" title={t.itsName || ""}>
+                      {t.itsName || <span className="text-slate-300">—</span>}
+                    </span>
+                  </td>
+                  <td className="px-2 py-3">
                     {access.toner_monitoring && (
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <Link href={`/toner-monitoring/${t.id}/edit`} aria-label={`Edit ${t.tonerTypeName} transaction`} className="inline-flex size-10 items-center justify-center rounded-lg text-[#014171] transition hover:bg-slate-100">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Link href={`/toner-monitoring/${t.id}/edit`} aria-label={`Edit ${t.tonerTypeName} transaction`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-[#014171] transition hover:bg-slate-100">
                           <IconGlyph icon={Pencil} size={16} />
                         </Link>
                         <DeleteButton
@@ -372,7 +375,6 @@ export default async function TonerMonitoringPage({
                         />
                       </div>
                     )}
-                    </div>
                   </td>
                 </tr>
               ))}
@@ -390,8 +392,8 @@ export default async function TonerMonitoringPage({
 
 function FilterableHeading({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-w-0 items-center justify-between gap-2">
-      <span className="min-w-0 leading-4">{label}</span>
+    <div className="flex min-w-0 items-center justify-between gap-1.5">
+      <span className="min-w-0 truncate leading-4">{label}</span>
       {children}
     </div>
   );

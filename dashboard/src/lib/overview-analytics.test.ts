@@ -16,7 +16,7 @@ test("overview scope accepts supported values and rejects unsafe identifiers", (
     locationId: null,
     departmentId: null,
     period: "30d",
-    expenseBreakdown: "toner",
+    expenseBreakdown: "department",
     expenseGrain: "monthly",
     expenseSort: "desc",
   });

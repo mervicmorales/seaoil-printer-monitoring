@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Droplets, ExternalLink } from "lucide";
 import { IconGlyph } from "@/components/ui";
 import {
@@ -15,6 +15,11 @@ import type { ExpenseBreakdown, TonerExpenseSummary } from "@/lib/toner-expenses
 import SearchableDropdown from "@/components/SearchableDropdown";
 import DitherDonutChart from "@/components/ui/DitherDonutChart";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
+import {
+  overviewTonerPeriods,
+  useOverviewTonerAnalytics,
+  type OverviewTonerPeriod,
+} from "./OverviewTonerAnalyticsContext";
 
 type ExpenseData = { period: OverviewPeriod; label: string; summary: TonerExpenseSummary };
 
@@ -23,15 +28,14 @@ const integer = new Intl.NumberFormat("en-PH");
 const selectClassName = "h-8 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/10";
 
 export default function TonerExpensesPanel({ initialData, initialScope }: { initialData: ExpenseData; initialScope: OverviewScope }) {
-  const [period, setPeriod] = useState(initialScope.period);
+  const { period, setPeriod, setHighlightedExpenseScope } = useOverviewTonerAnalytics();
   const [breakdown, setBreakdown] = useState(initialScope.expenseBreakdown);
   const [sort, setSort] = useState(initialScope.expenseSort);
   const [data, setData] = useState(initialData);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<{ period: OverviewTonerPeriod; message: string } | null>(null);
   const request = useRef<AbortController | null>(null);
-
-  useEffect(() => () => request.current?.abort(), []);
+  const loading = period !== data.period;
+  const visibleError = error?.period === period ? error.message : "";
 
   function rememberSelection(name: string, value: string) {
     const url = new URL(window.location.href);
@@ -39,35 +43,46 @@ export default function TonerExpensesPanel({ initialData, initialScope }: { init
     window.history.replaceState(window.history.state, "", url);
   }
 
-  async function changePeriod(nextPeriod: OverviewPeriod) {
+  useEffect(() => {
     request.current?.abort();
-    rememberSelection("period", nextPeriod);
-    setPeriod(nextPeriod);
-    setError("");
-    if (nextPeriod === data.period) {
-      setLoading(false);
-      return;
-    }
+    if (period === data.period) return undefined;
     const controller = new AbortController();
     request.current = controller;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/overview/expenses?period=${encodeURIComponent(nextPeriod)}`, {
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("Could not update toner expenses. Please try again.");
-      const next = await response.json() as ExpenseData;
-      if (!controller.signal.aborted) setData(next);
-    } catch {
-      if (!controller.signal.aborted) {
-        rememberSelection("period", data.period);
-        setPeriod(data.period);
-        setError("Could not update toner expenses. Please try again.");
+    void (async () => {
+      try {
+        const response = await fetch(`/api/overview/expenses?period=${encodeURIComponent(period)}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("Could not update toner expenses. Please try again.");
+        const next = await response.json() as ExpenseData;
+        if (!controller.signal.aborted) {
+          setData(next);
+          setError(null);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          const fallbackPeriod = toOverviewTonerPeriod(data.period);
+          setError({ period: fallbackPeriod, message: "Could not update toner expenses. Please try again." });
+          setPeriod(fallbackPeriod);
+        }
       }
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
+    })();
+    return () => controller.abort();
+  }, [data.period, period, setPeriod]);
+
+  useEffect(() => () => setHighlightedExpenseScope(null), [setHighlightedExpenseScope]);
+
+  const handleActiveExpense = useCallback((item: { key: string; label: string } | null) => {
+    if (item) {
+      setHighlightedExpenseScope({
+        dimension: breakdown === "department" ? "department" : breakdown === "location" ? "office" : "toner",
+        key: item.key,
+        label: item.label,
+      });
+    } else {
+      setHighlightedExpenseScope(null);
     }
-  }
+  }, [breakdown, setHighlightedExpenseScope]);
 
   const summary = data.summary;
   const rows = sortExpenseRows(expenseBreakdown(summary, breakdown), sort).slice(0, 8);
@@ -81,22 +96,22 @@ export default function TonerExpensesPanel({ initialData, initialScope }: { init
       <div className="grid gap-4 border-b border-slate-200 bg-slate-50/60 px-4 py-3 lg:grid-cols-[minmax(10rem,0.7fr)_minmax(0,2fr)] lg:items-end">
         <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Estimated expense</p><p className="mt-1 text-3xl font-bold tracking-[-0.03em] text-[#014171]"><AnimatedNumber value={summary.totalExpenseCents / 100} format="currency" /></p><p className="mt-1 text-xs text-slate-500">{integer.format(summary.totalUnits)} units · {integer.format(summary.requestLines)} request records</p></div>
         <div className="grid min-w-0 gap-2 sm:grid-cols-2">
-          <SmallSelect label="Rank by" value={breakdown} onChange={(value) => { rememberSelection("expenseBreakdown", value); setBreakdown(value as OverviewExpenseBreakdown); }} options={[{ value: "toner", label: "Toner type" }, { value: "location", label: "Office" }, { value: "department", label: "Department" }]} />
+          <SmallSelect label="Rank by" value={breakdown} onChange={(value) => { rememberSelection("expenseBreakdown", value); setBreakdown(value as OverviewExpenseBreakdown); setHighlightedExpenseScope(null); }} options={[{ value: "toner", label: "Toner type" }, { value: "location", label: "Office" }, { value: "department", label: "Department" }]} />
           <SmallSelect label="Order" value={sort} onChange={(value) => { rememberSelection("expenseSort", value); setSort(value as OverviewExpenseSort); }} options={[{ value: "desc", label: "Highest first" }, { value: "asc", label: "Lowest first" }]} />
         </div>
       </div>
-      <div aria-live="polite" className="sr-only">{loading ? "Updating toner expenses" : error || ""}</div>
-      {error && <p role="alert" className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{error}</p>}
+      <div aria-live="polite" className="sr-only">{loading ? "Updating toner expenses" : visibleError}</div>
+      {visibleError && <p role="alert" className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">{visibleError}</p>}
       <div className="p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h3 className="text-sm font-bold text-slate-800">Expense by {breakdownLabel(breakdown).toLowerCase()}</h3>
             <p className="mt-0.5 text-xs text-slate-500">{sort === "asc" ? "Lowest to highest" : "Highest to lowest"} estimated amount</p>
           </div>
-          <ExpensePeriodTabs value={period} onChange={(value) => void changePeriod(value)} disabled={loading} />
+          <ExpensePeriodTabs value={period} onChange={setPeriod} disabled={loading} />
         </div>
         {rows.length && rows.some((row) => row.expenseCents > 0)
-          ? <DitherDonutChart data={rows.map((row) => ({ key: row.key, label: row.name, value: row.expenseCents }))} formatValue={(value) => money.format(value / 100)} />
+          ? <DitherDonutChart data={rows.map((row) => ({ key: row.key, label: row.name, value: row.expenseCents }))} formatValue={(value) => money.format(value / 100)} onActiveDatumChange={handleActiveExpense} />
           : <div className="mt-4"><EmptyMessage>No priced expense records match this scope.</EmptyMessage></div>}
       </div>
     </section>
@@ -111,14 +126,16 @@ function EmptyMessage({ children }: { children: React.ReactNode }) { return <div
 function expenseBreakdown(summary: TonerExpenseSummary, dimension: OverviewExpenseBreakdown): ExpenseBreakdown[] { return dimension === "location" ? summary.locations : dimension === "department" ? summary.departments : summary.tonerTypes; }
 function breakdownLabel(dimension: OverviewExpenseBreakdown) { return dimension === "toner" ? "Toner type" : dimension[0].toUpperCase() + dimension.slice(1); }
 
-const expensePeriodOptions: { value: OverviewPeriod; label: string }[] = [
-  { value: "7d", label: "Week" },
-  { value: "30d", label: "Month" },
-  { value: "90d", label: "Quarter" },
-  { value: "12m", label: "Year" },
-];
+const expensePeriodLabels: Record<OverviewTonerPeriod, string> = {
+  "7d": "Week",
+  "30d": "Month",
+  "90d": "Quarter",
+  "12m": "Year",
+};
 
-function ExpensePeriodTabs({ value, onChange, disabled }: { value: OverviewPeriod; onChange: (value: OverviewPeriod) => void; disabled: boolean }) {
+const expensePeriodOptions = overviewTonerPeriods.map((value) => ({ value, label: expensePeriodLabels[value] }));
+
+function ExpensePeriodTabs({ value, onChange, disabled }: { value: OverviewTonerPeriod; onChange: (value: OverviewTonerPeriod) => void; disabled: boolean }) {
   return (
     <div role="group" aria-label="Expense reporting period" className="flex shrink-0 items-center rounded-full border border-slate-200 bg-slate-50 p-1 shadow-sm">
       {expensePeriodOptions.map((option) => {
@@ -138,4 +155,8 @@ function ExpensePeriodTabs({ value, onChange, disabled }: { value: OverviewPerio
       })}
     </div>
   );
+}
+
+function toOverviewTonerPeriod(period: OverviewPeriod): OverviewTonerPeriod {
+  return overviewTonerPeriods.includes(period as OverviewTonerPeriod) ? period as OverviewTonerPeriod : "30d";
 }

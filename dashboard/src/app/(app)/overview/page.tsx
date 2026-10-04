@@ -28,9 +28,10 @@ import RecentActivityPanel from "./RecentActivityPanel";
 import AgentOperationsPanel, { type AgentOperationsAgent, type AgentPrinterStatus } from "./AgentOperationsPanel";
 import InventoryMovementPanel from "./InventoryMovementPanel";
 import FleetHealthVisual from "./FleetHealthVisual";
+import { OverviewTonerAnalyticsProvider } from "./OverviewTonerAnalyticsContext";
 import { isAgentOnline } from "@/lib/agent-version";
 import { getMonitoringStaleSeconds } from "@/lib/monitoring-settings";
-import { parseOverviewScope } from "@/lib/overview-analytics";
+import { parseOverviewScope, resolveOverviewPeriod } from "@/lib/overview-analytics";
 import { getOverviewExpenses } from "@/lib/overview-expenses";
 import { getRecentActivities } from "@/lib/recent-activity";
 import { hasAdminPrivileges } from "@/lib/roles";
@@ -69,8 +70,9 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const moduleAccess = await getModuleAccessMap(session.id, session.role);
   const canManageAgents = hasAdminPrivileges(session.role);
   const renderedAt = new Date();
-  const inventoryMovementDays = recentDayKeys(renderedAt, 90);
-  const inventoryTrendDays = inventoryMovementDays.slice(-30);
+  const todayKey = manilaDateKey(renderedAt);
+  const inventoryMovementStart = resolveOverviewPeriod("12m", todayKey).fromDate ?? todayKey;
+  const inventoryTrendDays = recentDayKeys(renderedAt, 30);
   const params = await searchParams;
   const parsedScope = parseOverviewScope(params);
   const scope = { ...parsedScope, locationId: null, departmentId: null };
@@ -139,7 +141,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       order by ma.name, ma.id
     `),
     db.select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock, threshold: tonerInventory.lowStockThreshold, critical: tonerInventory.criticalStockThreshold }).from(tonerTypes).leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id)).where(eq(tonerTypes.showAlertCard, true)).orderBy(asc(tonerTypes.name)),
-    db.select({ tonerTypeId: tonerTransactions.tonerTypeId, type: tonerTransactions.type, date: tonerTransactions.date, quantity: tonerTransactions.quantity }).from(tonerTransactions).where(gte(tonerTransactions.date, inventoryMovementDays[0]!)).orderBy(asc(tonerTransactions.date), asc(tonerTransactions.id)),
+    db.select({ tonerTypeId: tonerTransactions.tonerTypeId, type: tonerTransactions.type, date: tonerTransactions.date, quantity: tonerTransactions.quantity, departmentId: tonerTransactions.departmentId, locationId: tonerTransactions.locationId }).from(tonerTransactions).where(gte(tonerTransactions.date, inventoryMovementStart)).orderBy(asc(tonerTransactions.date), asc(tonerTransactions.id)),
     getOverviewExpenses(scope.period, renderedAt),
     db.select({ status: users.accountStatus, count: sql<number>`count(*)::int` }).from(users).where(userConditions.length ? and(...userConditions) : undefined).groupBy(users.accountStatus),
     db.select({ status: userRegistrationRequests.status, count: sql<number>`count(*)::int` }).from(userRegistrationRequests).where(registrationConditions.length ? and(...registrationConditions) : undefined).groupBy(userRegistrationRequests.status),
@@ -221,9 +223,10 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         actions={<RefreshControl refreshedAtLabel={formatDateTime(renderedAt)} intervalSeconds={AUTO_REFRESH_SECONDS} iconOnly />}
       />
 
-      <CustomizableDashboard
-        storageKey={`seaoil-overview-dashboard-v1-user-${session.id}`}
-        widgets={[
+      <OverviewTonerAnalyticsProvider initialPeriod={scope.period}>
+        <CustomizableDashboard
+          storageKey={`seaoil-overview-dashboard-v1-user-${session.id}`}
+          widgets={[
           { id: "accounts", title: "Account overview", content: (
         <section aria-labelledby="accounts-heading" className="order-1 flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-5">
           <FlatPanelHeader id="accounts-heading" eyebrow="Access management" title="Account overview" subtitle="Current organization-wide account status" icon={UserRoundCheck} href="/manage/registrations" />
@@ -259,11 +262,12 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
 
           { id: "operations", title: "Agent offices and printer connectivity", content: <AgentOperationsPanel agents={operationAgents} /> },
 
-          { id: "movement", title: "Inventory movement", content: <InventoryMovementPanel currentStock={onHand} today={manilaDateKey(renderedAt)} movements={inventoryMovementRows.map((row) => ({ date: row.date, type: row.type, quantity: row.quantity }))} /> },
+          { id: "movement", title: "Inventory movement", content: <InventoryMovementPanel currentStock={onHand} today={todayKey} movements={inventoryMovementRows.map((row) => ({ date: row.date, type: row.type, quantity: row.quantity, departmentKey: row.departmentId === null ? "unassigned" : String(row.departmentId), officeKey: row.locationId === null ? "unassigned" : String(row.locationId), tonerKey: String(row.tonerTypeId) }))} /> },
 
           { id: "recent", title: "Recent activity", content: <RecentActivityPanel activities={recentActivities.map((activity) => ({ ...activity, occurredAt: activity.occurredAt.toISOString() }))} generatedAt={now.toISOString()} /> },
-        ] satisfies DashboardWidget[]}
-      />
+          ] satisfies DashboardWidget[]}
+        />
+      </OverviewTonerAnalyticsProvider>
     </div>
   );
 }

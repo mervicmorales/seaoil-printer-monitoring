@@ -1,22 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { BarChart3, ExternalLink } from "lucide";
 import { IconGlyph } from "@/components/ui";
 import DitherInventoryGrowthChart from "@/components/ui/DitherInventoryGrowthChart";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import {
   buildInventoryWaterfall,
-  type InventoryMovementPeriod,
   type InventoryMovementRecord,
 } from "@/lib/inventory-waterfall";
+import {
+  overviewTonerPeriods,
+  useOverviewTonerAnalytics,
+  type OverviewTonerPeriod,
+} from "./OverviewTonerAnalyticsContext";
 
-const periodOptions: Array<{ value: InventoryMovementPeriod; label: string }> = [
-  { value: "7d", label: "Week" },
-  { value: "30d", label: "Month" },
-  { value: "90d", label: "Quarter" },
-];
+const periodLabels: Record<OverviewTonerPeriod, string> = {
+  "7d": "Week",
+  "30d": "Month",
+  "90d": "Quarter",
+  "12m": "Year",
+};
+
+const periodOptions = overviewTonerPeriods.map((value) => ({
+  value,
+  label: periodLabels[value],
+}));
 
 export default function InventoryMovementPanel({
   currentStock,
@@ -27,10 +37,12 @@ export default function InventoryMovementPanel({
   today: string;
   movements: InventoryMovementRecord[];
 }) {
-  const [period, setPeriod] = useState<InventoryMovementPeriod>("30d");
+  const { period, setPeriod, highlightedExpenseScope } = useOverviewTonerAnalytics();
   const waterfall = useMemo(
-    () => buildInventoryWaterfall(currentStock, today, period, movements),
-    [currentStock, movements, period, today],
+    () => buildInventoryWaterfall(currentStock, today, period, movements, highlightedExpenseScope
+      ? { dimension: highlightedExpenseScope.dimension, key: highlightedExpenseScope.key }
+      : undefined),
+    [currentStock, highlightedExpenseScope, movements, period, today],
   );
   const chartPoints = useMemo(() => waterfall.steps.map((step) => ({
     key: step.key,
@@ -38,6 +50,7 @@ export default function InventoryMovementPanel({
     balance: step.end,
     delivered: step.deliveries,
     requested: step.requests,
+    highlightedRequested: step.highlightedRequests,
   })), [waterfall.steps]);
 
   return (
@@ -64,12 +77,16 @@ export default function InventoryMovementPanel({
         <MovementMetric label="Ending stock" value={waterfall.endingStock} color="text-[#014171]" />
       </div>
 
-      <DitherInventoryGrowthChart points={chartPoints} />
+      <DitherInventoryGrowthChart
+        points={chartPoints}
+        highlightedScopeLabel={highlightedExpenseScope?.label}
+        highlightedRequested={waterfall.highlightedRequested}
+      />
     </section>
   );
 }
 
-function PeriodTabs({ value, onChange }: { value: InventoryMovementPeriod; onChange: (value: InventoryMovementPeriod) => void }) {
+function PeriodTabs({ value, onChange }: { value: OverviewTonerPeriod; onChange: (value: OverviewTonerPeriod) => void }) {
   return (
     <div role="group" aria-label="Inventory movement period" className="flex items-center rounded-full border border-slate-200 bg-slate-50 p-1 shadow-sm">
       {periodOptions.map((option) => (

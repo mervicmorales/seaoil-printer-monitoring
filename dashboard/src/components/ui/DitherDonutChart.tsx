@@ -28,9 +28,11 @@ const SEGMENT_COLORS = [
 export default function DitherDonutChart({
   data,
   formatValue,
+  onActiveDatumChange,
 }: {
   data: DitherDonutDatum[];
   formatValue: (value: number) => string;
+  onActiveDatumChange?: (datum: DitherDonutDatum | null) => void;
 }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const { canvasRef, rect, isVisible, reducedMotion } = useCanvasSetup();
@@ -147,6 +149,11 @@ export default function DitherDonutChart({
 
   if (!data.length || total <= 0) return null;
 
+  const selectDatum = (index: number | null) => {
+    setHoverIndex(index);
+    onActiveDatumChange?.(index === null ? null : data[index] ?? null);
+  };
+
   return (
     <div className="mt-5 grid items-center gap-5 sm:grid-cols-[15rem_minmax(0,1fr)] lg:gap-7">
       <div className="relative mx-auto size-56 shrink-0 lg:size-60">
@@ -164,10 +171,10 @@ export default function DitherDonutChart({
             <div
               key={item.key}
               tabIndex={0}
-              onFocus={() => setHoverIndex(index)}
-              onBlur={() => setHoverIndex(null)}
-              onMouseEnter={() => setHoverIndex(index)}
-              onMouseLeave={() => setHoverIndex(null)}
+              onFocus={() => selectDatum(index)}
+              onBlur={() => selectDatum(null)}
+              onMouseEnter={() => selectDatum(index)}
+              onMouseLeave={() => selectDatum(null)}
               className={`flex items-center justify-between gap-4 rounded-lg border px-3 py-2 outline-none transition ${active ? "border-slate-300 bg-slate-50 shadow-sm" : "border-transparent hover:bg-slate-50"}`}
             >
               <div className="flex min-w-0 items-center gap-2.5">
