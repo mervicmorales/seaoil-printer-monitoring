@@ -56,7 +56,12 @@ export async function resetPasswordAction(
 
     const updated = await tx
       .update(users)
-      .set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` })
+      .set({
+        passwordHash,
+        passwordChangeRequired: false,
+        temporaryPasswordExpiresAt: null,
+        sessionVersion: sql`${users.sessionVersion} + 1`,
+      })
       .where(eq(users.id, record.userId))
       .returning({ id: users.id });
     if (!updated.length) return false;

@@ -32,6 +32,7 @@ import {
   PanelLeftClose,
   Printer,
   Settings,
+  ShieldCheck,
   Sun,
   Truck,
   Users,
@@ -220,8 +221,8 @@ export default function Sidebar({
       : item)
     : permittedItems;
   const items = employeeMode ? EMPLOYEE_NAV : roleAdjustedItems;
-  const brandTitle = "SEAOIL PrintOps";
-  const brandSubtitle = employeeMode ? null : "Printer Management System";
+  const brandTitle = "SEA Print";
+  const brandSubtitle = "Printer Management System";
   const brandName = brandSubtitle ? `${brandTitle} ${brandSubtitle}` : brandTitle;
 
   useLayoutEffect(() => {
@@ -250,7 +251,7 @@ export default function Sidebar({
     if (!rect) return;
     const menuWidth = 256;
     const left = Math.max(12, Math.min(rect.right + 8, window.innerWidth - menuWidth - 12));
-    const top = Math.max(12, Math.min(rect.top, window.innerHeight - 286));
+    const top = Math.max(12, Math.min(rect.top, window.innerHeight - 336));
     setAccountPosition({ top, left });
   }, []);
 
@@ -575,10 +576,10 @@ export default function Sidebar({
             aria-label={`About ${brandName}`}
             title={collapsed ? brandName : `About ${brandName}`}
             onClick={() => setAboutOpen(true)}
-            className={`flex min-h-14 w-full items-center gap-3 rounded-xl px-2 text-left transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""}`}
+            className={`flex min-h-14 w-full items-center gap-3.5 rounded-xl px-2 text-left transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#7DA8D0] ${collapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""}`}
           >
             <div
-              className={`flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg text-base font-black text-[#014171] ${
+              className={`flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg text-base font-black text-[#014171] ${
                 logoUrl ? "bg-transparent" : "bg-[#FEF200]"
               }`}
             >
@@ -590,9 +591,11 @@ export default function Sidebar({
               )}
             </div>
             <div className={`min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-all duration-200 ${copyClass} ${collapsed ? "lg:hidden" : ""}`}>
-              <p className="text-sm font-bold leading-tight">{brandTitle}</p>
+              <p className="text-[17px] font-bold leading-tight tracking-[-0.02em]">
+                SEA <span className="text-[#FEF200]">Print</span>
+              </p>
               {brandSubtitle && (
-                <p className="mt-0.5 whitespace-normal text-[9px] font-semibold uppercase leading-3 tracking-[0.1em] text-[#9cc0df]">{brandSubtitle}</p>
+                <p className="mt-1 whitespace-normal text-[8px] font-semibold uppercase leading-3 tracking-[0.12em] text-[#9cc0df]">{brandSubtitle}</p>
               )}
             </div>
           </button>
@@ -659,6 +662,15 @@ export default function Sidebar({
               <StaticIcon icon={KeyRound} size={18} />
               Change password
             </button>
+            <Link
+              href="/account/security"
+              role="menuitem"
+              onClick={() => setAccountOpen(false)}
+              className="mt-1 flex h-10 w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
+            >
+              <StaticIcon icon={ShieldCheck} size={18} />
+              Security settings
+            </Link>
             <button
               type="button"
               role="menuitem"

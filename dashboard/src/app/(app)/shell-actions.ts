@@ -2,9 +2,11 @@
 
 import {
   clearSessionCookie,
+  clearMfaChallengeCookie,
   hashPassword,
   isValidPassword,
   PASSWORD_RULE_TEXT,
+  setSessionCookie,
   verifyPassword,
 } from "@/lib/auth";
 import { db } from "@/db";
@@ -56,16 +58,25 @@ export async function changePasswordAction(
     return { fieldErrors: { newPassword: "Choose a password different from your current password." } };
   }
 
-  await db
+  const [updated] = await db
     .update(users)
-    .set({ passwordHash: await hashPassword(newPassword), sessionVersion: sql`${users.sessionVersion} + 1` })
-    .where(eq(users.id, session.id));
+    .set({
+      passwordHash: await hashPassword(newPassword),
+      passwordChangeRequired: false,
+      temporaryPasswordExpiresAt: null,
+      sessionVersion: sql`${users.sessionVersion} + 1`,
+    })
+    .where(eq(users.id, session.id))
+    .returning({ sessionVersion: users.sessionVersion });
+  if (!updated) return { error: "Your password could not be changed. Please try again." };
+
+  await setSessionCookie({ ...session, sessionVersion: updated.sessionVersion });
 
   return { success: true };
 }
 
 export async function logoutAction() {
-  await clearSessionCookie();
+  await Promise.all([clearSessionCookie(), clearMfaChallengeCookie()]);
   return { success: true } as const;
 }
 

@@ -6,9 +6,10 @@ import ModalShell from "@/components/ModalShell";
 import DeleteButton from "@/components/DeleteButton";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { deleteUserAction, sendEmployeePasswordResetAction } from "@/app/(app)/manage/actions";
+import { deleteUserAction } from "@/app/(app)/manage/actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
-import { canManageRole, hasAdminPrivileges } from "@/lib/roles";
+import { canManageRole, canSetTemporaryPassword, hasAdminPrivileges } from "@/lib/roles";
+import TemporaryPasswordDialog from "@/app/(app)/manage/TemporaryPasswordDialog";
 
 export default async function ViewUserModal({
   params,
@@ -22,11 +23,14 @@ export default async function ViewUserModal({
   const [user] = await db.select({
     id: users.id,
     username: users.username,
+    fullName: users.fullName,
     role: users.role,
     accountStatus: users.accountStatus,
   }).from(users).where(eq(users.id, userId)).limit(1);
   if (!user) notFound();
   const canManageUser = canManageRole(session.role, user.role);
+  const canAssignTemporaryPassword = canSetTemporaryPassword(session.role, user.role)
+    && user.accountStatus === "active";
 
   return (
     <ModalShell
@@ -39,11 +43,8 @@ export default async function ViewUserModal({
       closeButtonClassName="!rounded-full !border-transparent !bg-slate-100 !shadow-none hover:!bg-slate-200"
       headerActions={
         <>
-          {hasAdminPrivileges(session.role) && canManageUser && user.role === "employee" && user.accountStatus === "active" && (
-            <form action={sendEmployeePasswordResetAction}>
-              <input type="hidden" name="id" value={user.id} />
-              <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
-            </form>
+          {hasAdminPrivileges(session.role) && canManageUser && canAssignTemporaryPassword && (
+            <TemporaryPasswordDialog userId={user.id} userName={user.fullName} compact />
           )}
           {hasAdminPrivileges(session.role) && canManageUser && <Link href={`/manage/${user.id}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Edit</Link>}
           {hasAdminPrivileges(session.role) && canManageUser && user.id !== session.id && (
@@ -58,11 +59,8 @@ export default async function ViewUserModal({
             />
           )}
           {session.role === "support" && <>
-            {user.role === "employee" && user.accountStatus === "active" && (
-              <form action={sendEmployeePasswordResetAction}>
-                <input type="hidden" name="id" value={user.id} />
-                <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
-              </form>
+            {canAssignTemporaryPassword && (
+              <TemporaryPasswordDialog userId={user.id} userName={user.fullName} compact />
             )}
             <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400">Edit</button>
             <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400">Delete</button>

@@ -28,6 +28,16 @@ export function canManageRole(actorRole: UserRole, targetRole: string) {
   return false;
 }
 
+export function canSetTemporaryPassword(actorRole: UserRole, targetRole: string) {
+  if (!isUserRole(targetRole)) return false;
+  if (actorRole === "super_admin") {
+    return targetRole === "admin" || targetRole === "support" || targetRole === "employee";
+  }
+  if (actorRole === "admin") return targetRole === "support" || targetRole === "employee";
+  if (actorRole === "support") return targetRole === "employee";
+  return false;
+}
+
 export function roleLabel(role: string) {
   return isUserRole(role) ? ROLE_LABELS[role] : role;
 }

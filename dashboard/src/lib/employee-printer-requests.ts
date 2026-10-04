@@ -11,8 +11,10 @@ type CandidatePrinterRow = {
   serial_number: string;
   model: string | null;
   ip_address: string | null;
+  floor: string | null;
   location_name: string | null;
   department_name: string | null;
+  subunit_name: string | null;
   already_accessible: boolean;
   request_status: string | null;
 };
@@ -24,8 +26,10 @@ export type EmployeePrinterRequestOption = {
   serialNumber: string;
   model: string | null;
   ipAddress: string | null;
+  floor: string | null;
   locationName: string | null;
   departmentName: string | null;
+  subunitName: string | null;
   alreadyAccessible: boolean;
   requestStatus: string | null;
 };
@@ -50,8 +54,10 @@ export async function getEmployeePrinterRequestScope(
       printer.serial_number,
       printer.model,
       printer.ip_address,
+      printer.floor,
       office.name as location_name,
       department.name as department_name,
+      subunit.name as subunit_name,
       (
         (
           printer.office_id = employee.primary_office_id
@@ -89,6 +95,7 @@ export async function getEmployeePrinterRequestScope(
       and printer.status = 'Active'
     left join offices office on office.id = printer.office_id
     left join departments department on department.id = printer.department_id
+    left join subunits subunit on subunit.id = printer.subunit_id
     left join printer_access_requests request
       on request.user_id = employee.id
       and request.printer_id = printer.id
@@ -113,8 +120,10 @@ export async function getEmployeePrinterRequestScope(
       serialNumber: row.serial_number,
       model: row.model,
       ipAddress: row.ip_address,
+      floor: row.floor,
       locationName: row.location_name,
       departmentName: row.department_name,
+      subunitName: row.subunit_name,
       alreadyAccessible: row.already_accessible,
       requestStatus: row.request_status,
     })),

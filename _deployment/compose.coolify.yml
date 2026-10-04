@@ -41,6 +41,8 @@ services:
         node scripts/add-printer-mac-address.mjs &&
         node scripts/add-printer-floor.mjs &&
         node scripts/migrate-auth-security.mjs &&
+        node scripts/migrate-mfa.mjs &&
+        node scripts/migrate-temporary-password.mjs &&
         node scripts/migrate-repair-ticket-sequence.mjs &&
         node scripts/add-user-printer-permissions.mjs &&
         node scripts/migrate-monitoring-agent-locations.mjs &&
@@ -61,6 +63,7 @@ services:
       HOSTNAME: 0.0.0.0
       DATABASE_URL: postgresql://seaoil_app:${POSTGRES_PASSWORD}@db:5432/app_db
       AUTH_SECRET: ${AUTH_SECRET}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       MONITORING_STALE_SECONDS: ${MONITORING_STALE_SECONDS:-180}

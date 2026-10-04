@@ -307,3 +307,31 @@ public copy or retiring the old container. The old `/uploads/...` URLs now retur
 404, while authorized users retrieve the same records through protected API
 routes. Keep the backup until those downloads have been verified. Do not point
 a CDN directly at `public/uploads`.
+
+## Authenticator MFA rollout
+
+The dashboard supports Google Authenticator and other RFC 6238-compatible TOTP
+apps. Authenticator enrollment is mandatory for Admin and Super Admin accounts;
+Support and Employee accounts can enable it from **Account → Security settings**.
+Ten one-time recovery codes are issued during enrollment and are never stored in
+plain text.
+
+Before deploying, configure `MFA_ENCRYPTION_KEY` as a unique random value of at
+least 32 characters. Keep it separate from `AUTH_SECRET` and
+`SETTINGS_ENCRYPTION_KEY`, store it in the deployment secret manager, and do not
+rotate or remove it without first planning an MFA reset for enrolled users.
+
+For an existing database, run the additive migration before starting the new
+dashboard code:
+
+```bash
+npm run db:migrate:mfa
+```
+
+Use `npm run db:migrate:mfa:docker` with the local Docker database. The main and
+Coolify `db-init` services run the same migration automatically. After deployment,
+existing administrators are prompted to enroll immediately after their password
+is verified. Enabling, disabling, recovering, regenerating recovery codes, and
+administrator resets are rate-limited or audit-logged as appropriate. All
+production traffic must use HTTPS and the dashboard host should have reliable
+time synchronization.

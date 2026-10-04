@@ -9,6 +9,7 @@ import {
   printerConsumableReadings,
   printerMonitoringReadings,
   printers,
+  subunits,
   userPrinterPermissions,
   users,
 } from "@/db/schema";
@@ -77,11 +78,14 @@ export async function AvailablePrintersPageContent({
         ipAddress: printers.ipAddress,
         macAddress: printers.macAddress,
         status: printers.status,
+        floor: printers.floor,
         locationName: locations.name,
         departmentName: departments.name,
+        subunitName: subunits.name,
       }).from(printers)
         .leftJoin(locations, eq(locations.id, printers.locationId))
         .leftJoin(departments, eq(departments.id, printers.departmentId))
+        .leftJoin(subunits, eq(subunits.id, printers.subunitId))
         .leftJoin(
           userPrinterPermissions,
           and(

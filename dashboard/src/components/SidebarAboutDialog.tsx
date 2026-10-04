@@ -2,20 +2,20 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { FileCheck2, Info, Printer, ScanLine, ShieldCheck, X, type IconNode } from "lucide";
+import Image from "next/image";
+import { FileCheck2, Printer, ScanLine, ShieldCheck, X, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
+import { AUTH_LOGO_URL } from "@/lib/branding";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type AboutContent = {
   eyebrow: string;
-  title: string;
   description: string;
   features: Array<{ icon: IconNode; label: string }>;
 };
 
 const EMPLOYEE_CONTENT: AboutContent = {
   eyebrow: "Employee workspace",
-  title: "SEAOIL PrintOps",
   description:
     "A secure workspace for SEAOIL employees to print and scan using available workplace devices across company offices. It keeps everyday document services accessible wherever employees are assigned.",
   features: [
@@ -27,7 +27,6 @@ const EMPLOYEE_CONTENT: AboutContent = {
 
 const MANAGEMENT_CONTENT: AboutContent = {
   eyebrow: "Management workspace",
-  title: "SEAOIL Printer Management System",
   description:
     "A centralized workspace for authorized SEAOIL teams to manage printers and support employee print services across company offices. It brings device monitoring, toner, repairs, user access, printing, and scanning into one operational view.",
   features: [
@@ -113,14 +112,24 @@ export default function SidebarAboutDialog({
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#014171] text-white shadow-sm">
-              <MorphIcon icon={Info} size={18} strokeWidth={2} reducedMotion="user" />
+            <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden">
+              <Image
+                src={AUTH_LOGO_URL}
+                alt="SEAOIL logo"
+                width={512}
+                height={512}
+                priority
+                className="size-full object-contain"
+              />
             </span>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#507aa2]">{content.eyebrow}</p>
-              <h2 id="sidebar-about-title" className="mt-1 text-lg font-bold leading-6 tracking-[-0.02em] text-[#014171]">
-                {content.title}
+              <h2 id="sidebar-about-title" className="mt-1 text-xl font-bold leading-none tracking-[-0.025em] text-[#014171]">
+                SEA <span className="text-[#d97706]">Print</span>
               </h2>
+              <p className="mt-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Printer Management System
+              </p>
             </div>
           </div>
           <button

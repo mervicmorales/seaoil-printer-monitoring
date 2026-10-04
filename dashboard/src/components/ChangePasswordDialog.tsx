@@ -9,10 +9,12 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { gooeyToast } from "goey-toast";
+import { Eye, EyeOff } from "lucide";
 import {
   changePasswordAction,
   type ChangePasswordResult,
 } from "@/app/(app)/shell-actions";
+import { IconGlyph } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 const EMPTY_RESULT: ChangePasswordResult = {};
@@ -27,6 +29,11 @@ export default function ChangePasswordDialog({
   triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   const [result, setResult] = useState<ChangePasswordResult>(EMPTY_RESULT);
+  const [visibleFields, setVisibleFields] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
   const [pending, startTransition] = useTransition();
   const pendingRef = useRef(pending);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -80,6 +87,7 @@ export default function ChangePasswordDialog({
   function closeDialog() {
     if (pending) return;
     setResult(EMPTY_RESULT);
+    setVisibleFields({ currentPassword: false, newPassword: false, confirmPassword: false });
     onClose();
     window.requestAnimationFrame(() => triggerRef.current?.focus());
   }
@@ -106,6 +114,7 @@ export default function ChangePasswordDialog({
           description: "Your new password is ready to use the next time you sign in.",
         });
         setResult(EMPTY_RESULT);
+        setVisibleFields({ currentPassword: false, newPassword: false, confirmPassword: false });
         formRef.current?.reset();
         onClose();
         window.requestAnimationFrame(() => triggerRef.current?.focus());
@@ -116,7 +125,26 @@ export default function ChangePasswordDialog({
   }
 
   const inputClass =
-    "mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40 disabled:bg-slate-100";
+    "mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-11 text-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#7DA8D0]/40 disabled:bg-slate-100";
+
+  function toggleVisibility(field: keyof typeof visibleFields) {
+    setVisibleFields((current) => ({ ...current, [field]: !current[field] }));
+  }
+
+  function visibilityButton(field: keyof typeof visibleFields, label: string) {
+    const visible = visibleFields[field];
+    return (
+      <button
+        type="button"
+        onClick={() => toggleVisibility(field)}
+        disabled={pending}
+        aria-label={`${visible ? "Hide" : "Show"} ${label}`}
+        className="absolute right-1.5 top-[0.6rem] flex size-9 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:opacity-50"
+      >
+        <IconGlyph icon={visible ? EyeOff : Eye} size={18} />
+      </button>
+    );
+  }
 
   return createPortal(
     <div
@@ -148,16 +176,19 @@ export default function ChangePasswordDialog({
         <form ref={formRef} action={submitPassword} className="mt-5 space-y-4" noValidate>
           <label className="block text-sm font-medium text-slate-700">
             Current password
-            <input
-              ref={currentPasswordRef}
-              name="currentPassword"
-              type="password"
-              autoComplete="current-password"
-              required
-              disabled={pending}
-              aria-invalid={Boolean(result.fieldErrors?.currentPassword) || undefined}
-              className={inputClass}
-            />
+            <span className="relative block">
+              <input
+                ref={currentPasswordRef}
+                name="currentPassword"
+                type={visibleFields.currentPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                disabled={pending}
+                aria-invalid={Boolean(result.fieldErrors?.currentPassword) || undefined}
+                className={inputClass}
+              />
+              {visibilityButton("currentPassword", "current password")}
+            </span>
             {result.fieldErrors?.currentPassword ? (
               <span className="mt-1 block text-xs text-red-600">{result.fieldErrors.currentPassword}</span>
             ) : null}
@@ -165,15 +196,18 @@ export default function ChangePasswordDialog({
 
           <label className="block text-sm font-medium text-slate-700">
             New password
-            <input
-              name="newPassword"
-              type="password"
-              autoComplete="new-password"
-              required
-              disabled={pending}
-              aria-invalid={Boolean(result.fieldErrors?.newPassword) || undefined}
-              className={inputClass}
-            />
+            <span className="relative block">
+              <input
+                name="newPassword"
+                type={visibleFields.newPassword ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                disabled={pending}
+                aria-invalid={Boolean(result.fieldErrors?.newPassword) || undefined}
+                className={inputClass}
+              />
+              {visibilityButton("newPassword", "new password")}
+            </span>
             {result.fieldErrors?.newPassword ? (
               <span className="mt-1 block text-xs text-red-600">{result.fieldErrors.newPassword}</span>
             ) : (
@@ -185,15 +219,18 @@ export default function ChangePasswordDialog({
 
           <label className="block text-sm font-medium text-slate-700">
             Re-type new password
-            <input
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              required
-              disabled={pending}
-              aria-invalid={Boolean(result.fieldErrors?.confirmPassword) || undefined}
-              className={inputClass}
-            />
+            <span className="relative block">
+              <input
+                name="confirmPassword"
+                type={visibleFields.confirmPassword ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                disabled={pending}
+                aria-invalid={Boolean(result.fieldErrors?.confirmPassword) || undefined}
+                className={inputClass}
+              />
+              {visibilityButton("confirmPassword", "password confirmation")}
+            </span>
             {result.fieldErrors?.confirmPassword ? (
               <span className="mt-1 block text-xs text-red-600">{result.fieldErrors.confirmPassword}</span>
             ) : null}

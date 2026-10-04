@@ -14,6 +14,7 @@ import {
   printers,
   printOpsCommands,
   userPrinterPermissions,
+  userMfaRecoveryCodes,
   userRegistrationRequests,
   users,
   userModuleAccess,
@@ -22,12 +23,12 @@ import { eq, and, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireModuleFullAccess } from "@/lib/server-utils";
-import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT } from "@/lib/auth";
+import { hashPassword, isValidEmail, isValidPassword, PASSWORD_RULE_TEXT, verifyPassword } from "@/lib/auth";
 import { EMPLOYEE_ID_RULE_TEXT, isValidEmployeeId } from "@/lib/validation";
 import { MODULES, MODULE_PARENTS, defaultAccessForRole } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
-import { buildPasswordResetEmail, buildUserAccountVerificationEmail } from "@/lib/email-templates";
-import { canManageRole, hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
+import { buildUserAccountVerificationEmail } from "@/lib/email-templates";
+import { canManageRole, canSetTemporaryPassword, hasAdminPrivileges, isSuperAdmin, type UserRole } from "@/lib/roles";
 import type { PrinterPermissionState } from "./PrinterPermissionsPanel";
 import { validateOrganizationSelection } from "@/lib/organization";
 
@@ -64,19 +65,45 @@ async function sendManualUserVerificationEmail(user: { fullName: string; email: 
   });
 }
 
-async function sendManagedPasswordResetEmail(user: { fullName: string; email: string }, rawToken: string) {
-  const resetUrl = `${await applicationOrigin()}/reset-password?token=${encodeURIComponent(rawToken)}`;
-  await sendEmail({
-    to: user.email,
-    ...buildPasswordResetEmail({
-      fullName: user.fullName,
-      resetUrl,
-      requestedByIt: true,
-    }),
-  });
-}
-
 export type UserFormState = { error?: string; fieldErrors?: Record<string, string> };
+
+export type TemporaryPasswordState = {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  fieldErrors?: Partial<Record<"password" | "confirmPassword", string>>;
+};
+
+export async function resetUserMfaAction(formData: FormData) {
+  const actor = await requireModuleFullAccess("manage_users");
+  const userId = Number(formData.get("id"));
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!Number.isInteger(userId) || userId < 1) throw new Error("Invalid user account");
+  if (!reason) throw new Error("A reset reason is required");
+  if (userId === actor.id) throw new Error("Use Security settings to manage your own authenticator");
+  const [target] = await db.select({ id: users.id, role: users.role, username: users.username })
+    .from(users).where(eq(users.id, userId)).limit(1);
+  if (!target || !canManageRole(actor.role, target.role)) throw new Error("You cannot reset this account's authenticator");
+
+  await db.transaction(async (tx) => {
+    await tx.delete(userMfaRecoveryCodes).where(eq(userMfaRecoveryCodes.userId, userId));
+    await tx.update(users).set({
+      totpSecretEncrypted: null,
+      totpPendingSecretEncrypted: null,
+      totpEnabledAt: null,
+      totpLastUsedStep: null,
+      sessionVersion: sql`${users.sessionVersion} + 1`,
+    }).where(eq(users.id, userId));
+    await tx.insert(auditLogs).values({
+      actorUserId: actor.id,
+      action: "auth.mfa_admin_reset",
+      targetType: "user",
+      targetId: String(userId),
+      metadata: { reason, username: target.username },
+    });
+  });
+  redirect(`/manage/${userId}?success=${encodeURIComponent("Authenticator reset. The user must enroll again if required by their role.")}`);
+}
 
 export async function createUserAction(_prev: UserFormState, formData: FormData): Promise<UserFormState> {
   const creator = await requireModuleFullAccess("manage_users");
@@ -277,6 +304,8 @@ export async function updateUserAction(_prev: UserFormState, formData: FormData)
     if (password) {
       updateValues.passwordHash = await hashPassword(password);
       updateValues.sessionVersion = sql`${users.sessionVersion} + 1`;
+      updateValues.passwordChangeRequired = false;
+      updateValues.temporaryPasswordExpiresAt = null;
     }
     await db.transaction(async (tx) => {
       await tx.update(users).set(updateValues).where(eq(users.id, id));
@@ -394,18 +423,31 @@ export async function deleteUserAction(formData: FormData) {
   redirect("/manage?success=User deleted. Registration history was preserved.");
 }
 
-export async function sendEmployeePasswordResetAction(formData: FormData) {
+export async function setTemporaryPasswordAction(
+  formData: FormData,
+): Promise<TemporaryPasswordState> {
   const actor = await requireModuleFullAccess("manage_users");
   if (actor.role !== "support" && !hasAdminPrivileges(actor.role)) redirect("/access-denied");
 
   const userId = num(formData.get("id"));
-  if (!userId) redirect("/manage?error=Invalid user account.");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const fieldErrors: TemporaryPasswordState["fieldErrors"] = {};
+
+  if (!userId) return { error: "Invalid user account." };
+  if (!password) fieldErrors.password = "Enter a temporary password.";
+  else if (!isValidPassword(password)) fieldErrors.password = PASSWORD_RULE_TEXT;
+  if (!confirmPassword) fieldErrors.confirmPassword = "Re-type the temporary password.";
+  else if (password !== confirmPassword) fieldErrors.confirmPassword = "The passwords do not match.";
+  if (Object.keys(fieldErrors).length) return { fieldErrors };
+
   const returnPath = `/manage/${userId}`;
-  const [employee] = await db
+  const [target] = await db
     .select({
       id: users.id,
-      fullName: users.fullName,
       email: users.email,
+      username: users.username,
+      passwordHash: users.passwordHash,
       role: users.role,
       accountStatus: users.accountStatus,
     })
@@ -413,51 +455,55 @@ export async function sendEmployeePasswordResetAction(formData: FormData) {
     .where(eq(users.id, userId))
     .limit(1);
 
-  if (!employee || employee.role !== "employee" || employee.accountStatus !== "active") {
-    redirect(`${returnPath}?error=${encodeURIComponent("Password reset emails can only be sent to active Employee accounts.")}`);
+  if (!target || target.accountStatus !== "active") {
+    return { error: "Temporary passwords can only be set for active accounts." };
+  }
+  if (!canSetTemporaryPassword(actor.role, target.role)) {
+    return { error: "You can only set temporary passwords for accounts below your role level." };
+  }
+  if (await verifyPassword(password, target.passwordHash)) {
+    return { fieldErrors: { password: "Choose a password different from the user's current password." } };
   }
 
-  const rawToken = randomBytes(32).toString("base64url");
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 60 * 60_000);
-  const [createdToken] = await db.transaction(async (tx) => {
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60_000);
+  const passwordHash = await hashPassword(password);
+  await db.transaction(async (tx) => {
     await tx
       .update(passwordResetTokens)
       .set({ consumedAt: now })
       .where(and(
-        eq(passwordResetTokens.userId, employee.id),
+        eq(passwordResetTokens.userId, target.id),
         isNull(passwordResetTokens.consumedAt),
       ));
-    const inserted = await tx
-      .insert(passwordResetTokens)
-      .values({ userId: employee.id, tokenHash, expiresAt })
-      .returning({ id: passwordResetTokens.id });
+    await tx
+      .update(users)
+      .set({
+        passwordHash,
+        passwordChangeRequired: true,
+        temporaryPasswordExpiresAt: expiresAt,
+        sessionVersion: sql`${users.sessionVersion} + 1`,
+      })
+      .where(eq(users.id, target.id));
     await tx.insert(auditLogs).values({
       actorUserId: actor.id,
-      action: "account.password_reset_requested",
+      action: "account.temporary_password_set",
       targetType: "user",
-      targetId: String(employee.id),
-      metadata: { email: employee.email },
+      targetId: String(target.id),
+      metadata: {
+        email: target.email,
+        username: target.username,
+        expiresAt: expiresAt.toISOString(),
+      },
     });
-    return inserted;
   });
 
-  try {
-    await sendManagedPasswordResetEmail(employee, rawToken);
-  } catch (error) {
-    console.error("Managed password reset email failed:", error instanceof Error ? error.message : "UnknownError");
-    if (createdToken) {
-      await db
-        .update(passwordResetTokens)
-        .set({ consumedAt: new Date() })
-        .where(eq(passwordResetTokens.id, createdToken.id));
-    }
-    redirect(`${returnPath}?error=${encodeURIComponent("The password reset email could not be sent. Check the SMTP settings and try again.")}`);
-  }
-
   revalidatePath(returnPath);
-  redirect(`${returnPath}?success=${encodeURIComponent(`A password reset link was sent to ${employee.email}.`)}`);
+  revalidatePath("/manage");
+  return {
+    success: true,
+    message: "Temporary password saved. It expires in 24 hours and the user's existing sessions were signed out.",
+  };
 }
 
 export async function updatePermissionsAction(formData: FormData) {

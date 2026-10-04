@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { Check, LoaderCircle, MapPin, Printer, Search, Send, Wifi, X, type IconNode } from "lucide";
+import { Building2, Check, LoaderCircle, MapPin, Printer, Search, Send, Wifi, X, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { gooeyToast } from "goey-toast";
 import { Badge, IconGlyph } from "@/components/ui";
@@ -39,14 +39,21 @@ export default function RequestPrinterAccessDialog({
   ]), [newlyRequestedIds, scope.printers]);
   const filteredPrinters = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return scope.printers;
-    return scope.printers.filter((printer) => [
-      printer.serialNumber,
-      printer.model,
-      printer.locationName,
-      printer.departmentName,
-      printer.ipAddress,
-    ].some((value) => value?.toLowerCase().includes(normalized)));
+    const matchingPrinters = normalized
+      ? scope.printers.filter((printer) => [
+          printer.serialNumber,
+          printer.model,
+          printer.locationName,
+          printer.floor,
+          printer.departmentName,
+          printer.subunitName,
+          printer.ipAddress,
+        ].some((value) => value?.toLowerCase().includes(normalized)))
+      : scope.printers;
+
+    return [...matchingPrinters].sort(
+      (left, right) => Number(right.alreadyAccessible) - Number(left.alreadyAccessible),
+    );
   }, [query, scope.printers]);
 
   useEffect(() => {
@@ -263,10 +270,14 @@ export default function RequestPrinterAccessDialog({
                               : <Badge color="blue">Requestable</Badge>}
                         </div>
                         <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-xs">
-                          <RequestDetail icon={MapPin} label="Office" value={printer.locationName} />
+                          <RequestDetail
+                            icon={MapPin}
+                            label="Office"
+                            value={officeLocationLabel(printer.locationName, printer.floor)}
+                          />
                           <RequestDetail icon={Printer} label="Department" value={printer.departmentName} />
+                          <RequestDetail icon={Building2} label="Sub-unit" value={printer.subunitName} />
                           <RequestDetail icon={Wifi} label="IP Address" value={printer.ipAddress} mono />
-                          <RequestDetail icon={Wifi} label="Agent" value={printer.agentName} />
                         </dl>
                         <button
                           type="button"
@@ -309,6 +320,11 @@ function showPopupBlockedToast(printerId: number) {
     id: `printer-access-popup-${printerId}`,
     description: "Allow pop-ups for this site, then use Open Gmail compose again.",
   });
+}
+
+function officeLocationLabel(office: string | null, floor: string | null) {
+  const parts = [office?.trim(), floor?.trim()].filter(Boolean);
+  return parts.length > 0 ? parts.join(" - ") : null;
 }
 
 function buildGmailComposeUrl(

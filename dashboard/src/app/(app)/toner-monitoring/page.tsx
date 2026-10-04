@@ -59,6 +59,7 @@ export default async function TonerMonitoringPage({
   const statusFilters = paramList(sp.status);
   const dateFilters = paramList(sp.date);
   const tonerFilters = paramList(sp.toner);
+  const officeFilters = paramList(sp.office);
   const subunitFilters = paramList(sp.subunit);
   const sort = firstParam(sp.sort);
 
@@ -101,6 +102,10 @@ export default async function TonerMonitoringPage({
   const statusOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: row.type, label: row.type })));
   const dateOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: dateFilterValue(row.date), label: formatTonerDate(row.date) })));
   const tonerOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: row.tonerTypeName, label: row.tonerTypeName })));
+  const officeOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({
+    value: row.locationName?.trim() || BLANK_FILTER_VALUE,
+    label: row.locationName?.trim() || "(Blanks)",
+  })));
   const subunitOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({
     value: row.subunitName?.trim() || BLANK_FILTER_VALUE,
     label: row.subunitName?.trim() || "(Blanks)",
@@ -110,6 +115,7 @@ export default async function TonerMonitoringPage({
       matchesSelected(row.type, statusFilters)
       && matchesSelected(dateFilterValue(row.date), dateFilters)
       && matchesSelected(row.tonerTypeName, tonerFilters)
+      && matchesSelected(row.locationName?.trim() || BLANK_FILTER_VALUE, officeFilters)
       && matchesSelected(row.subunitName?.trim() || BLANK_FILTER_VALUE, subunitFilters)
     ))
     .sort((left, right) => compareTonerRows(left, right, sort));
@@ -187,11 +193,12 @@ export default async function TonerMonitoringPage({
         <RecordTableToolbar count={txnRows.length} label="transaction">
           <AutoSubmitFilterForm
             method="get"
-            resetKey={[statusFilters.join(","), dateFilters.join(","), tonerFilters.join(","), subunitFilters.join(","), sort].join("|")}
+            resetKey={[statusFilters.join(","), dateFilters.join(","), tonerFilters.join(","), officeFilters.join(","), subunitFilters.join(","), sort].join("|")}
           >
             {statusFilters.map((value) => <input key={`status-${value}`} type="hidden" name="status" value={value} />)}
             {dateFilters.map((value) => <input key={`date-${value}`} type="hidden" name="date" value={value} />)}
             {tonerFilters.map((value) => <input key={`toner-${value}`} type="hidden" name="toner" value={value} />)}
+            {officeFilters.map((value) => <input key={`office-${value}`} type="hidden" name="office" value={value} />)}
             {subunitFilters.map((value) => <input key={`subunit-${value}`} type="hidden" name="subunit" value={value} />)}
             {sort && <input type="hidden" name="sort" value={sort} />}
             <Search name="ticket" defaultValue={ticket} placeholder="Ticket or RQ Number" ariaLabel="Search toner transactions" />
@@ -268,13 +275,14 @@ export default async function TonerMonitoringPage({
           <table className="w-full table-fixed text-left text-sm">
             <caption className="sr-only">Toner delivery and request records</caption>
             <colgroup>
+              <col className="w-[8%]" />
               <col className="w-[10%]" />
               <col className="w-[11%]" />
               <col className="w-[12%]" />
-              <col className="w-[13%]" />
-              <col className="w-[9%]" />
+              <col className="w-[7%]" />
+              <col className="w-[14%]" />
+              <col className="w-[18%]" />
               <col className="w-[20%]" />
-              <col className="w-[25%]" />
             </colgroup>
             <thead className="border-b border-slate-200 bg-slate-50/95 text-[11px] uppercase tracking-[0.055em] text-slate-500 backdrop-blur-sm">
               <tr className="whitespace-nowrap">
@@ -294,8 +302,13 @@ export default async function TonerMonitoringPage({
                     <PrinterColumnFilter label="Toner" paramName="toner" options={tonerOptions} selectedValues={tonerFilters} currentSort={sort} sortAscValue="toner_asc" sortDescValue="toner_desc" />
                   </FilterableHeading>
                 </th>
-                <th className="px-4 py-3 text-center">Quantity</th>
-                <th className="px-4 py-2.5">
+                <th className="px-2 py-3 text-center">Quantity</th>
+                <th className="px-3 py-2.5">
+                  <FilterableHeading label="Office">
+                    <PrinterColumnFilter label="Office" paramName="office" options={officeOptions} selectedValues={officeFilters} currentSort={sort} sortAscValue="office_asc" sortDescValue="office_desc" />
+                  </FilterableHeading>
+                </th>
+                <th className="px-3 py-2.5">
                   <FilterableHeading label="Dept / Sub-unit">
                     <PrinterColumnFilter label="Sub-unit" paramName="subunit" options={subunitOptions} selectedValues={subunitFilters} currentSort={sort} />
                   </FilterableHeading>
@@ -305,7 +318,7 @@ export default async function TonerMonitoringPage({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginated.items.map((t) => (
-                <tr key={t.id} className="align-top transition-colors even:bg-slate-50/25 hover:bg-sky-50/45">
+                <tr key={t.id} className="align-middle transition-colors even:bg-slate-50/25 hover:bg-sky-50/45">
                   <td className="px-4 py-3.5"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
                   <td className="px-4 py-3.5">
                     <time dateTime={t.date} className="whitespace-nowrap font-semibold tabular-nums text-slate-700">
@@ -322,12 +335,17 @@ export default async function TonerMonitoringPage({
                     )}
                   </td>
                   <td className="px-4 py-3.5 font-semibold leading-5 text-slate-800">{t.tonerTypeName}</td>
-                  <td className="px-4 py-3.5 text-center">
+                  <td className="px-2 py-3.5 text-center">
                     <span className="inline-flex min-w-9 justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold tabular-nums text-slate-700">
                       {t.quantity}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-3 py-3.5">
+                    <p className="line-clamp-2 text-xs font-semibold leading-5 text-slate-700" title={t.locationName || ""}>
+                      {t.locationName || "—"}
+                    </p>
+                  </td>
+                  <td className="px-3 py-3.5">
                     <p className="line-clamp-1 font-medium leading-5 text-slate-700" title={t.departmentName || ""}>
                       {t.departmentName || "—"}
                     </p>
@@ -402,8 +420,8 @@ function dateFilterValue(value: string | Date) {
 }
 
 function compareTonerRows(
-  left: { type: string; date: string | Date; tonerTypeName: string; id: number },
-  right: { type: string; date: string | Date; tonerTypeName: string; id: number },
+  left: { type: string; date: string | Date; tonerTypeName: string; locationName: string | null; id: number },
+  right: { type: string; date: string | Date; tonerTypeName: string; locationName: string | null; id: number },
   sort: string,
 ) {
   const values: Record<string, [string, string]> = {
@@ -413,6 +431,8 @@ function compareTonerRows(
     date_desc: [dateFilterValue(right.date), dateFilterValue(left.date)],
     toner_asc: [left.tonerTypeName, right.tonerTypeName],
     toner_desc: [right.tonerTypeName, left.tonerTypeName],
+    office_asc: [left.locationName ?? "", right.locationName ?? ""],
+    office_desc: [right.locationName ?? "", left.locationName ?? ""],
   };
   const pair = values[sort];
   return pair ? pair[0].localeCompare(pair[1], undefined, { numeric: true }) || right.id - left.id : 0;

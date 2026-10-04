@@ -14,13 +14,14 @@ import Tabs from "@/components/Tabs";
 import {
   deleteUserAction,
   refreshPrinterPermissionAgentAction,
-  sendEmployeePasswordResetAction,
+  resetUserMfaAction,
   updatePermissionsAction,
   updatePrinterPermissionsAction,
 } from "../actions";
-import { canManageRole, hasAdminPrivileges, roleLabel } from "@/lib/roles";
+import { canManageRole, canSetTemporaryPassword, hasAdminPrivileges, roleLabel } from "@/lib/roles";
 import { getPrintOpsAgents } from "../../printops/data";
 import { KeyRound, Printer, UserRound, type IconNode } from "lucide";
+import TemporaryPasswordDialog from "../TemporaryPasswordDialog";
 
 function DetailSection({
   icon,
@@ -95,6 +96,8 @@ export async function ViewUserPage({
   const access = resolveModuleAccess(accessRows);
   const user = record.user;
   const canManageUser = canManageRole(session.role, user.role);
+  const canAssignTemporaryPassword = canSetTemporaryPassword(session.role, user.role)
+    && user.accountStatus === "active";
   const canConfigurePrinterPermissions = (
     user.role === "employee" && (
       session.role === "support" || hasAdminPrivileges(session.role)
@@ -180,6 +183,10 @@ export async function ViewUserPage({
                         ["Username", user.username],
                         ["Role", roleLabel(user.role)],
                         ["Status", user.accountStatus],
+                        ["Password", user.passwordChangeRequired
+                          ? `Temporary · change requested${user.temporaryPasswordExpiresAt ? ` · expires ${user.temporaryPasswordExpiresAt.toLocaleString()}` : ""}`
+                          : "Permanent"],
+                        ["Authenticator", user.totpEnabledAt ? `Enabled ${user.totpEnabledAt.toLocaleDateString()}` : "Not enabled"],
                         ["Office", record.location],
                         ["Department", record.department],
                         ["Subunit", record.subunit],
@@ -266,13 +273,24 @@ export async function ViewUserPage({
         {!embedded && (
           <div className="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             {hasAdminPrivileges(session.role) && canManageUser && <>
-            {user.role === "employee" && user.accountStatus === "active" && (
-              <form action={sendEmployeePasswordResetAction}>
-                <input type="hidden" name="id" value={user.id} />
-                <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
-              </form>
+            {canAssignTemporaryPassword && (
+              <TemporaryPasswordDialog userId={user.id} userName={user.fullName} />
             )}
             <Link href={`/manage/${user.id}/edit`}><SecondaryButton>Edit Account</SecondaryButton></Link>
+            {user.id !== session.id && user.totpEnabledAt && (
+              <DeleteButton
+                action={resetUserMfaAction}
+                id={user.id}
+                title="Reset authenticator?"
+                confirmText={`Remove authenticator protection and recovery codes for "${user.username}"? Their existing sessions will be signed out.`}
+                label="Reset Authenticator"
+                confirmLabel="Reset Authenticator"
+                requireReason
+                reasonLabel="Reason for reset"
+                reasonPlaceholder="Explain why authenticator access must be reset"
+                className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
+              />
+            )}
             {user.id !== session.id && (
               <DeleteButton
                 action={deleteUserAction}
@@ -286,11 +304,8 @@ export async function ViewUserPage({
             )}
             </>}
             {session.role === "support" && <>
-              {user.role === "employee" && user.accountStatus === "active" && (
-                <form action={sendEmployeePasswordResetAction}>
-                  <input type="hidden" name="id" value={user.id} />
-                  <button type="submit" className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-[#014171] transition hover:bg-sky-100">Reset Password</button>
-                </form>
+              {canAssignTemporaryPassword && (
+                <TemporaryPasswordDialog userId={user.id} userName={user.fullName} />
               )}
               <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">Edit Account</button>
               <button type="button" disabled className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">Delete Account</button>

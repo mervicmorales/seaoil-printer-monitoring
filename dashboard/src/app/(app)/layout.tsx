@@ -10,7 +10,7 @@ import AgentStatusNotifications from "@/components/AgentStatusNotifications";
 import { PageHeaderPlacement } from "@/components/PageHeaderPortal";
 import { getBlobSkinCookieName, isBlobSkin } from "@/lib/blob-skins";
 import { BlobSkinProvider } from "@/components/BlobSkinProvider";
-import { SYSTEM_LOGO_URL } from "@/lib/branding";
+import { AUTH_LOGO_URL } from "@/lib/branding";
 import { redirect } from "next/navigation";
 import { ADMIN_ONLY_NOTIFICATION_TYPES } from "@/lib/notification-types";
 
@@ -54,7 +54,7 @@ export default async function AppLayout({
       <div className="flex min-h-screen bg-transparent">
         <AgentStatusNotifications />
         <Sidebar
-          logoUrl={SYSTEM_LOGO_URL}
+          logoUrl={AUTH_LOGO_URL}
           accountName={accountName || "SEAOIL User"}
           initialCollapsed={
             collapsedCookie === undefined ? null : collapsedCookie === "true"

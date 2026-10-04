@@ -1,6 +1,6 @@
 import { Building2, CheckCircle2, MailCheck, ShieldCheck, type IconNode } from "lucide";
 import { IconGlyph } from "@/components/ui";
-import { SYSTEM_LOGO_URL } from "@/lib/branding";
+import { AUTH_LOGO_URL } from "@/lib/branding";
 import { getOrganizationOptions } from "@/lib/organization";
 import RegisterForm, { ResendVerificationForm } from "./RegisterForm";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
   const organizationOptions = await getOrganizationOptions();
-  const logoUrl = SYSTEM_LOGO_URL;
+  const logoUrl = AUTH_LOGO_URL;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f4f7fa] px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
@@ -16,8 +16,8 @@ export default async function RegisterPage() {
       <div aria-hidden="true" className="absolute -bottom-36 -left-28 size-96 rounded-full bg-[#FEF200]/15 blur-3xl" />
 
       <div className="relative mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center gap-3 sm:mb-8">
-          <div className={`flex size-11 items-center justify-center overflow-hidden rounded-xl text-lg font-black ${logoUrl ? "bg-transparent" : "bg-[#014171] text-[#FEF200]"}`}>
+        <div className="mb-6 flex items-center gap-5 sm:mb-8">
+          <div className={`flex size-16 items-center justify-center overflow-hidden rounded-xl text-lg font-black ${logoUrl ? "bg-transparent" : "bg-[#014171] text-[#FEF200]"}`}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt="SEAOIL logo" className="size-full object-contain" />
@@ -26,8 +26,12 @@ export default async function RegisterPage() {
             )}
           </div>
           <div>
-            <p className="font-bold leading-tight text-[#014171]">SEAOIL PrintOps</p>
-            <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Employee access</p>
+            <p className="text-2xl font-bold leading-none tracking-[-0.03em] text-[#014171]">
+              SEA <span className="text-[#d97706]">Print</span>
+            </p>
+            <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+              Printer Management System
+            </p>
           </div>
         </div>
 

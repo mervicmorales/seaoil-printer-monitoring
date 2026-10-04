@@ -21,6 +21,7 @@ export function middleware(req: NextRequest) {
 
   if (
     PUBLIC_PATHS.some((p) => pathname === p) ||
+    pathname.startsWith("/login/authenticator") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/monitoring/ingest") ||
     pathname.startsWith("/api/monitoring/config") ||

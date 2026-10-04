@@ -1,6 +1,6 @@
 import { BarChart3, LockKeyhole, Printer, ShieldCheck, type IconNode } from "lucide";
 import { IconGlyph } from "@/components/ui";
-import { SYSTEM_LOGO_URL } from "@/lib/branding";
+import { AUTH_LOGO_URL } from "@/lib/branding";
 import LoginForm from "./LoginForm";
 import LoginStatusToasts, { type LoginStatusNotice } from "./LoginStatusToasts";
 import Link from "next/link";
@@ -13,7 +13,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; verified?: string; reset?: string }>;
 }) {
   const params = await searchParams;
-  const logoUrl = SYSTEM_LOGO_URL;
+  const logoUrl = AUTH_LOGO_URL;
   const statusNotice = getLoginStatusNotice(params);
 
   return (
@@ -29,9 +29,9 @@ export default async function LoginPage({
         <div aria-hidden="true" className="absolute -right-28 -top-32 size-[28rem] rounded-full border border-white/10 bg-[#7DA8D0]/10" />
         <div aria-hidden="true" className="absolute -bottom-40 -left-28 size-[30rem] rounded-full bg-[#FEF200]/10 blur-3xl" />
 
-        <div className="relative z-10 flex items-center gap-3.5">
+        <div className="relative z-10 flex items-center gap-5">
           <div
-            className={`flex size-12 items-center justify-center overflow-hidden rounded-xl text-xl font-black text-[#014171] ${
+            className={`flex size-[4.25rem] items-center justify-center overflow-hidden rounded-xl text-xl font-black text-[#014171] ${
               logoUrl ? "bg-transparent" : "bg-[#FEF200]"
             }`}
           >
@@ -43,9 +43,11 @@ export default async function LoginPage({
             )}
           </div>
           <div>
-            <p className="text-lg font-bold leading-tight tracking-[-0.01em]">SEAOIL · PrintOps</p>
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9fbdda]">
-              Philippines Inc.
+            <p className="text-[1.75rem] font-bold leading-none tracking-[-0.035em]">
+              SEA <span className="text-[#FEF200]">Print</span>
+            </p>
+            <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#9fbdda]">
+              Printer Management System
             </p>
           </div>
         </div>
@@ -69,18 +71,17 @@ export default async function LoginPage({
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center justify-between gap-5 border-t border-white/20 pt-5 text-[11px] text-[#d6e5f2]">
+        <div className="relative z-10 flex items-center border-t border-white/20 pt-5 text-[11px] text-[#d6e5f2]">
           <p>For internal use by SEAOIL Philippines Inc. only.</p>
-          <p className="font-semibold uppercase tracking-[0.12em]">Printer Management System</p>
         </div>
       </section>
 
       <section className="relative flex min-h-screen items-center justify-center px-4 py-8 sm:px-8 sm:py-12 lg:px-10 xl:px-16">
         <div aria-hidden="true" className="absolute -right-28 -top-28 size-80 rounded-full bg-[#7DA8D0]/15 blur-3xl lg:hidden" />
         <div className="relative w-full max-w-md">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
+          <div className="mb-8 flex items-center gap-4 lg:hidden">
             <div
-              className={`flex size-11 items-center justify-center overflow-hidden rounded-xl text-lg font-black text-[#FEF200] ${
+              className={`flex size-14 items-center justify-center overflow-hidden rounded-xl text-lg font-black text-[#FEF200] ${
                 logoUrl ? "bg-transparent" : "bg-[#014171]"
               }`}
             >
@@ -92,8 +93,12 @@ export default async function LoginPage({
               )}
             </div>
             <div>
-              <p className="font-bold leading-tight text-[#014171]">SEAOIL PrintOps</p>
-              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Secured</p>
+              <p className="text-xl font-bold leading-none tracking-[-0.025em] text-[#014171]">
+                SEA <span className="text-[#d97706]">Print</span>
+              </p>
+              <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Printer Management System
+              </p>
             </div>
           </div>
 

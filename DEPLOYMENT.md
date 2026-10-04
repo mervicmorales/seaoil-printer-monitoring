@@ -31,7 +31,9 @@ Do not delete, recreate, or rename these volumes during deployment.
    use `/_deployment/compose.coolify.yml` as the Compose location.
 3. Expose only `dashboard` publicly. Keep `db`, `db-init`, and `printdash-agent` internal.
 4. Add the variables from `.env.production.example` in Coolify. Replace every
-   `CHANGE_ME` value with a unique secret. Do not commit the resulting values.
+   `CHANGE_ME` value with a unique secret. Keep `MFA_ENCRYPTION_KEY` separate
+   from `AUTH_SECRET` and `SETTINGS_ENCRYPTION_KEY`; losing it requires enrolled
+   users to reset authenticator access. Do not commit the resulting values.
 5. Use `pms.seaoil.com.ph` as `APP_BASE_URL` only after its DNS and HTTPS route
    are configured. Until then, use the actual dashboard URL supplied by Coolify.
 6. Deploy and wait for `db-init` to finish successfully and both health checks

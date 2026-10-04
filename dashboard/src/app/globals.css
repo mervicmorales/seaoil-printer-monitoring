@@ -51,6 +51,54 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.pin-box {
+  width: 44px;
+  height: 52px;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  color: #0f172a;
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: 700;
+  caret-color: var(--seaoil-blue);
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.pin-box.filled {
+  border-color: var(--seaoil-yellow);
+  background: rgb(254 242 0 / 10%);
+}
+
+.pin-box.pop {
+  transform: scale(1.14);
+}
+
+.pin-box:focus {
+  border-color: var(--seaoil-yellow);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(254 242 0 / 28%);
+}
+
+.pin-box.pin-error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.pin-box.pin-success {
+  border-color: #34d399;
+  background: #ecfdf5;
+}
+
+.pin-box:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .dashboard-grid-item {
   height: 100%;
   transition:
@@ -100,6 +148,14 @@ button:disabled {
 @media (prefers-reduced-motion: reduce) {
   .dashboard-grid .react-grid-item {
     transition: none !important;
+  }
+
+  .pin-box {
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .pin-box.pop {
+    transform: none;
   }
 }
 

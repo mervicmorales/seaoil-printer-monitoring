@@ -99,6 +99,12 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   sessionVersion: integer("session_version").notNull().default(0),
+  passwordChangeRequired: boolean("password_change_required").notNull().default(false),
+  temporaryPasswordExpiresAt: timestamp("temporary_password_expires_at", { withTimezone: true }),
+  totpSecretEncrypted: text("totp_secret_encrypted"),
+  totpPendingSecretEncrypted: text("totp_pending_secret_encrypted"),
+  totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
+  totpLastUsedStep: bigint("totp_last_used_step", { mode: "number" }),
   role: text("role").notNull().default("support"), // 'super_admin' | 'admin' | 'support' | 'employee'
   employeeId: text("employee_id").unique(),
   primaryLocationId: integer("primary_office_id").references(() => locations.id, {
@@ -117,6 +123,20 @@ export const users = pgTable("users", {
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const userMfaRecoveryCodes = pgTable(
+  "user_mfa_recovery_codes",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull().unique(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("user_mfa_recovery_codes_user_idx").on(t.userId)],
+);
 
 export const organizationImports = pgTable(
   "organization_imports",

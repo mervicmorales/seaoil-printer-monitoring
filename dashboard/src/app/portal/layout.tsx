@@ -10,7 +10,7 @@ import { BlobSkinProvider } from "@/components/BlobSkinProvider";
 import { getBlobSkinCookieName, isBlobSkin } from "@/lib/blob-skins";
 import { emptyModuleAccess } from "@/lib/permissions";
 import { requireSession } from "@/lib/server-utils";
-import { SYSTEM_LOGO_URL } from "@/lib/branding";
+import { AUTH_LOGO_URL } from "@/lib/branding";
 
 export default async function EmployeePortalLayout({ children }: { children: ReactNode }) {
   const session = await requireSession();
@@ -35,7 +35,7 @@ export default async function EmployeePortalLayout({ children }: { children: Rea
     >
       <div className="flex min-h-screen bg-[#f4f6f9]">
         <Sidebar
-          logoUrl={SYSTEM_LOGO_URL}
+          logoUrl={AUTH_LOGO_URL}
           accountName={accountName || "SEAOIL Employee"}
           initialCollapsed={collapsedCookie === undefined ? null : collapsedCookie === "true"}
           moduleAccess={emptyModuleAccess()}

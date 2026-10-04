@@ -4,10 +4,12 @@ import { db } from "@/db";
 import { userRegistrationRequests, users } from "@/db/schema";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { setSessionCookie, verifyPassword } from "@/lib/auth";
+import { clearMfaChallengeCookie, setMfaChallengeCookie, setSessionCookie, verifyPassword } from "@/lib/auth";
 import { expireRegistrationRequests } from "@/lib/registration-requests";
 import { isUserRole } from "@/lib/roles";
 import { clearSuccessfulLogin, isLoginRateLimited, recordFailedLogin } from "@/lib/auth-rate-limit";
+import { encryptMfaSecret, assertMfaConfiguration } from "@/lib/mfa-secrets";
+import { generateTotpSecret } from "@/lib/totp";
 
 export type LoginState = {
   error?: string;
@@ -98,8 +100,51 @@ export async function loginAction(
   if (!isUserRole(user.role)) {
     return { error: "This account has an invalid role. Please contact IT support." };
   }
+  if (
+    user.passwordChangeRequired
+    && (!user.temporaryPasswordExpiresAt || user.temporaryPasswordExpiresAt.getTime() <= Date.now())
+  ) {
+    return { error: "This temporary password has expired. Please contact IT support for a new one." };
+  }
+
+  const redirectTo = user.role === "employee"
+    ? "/portal"
+    : user.role === "support"
+      ? "/"
+      : requestedRedirect === "/portal"
+        ? "/overview"
+        : requestedRedirect;
+  const postLoginRedirect = user.passwordChangeRequired
+    ? `/account/change-password?next=${encodeURIComponent(redirectTo)}`
+    : redirectTo;
+
+  const mfaEnabled = Boolean(user.totpEnabledAt && user.totpSecretEncrypted);
+  const mfaRequired = user.role === "admin" || user.role === "super_admin";
+  if (mfaEnabled || mfaRequired) {
+    try {
+      assertMfaConfiguration();
+    } catch {
+      return { error: "Authenticator security is not configured on the server. Please contact IT support." };
+    }
+    if (!mfaEnabled) {
+      await db
+        .update(users)
+        .set({ totpPendingSecretEncrypted: encryptMfaSecret(generateTotpSecret()) })
+        .where(eq(users.id, user.id));
+    }
+    await setMfaChallengeCookie({
+      userId: user.id,
+      sessionVersion: user.sessionVersion,
+      role: user.role,
+      loginIdentifier: identifier,
+      redirectTo: postLoginRedirect,
+      purpose: mfaEnabled ? "verify" : "enroll",
+    });
+    redirect(mfaEnabled ? "/login/authenticator" : "/login/authenticator/setup");
+  }
 
   await clearSuccessfulLogin(identifier);
+  await clearMfaChallengeCookie();
 
   await setSessionCookie({
     id: user.id,
@@ -110,12 +155,5 @@ export async function loginAction(
     sessionVersion: user.sessionVersion,
   });
 
-  const redirectTo = user.role === "employee"
-    ? "/portal"
-    : user.role === "support"
-      ? "/"
-    : requestedRedirect === "/portal"
-      ? "/overview"
-      : requestedRedirect;
-  redirect(redirectTo);
+  redirect(postLoginRedirect);
 }

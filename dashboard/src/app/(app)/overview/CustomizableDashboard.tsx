@@ -50,6 +50,7 @@ const breakpoints: Record<DashboardBreakpoint, number> = { lg: 1000, md: 640, sm
 const columns: Record<DashboardBreakpoint, number> = { lg: 12, md: 8, sm: 1 };
 const rowHeight = 28;
 const gridMargin = [12, 12] as const;
+const gridContainerPadding = [0, 0] as const;
 
 const defaultLayouts: ResponsiveLayouts<DashboardBreakpoint> = {
   lg: [
@@ -196,16 +197,16 @@ export default function CustomizableDashboard({
 
   return (
     <div className="relative">
-      <div className="fixed right-0 top-[10.5rem] z-40">
-        {!editing ? (
+      <div className="fixed right-0 top-[130px] z-50">
+        {preferencesReady && (!editing ? (
           <button
             type="button"
             onClick={() => setEditing(true)}
             aria-label="Customize dashboard"
-            className="group relative flex h-11 w-11 items-center justify-center rounded-l-lg border border-r-0 border-slate-200 bg-white/95 text-[#014171] shadow-lg backdrop-blur transition hover:bg-white hover:shadow-xl"
+            className="group relative flex h-9 w-9 items-center justify-center rounded-l-md border border-r-0 border-slate-200 bg-white/95 text-[#014171] shadow-md backdrop-blur transition hover:bg-white hover:shadow-lg"
           >
             <span className="transition-transform duration-200 group-hover:rotate-45 group-focus-visible:rotate-45">
-              <IconGlyph icon={Settings2} size={16} />
+              <IconGlyph icon={Settings2} size={14} />
             </span>
             <span className="pointer-events-none absolute right-[calc(100%+0.5rem)] top-1/2 -translate-y-1/2 translate-x-2 scale-95 whitespace-nowrap rounded-md bg-[#014171] px-3 py-2 text-xs font-bold text-white opacity-0 shadow-lg transition duration-150 group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:scale-100 group-focus-visible:opacity-100">
               Customize Dashboard
@@ -238,11 +239,22 @@ export default function CustomizableDashboard({
               </div>
             )}
           </div>
-        )}
+        ))}
       </div>
 
       <div ref={containerRef} className="min-w-0">
-        {!mounted ? (
+        {!preferencesReady ? (
+          <div
+            className="flex min-h-[32rem] items-center justify-center rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)]"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+              <span className="size-5 animate-spin rounded-full border-2 border-slate-200 border-t-[#014171]" aria-hidden="true" />
+              Restoring your dashboard…
+            </div>
+          </div>
+        ) : !mounted ? (
           <div className="grid gap-3 xl:grid-cols-12">
             {visibleWidgets.map((widget) => <div key={widget.id} className={`min-w-0 ${staticSpan[widget.id]}`}>{widget.content}</div>)}
           </div>
@@ -254,7 +266,7 @@ export default function CustomizableDashboard({
             cols={columns}
             rowHeight={rowHeight}
             margin={gridMargin}
-            containerPadding={null}
+            containerPadding={gridContainerPadding}
             compactor={verticalCompactor}
             dragConfig={dragConfig}
             resizeConfig={resizeConfig}

@@ -28,6 +28,7 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
     db
       .select({
         id: tonerTransactions.id,
+        type: tonerTransactions.type,
         date: tonerTransactions.date,
         departmentId: tonerTransactions.departmentId,
         departmentName: departments.name,
@@ -49,7 +50,6 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
       .leftJoin(subunits, eq(tonerTransactions.subunitId, subunits.id))
       .leftJoin(costCenters, eq(tonerTransactions.costCenterId, costCenters.id))
       .leftJoin(locations, eq(tonerTransactions.locationId, locations.id))
-      .where(eq(tonerTransactions.type, "Request"))
       .orderBy(desc(tonerTransactions.date), desc(tonerTransactions.id)),
     db.select({ id: departments.id, name: departments.name }).from(departments).orderBy(asc(departments.name)),
     db.select({ id: subunits.id, name: subunits.name, departmentId: subunits.departmentId }).from(subunits).orderBy(asc(subunits.name)),
@@ -59,25 +59,28 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
     db.select({ id: itsNames.id, name: itsNames.name }).from(itsNames).orderBy(asc(itsNames.name)),
   ]);
 
+  const toExpenseRecord = (row: typeof rows[number]) => ({
+    id: row.id,
+    date: row.date,
+    departmentId: row.departmentId,
+    departmentName: row.departmentName,
+    subunitId: row.subunitId,
+    subunitName: row.subunitName,
+    costCenterId: row.costCenterId,
+    costCenterCode: row.costCenterCode,
+    locationId: row.locationId,
+    locationName: row.locationName,
+    tonerTypeId: row.tonerTypeId,
+    tonerTypeName: row.tonerTypeName,
+    itsNameId: row.itsNameId,
+    quantity: row.quantity,
+    unitCostCents: amountToCents(row.unitCost),
+  });
+
   return (
     <TonerExpenseExplorer
-      records={rows.map((row) => ({
-        id: row.id,
-        date: row.date,
-        departmentId: row.departmentId,
-        departmentName: row.departmentName,
-        subunitId: row.subunitId,
-        subunitName: row.subunitName,
-        costCenterId: row.costCenterId,
-        costCenterCode: row.costCenterCode,
-        locationId: row.locationId,
-        locationName: row.locationName,
-        tonerTypeId: row.tonerTypeId,
-        tonerTypeName: row.tonerTypeName,
-        itsNameId: row.itsNameId,
-        quantity: row.quantity,
-        unitCostCents: amountToCents(row.unitCost),
-      }))}
+      records={rows.filter((row) => row.type === "Request").map(toExpenseRecord)}
+      deliveryRecords={rows.filter((row) => row.type === "Delivery").map(toExpenseRecord)}
       initialFilters={{
         allTime,
         dateFrom: allTime ? "" : (sp.dateFrom ?? `${today.slice(0, 4)}-01-01`),

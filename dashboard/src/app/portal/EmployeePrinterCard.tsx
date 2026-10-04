@@ -31,6 +31,8 @@ export default function EmployeePrinterCard({
     model: string | null;
     locationName: string | null;
     departmentName: string | null;
+    subunitName: string | null;
+    floor: string | null;
     ipAddress: string | null;
     macAddress: string | null;
     status: string;
@@ -81,7 +83,9 @@ export default function EmployeePrinterCard({
             <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
               <PrinterDetail label="Model" value={printer.model} />
               <PrinterDetail label="Office" value={printer.locationName} />
+              <PrinterDetail label="Location" value={printer.floor} />
               <PrinterDetail label="Department" value={printer.departmentName} />
+              <PrinterDetail label="Sub-unit" value={printer.subunitName} />
               <PrinterDetail label="IP Address" value={printer.ipAddress} mono />
               <PrinterDetail label="MAC Address" value={printer.macAddress} mono />
               <div>
