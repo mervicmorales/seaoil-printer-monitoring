@@ -1,9 +1,17 @@
+# syntax=docker/dockerfile:1
+
 FROM node:22-bookworm-slim AS dependencies
 
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY scripts ./scripts
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci \
+    --fetch-retries=5 \
+    --fetch-retry-factor=2 \
+    --fetch-retry-mintimeout=10000 \
+    --fetch-retry-maxtimeout=120000 \
+    --fetch-timeout=300000
 
 FROM dependencies AS builder
 
@@ -24,10 +32,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY package.json package-lock.json ./
 COPY scripts ./scripts
-RUN npm ci --omit=dev && npm cache clean --force
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
+RUN npm prune --omit=dev --include=optional \
+  && test -f node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node \
+  && npm cache clean --force
+COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/next.config.ts ./next.config.ts
 RUN mkdir -p /app/storage/uploads && chown -R node:node /app/storage
 
 USER node
