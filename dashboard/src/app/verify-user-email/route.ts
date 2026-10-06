@@ -3,11 +3,13 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { manualUserVerificationTokens, userRegistrationRequests, users } from "@/db/schema";
+import { publicApplicationUrl } from "@/lib/public-application-url";
 
 export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get("token") || "";
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const now = new Date();
+  const target = publicApplicationUrl("/login", request.url);
 
   const activated = await db.transaction(async (tx) => {
     const [record] = await tx.select({
@@ -47,7 +49,6 @@ export async function GET(request: Request) {
     return updated.length > 0;
   });
 
-  const target = new URL("/login", request.url);
   target.searchParams.set("verified", activated ? "account-activated" : "invalid");
   return NextResponse.redirect(target);
 }
