@@ -59,8 +59,7 @@ export default function InventoryMovementPanel({
         <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2.5 self-start pr-20 @min-[28rem]:row-span-2 @min-[28rem]:self-center">
           <span className="shrink-0 text-[#014171]"><IconGlyph icon={BarChart3} size={16} /></span>
           <div className="min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-[#4f7fa9]">Inventory analytics</p>
-            <h2 id="inventory-movement-heading" className="truncate text-sm font-bold text-slate-800">Inventory movement</h2>
+            <h2 id="inventory-movement-heading" className="truncate text-sm font-bold text-slate-800">Stock Movement</h2>
             <p className="truncate text-[10px] text-slate-500">How deliveries and requests changed total stock</p>
           </div>
         </div>

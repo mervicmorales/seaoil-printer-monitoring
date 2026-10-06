@@ -429,7 +429,7 @@ export function buildRegistrationApprovedEmail({
   fullName: string;
   loginUrl: string;
 }): EmailTemplate {
-  const subject = "SEAOIL Printer - Registration Approved";
+  const subject = "SEA Print - Registration Approve";
   return {
     subject,
     text: textEmail([

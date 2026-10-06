@@ -57,7 +57,7 @@ export default function SmtpSettingsForm({ action, settings }: { action: (formDa
       <SettingsSection icon={Send} title="Sender and testing" description="Message identity and recipient used for delivery checks">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input label="From Email" name="smtpFrom" type="email" defaultValue={settings.smtpFrom || ""} />
-          <Input label="From Name" name="smtpFromName" defaultValue={settings.smtpFromName || "SEAOIL Printer"} />
+          <Input label="From Name" name="smtpFromName" defaultValue={settings.smtpFromName || "SEA Print"} />
           <Input label="Test Recipient" name="smtpTestRecipient" type="email" defaultValue={settings.smtpTestRecipient || ""} />
         </div>
       </SettingsSection>

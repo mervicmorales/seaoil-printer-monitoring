@@ -73,8 +73,7 @@ export function ExpenseFlowVisual({
     <section aria-labelledby="expense-flow-heading" className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white xl:h-[30rem]">
       <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Cost flow</p>
-          <h2 id="expense-flow-heading" className="mt-1 text-base font-bold text-[#014171]">Purchases versus toner usage</h2>
+          <h2 id="expense-flow-heading" className="text-base font-bold text-[#014171]">Delivery vs. Request Cost</h2>
           <p className="mt-1 text-xs text-slate-500">Estimated delivery value compared with estimated request cost.</p>
         </div>
         <div role="group" aria-label="Expense trend period" className="flex w-fit shrink-0 items-center rounded-full border border-slate-200 bg-slate-50 p-1 shadow-sm">
@@ -173,8 +172,7 @@ export function CostCenterVisual({ requests }: { requests: readonly TonerExpense
   return (
     <section aria-labelledby="cost-center-heading" className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white xl:h-[30rem]">
       <div className="shrink-0 border-b border-slate-200 px-4 py-4 sm:px-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Cost concentration</p>
-        <h2 id="cost-center-heading" className="mt-1 text-base font-bold text-[#014171]">Highest-cost cost centers</h2>
+        <h2 id="cost-center-heading" className="text-base font-bold text-[#014171]">Cost by Cost Center</h2>
         <p className="mt-1 text-xs text-slate-500">Ranked by estimated toner request expense in the current filtered view.</p>
       </div>
 

@@ -46,8 +46,7 @@ export default function RecentActivityPanel({ activities, generatedAt }: { activ
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="shrink-0 text-[#014171]"><IconGlyph icon={History} size={16} /></span>
           <div className="min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-[#4f7fa9]">System timeline</p>
-            <h2 id="recent-activity-heading" className="truncate text-sm font-bold text-slate-800">Recent activity</h2>
+            <h2 id="recent-activity-heading" className="truncate text-sm font-bold text-slate-800">Recent Activity</h2>
             <p className="truncate text-[10px] text-slate-500">Latest meaningful updates from pages you can access</p>
           </div>
         </div>

@@ -215,8 +215,7 @@ export default function TonerExpenseExplorer({
       <section aria-labelledby="expense-summary-heading" className="overflow-hidden rounded-lg border border-[#dfe6ee] bg-white">
         <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Filtered overview</p>
-            <h2 id="expense-summary-heading" className="mt-0.5 text-sm font-bold text-[#014171]">Toner cost and movement</h2>
+            <h2 id="expense-summary-heading" className="text-sm font-bold text-[#014171]">Cost Summary</h2>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-semibold text-slate-500">
             <span className="flex items-center gap-1.5"><i className={`size-2 rounded-full ${priceCoverage === 100 ? "bg-emerald-500" : "bg-amber-400"}`} />{priceCoverage}% request price coverage</span>
@@ -249,8 +248,7 @@ export default function TonerExpenseExplorer({
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Request analysis</p>
-            <h2 className="mt-1 text-base font-bold text-[#014171]">Toner requests by department</h2>
+            <h2 className="text-base font-bold text-[#014171]">Requests by Department</h2>
             <p className="mt-1 text-xs text-slate-500">Select a department row to see every requested cost center and its toner types.</p>
           </div>
           <div className="flex shrink-0 items-center gap-2 text-xs text-slate-500"><IconGlyph icon={CircleDollarSign} size={14} /><span>{integer.format(costCenterCount)} {pluralize(costCenterCount, "cost center")} in this view</span></div>

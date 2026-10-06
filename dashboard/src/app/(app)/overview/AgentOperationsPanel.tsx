@@ -43,8 +43,7 @@ export default function AgentOperationsPanel({ agents }: { agents: AgentOperatio
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="shrink-0 text-[#014171]"><IconGlyph icon={Activity} size={16} /></span>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#4f7fa9]">Agent health · Live operations</p>
-            <h2 id="agent-operations-heading" className="truncate text-sm font-bold text-slate-800">Agent offices and printer connectivity</h2>
+            <h2 id="agent-operations-heading" className="truncate text-sm font-bold text-slate-800">Agent &amp; Printer Status</h2>
             <p className="truncate text-[11px] text-slate-500">{onlineAgents} agents online · {offlineAgents} offline · Select an agent to inspect its printers</p>
           </div>
         </div>

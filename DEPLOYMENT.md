@@ -34,9 +34,16 @@ Do not delete, recreate, or rename these volumes during deployment.
    `CHANGE_ME` value with a unique secret. Keep `MFA_ENCRYPTION_KEY` separate
    from `AUTH_SECRET` and `SETTINGS_ENCRYPTION_KEY`; losing it requires enrolled
    users to reset authenticator access. Do not commit the resulting values.
-5. Use `pms.seaoil.com.ph` as `APP_BASE_URL` only after its DNS and HTTPS route
-   are configured. Until then, use the actual dashboard URL supplied by Coolify.
-6. Deploy and wait for `db-init` to finish successfully and both health checks
+5. Set `APP_BASE_URL` to the exact public address employees use to open the
+   dashboard. For the current deployment, use
+   `http://seaprint.seaoil.com.ph:3000`. Confirm its DNS record, port access,
+   and firewall route before sending production email. If HTTPS is configured
+   later, update this value to the HTTPS URL and remove `:3000` when the reverse
+   proxy serves the standard HTTPS port.
+6. If **System → Notifications → Email** has **Use saved SMTP settings** enabled,
+   set **From Email** to `noreply.printerservices@seaoil.com.ph` and **From Name**
+   to `SEA Print`. Saved database settings take priority over Coolify variables.
+7. Deploy and wait for `db-init` to finish successfully and both health checks
    to become healthy.
 
 ## Connect the agent after first deployment

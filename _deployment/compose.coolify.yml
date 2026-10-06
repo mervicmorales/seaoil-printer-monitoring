@@ -72,7 +72,7 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY}
-      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      APP_BASE_URL: ${APP_BASE_URL:-http://seaprint.seaoil.com.ph:3000}
       MONITORING_STALE_SECONDS: ${MONITORING_STALE_SECONDS:-180}
       AGENT_STATUS_CRON_SECRET: ${AGENT_STATUS_CRON_SECRET}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -80,8 +80,8 @@ services:
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-printer@seaoil.com.ph}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-SEAOIL Printer}
+      SMTP_FROM: ${SMTP_FROM:-noreply.printerservices@seaoil.com.ph}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-SEA Print}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
     ports:
       - "0.0.0.0:${DASHBOARD_PORT:-3000}:3000"

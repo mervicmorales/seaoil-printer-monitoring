@@ -227,19 +227,18 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         <CustomizableDashboard
           storageKey={`seaoil-overview-dashboard-v1-user-${session.id}`}
           widgets={[
-          { id: "accounts", title: "Account overview", content: (
+          { id: "accounts", title: "Account Status", content: (
         <section aria-labelledby="accounts-heading" className="order-1 flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-5">
-          <FlatPanelHeader id="accounts-heading" eyebrow="Access management" title="Account overview" subtitle="Current organization-wide account status" icon={UserRoundCheck} href="/manage/registrations" />
+          <FlatPanelHeader id="accounts-heading" title="Account Status" subtitle="Current organization-wide account status" icon={UserRoundCheck} href="/manage/registrations" />
           <AccountStatusVisual active={activeAccounts} pendingVerification={pendingEmailVerification} pendingApproval={pendingApproval} />
         </section>
           ) },
 
-          { id: "fleet", title: "Printer asset status", content: (
+          { id: "fleet", title: "Printer Status", content: (
         <section aria-labelledby="fleet-heading" className="@container order-2 flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-7">
           <FlatPanelHeader
             id="fleet-heading"
-            eyebrow="Fleet health"
-            title="Printer asset status"
+            title="Printer Status"
             subtitle="Lifecycle status and open tickets"
             icon={Printer}
           />
@@ -247,11 +246,11 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         </section>
           ) },
 
-          { id: "expenses", title: "Toner expenses", content: <TonerExpensesPanel initialData={expenses} initialScope={scope} /> },
+          { id: "expenses", title: "Toner Costs", content: <TonerExpensesPanel initialData={expenses} initialScope={scope} /> },
 
-          { id: "inventory", title: "Toner inventory", content: (
+          { id: "inventory", title: "Toner Stock", content: (
         <section aria-labelledby="inventory-heading" className="order-6 flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-4">
-          <FlatPanelHeader id="inventory-heading" eyebrow="Inventory health" title="Toner inventory" subtitle={`${inventory.length} tracked toner types`} icon={Droplets} href="/toner-monitoring" />
+          <FlatPanelHeader id="inventory-heading" title="Toner Stock" subtitle={`${inventory.length} tracked toner types`} icon={Droplets} href="/toner-monitoring" />
           <div className="grid grid-cols-2 divide-x divide-slate-200 border-b border-slate-200">
             <MiniMetric label="Units on hand" value={onHand} color="text-[#014171]" />
             <MiniMetric label="Low-stock types" value={lowStock.length} color={lowStock.length ? "text-rose-700" : "text-emerald-700"} />
@@ -260,11 +259,11 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         </section>
           ) },
 
-          { id: "operations", title: "Agent offices and printer connectivity", content: <AgentOperationsPanel agents={operationAgents} /> },
+          { id: "operations", title: "Agent & Printer Status", content: <AgentOperationsPanel agents={operationAgents} /> },
 
-          { id: "movement", title: "Inventory movement", content: <InventoryMovementPanel currentStock={onHand} today={todayKey} movements={inventoryMovementRows.map((row) => ({ date: row.date, type: row.type, quantity: row.quantity, departmentKey: row.departmentId === null ? "unassigned" : String(row.departmentId), officeKey: row.locationId === null ? "unassigned" : String(row.locationId), tonerKey: String(row.tonerTypeId) }))} /> },
+          { id: "movement", title: "Stock Movement", content: <InventoryMovementPanel currentStock={onHand} today={todayKey} movements={inventoryMovementRows.map((row) => ({ date: row.date, type: row.type, quantity: row.quantity, departmentKey: row.departmentId === null ? "unassigned" : String(row.departmentId), officeKey: row.locationId === null ? "unassigned" : String(row.locationId), tonerKey: String(row.tonerTypeId) }))} /> },
 
-          { id: "recent", title: "Recent activity", content: <RecentActivityPanel activities={recentActivities.map((activity) => ({ ...activity, occurredAt: activity.occurredAt.toISOString() }))} generatedAt={now.toISOString()} /> },
+          { id: "recent", title: "Recent Activity", content: <RecentActivityPanel activities={recentActivities.map((activity) => ({ ...activity, occurredAt: activity.occurredAt.toISOString() }))} generatedAt={now.toISOString()} /> },
           ] satisfies DashboardWidget[]}
         />
       </OverviewTonerAnalyticsProvider>
@@ -272,8 +271,8 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   );
 }
 
-function FlatPanelHeader({ id, eyebrow, title, subtitle, icon, href, meta, actions }: { id: string; eyebrow: string; title: string; subtitle: string; icon: IconNode; href?: string; meta?: string; actions?: ReactNode }) {
-  return <div className="flex min-h-[4.25rem] flex-col justify-between gap-3 border-t-2 border-t-[#7c3aed] border-b border-slate-200 px-4 py-2.5 sm:flex-row sm:items-center"><div className="flex min-w-0 items-center gap-2.5"><span className="shrink-0 text-[#014171]"><IconGlyph icon={icon} size={16} /></span><div className="min-w-0"><div className="flex items-center gap-2"><p className="text-[9px] font-bold uppercase tracking-[0.13em] text-[#4f7fa9]">{eyebrow}</p>{meta && <span className="truncate text-[9px] text-slate-400">· {meta}</span>}</div><h2 id={id} className="truncate text-sm font-bold text-slate-800">{title}</h2><p className="truncate text-[10px] text-slate-500">{subtitle}</p></div></div><div className="shrink-0">{actions ?? (href && <Link href={href} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={10} /></Link>)}</div></div>;
+function FlatPanelHeader({ id, title, subtitle, icon, href, actions }: { id: string; title: string; subtitle: string; icon: IconNode; href?: string; actions?: ReactNode }) {
+  return <div className="flex min-h-[4.25rem] flex-col justify-between gap-3 border-t-2 border-t-[#7c3aed] border-b border-slate-200 px-4 py-2.5 sm:flex-row sm:items-center"><div className="flex min-w-0 items-center gap-2.5"><span className="shrink-0 text-[#014171]"><IconGlyph icon={icon} size={16} /></span><div className="min-w-0"><h2 id={id} className="truncate text-sm font-bold text-slate-800">{title}</h2><p className="truncate text-[10px] text-slate-500">{subtitle}</p></div></div><div className="shrink-0">{actions ?? (href && <Link href={href} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={10} /></Link>)}</div></div>;
 }
 
 function AccountStatusVisual({ active, pendingVerification, pendingApproval }: { active: number; pendingVerification: number; pendingApproval: number }) {
