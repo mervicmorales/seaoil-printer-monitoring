@@ -70,8 +70,8 @@ export function ExpenseFlowVisual({
   const barWidth = Math.max(8, Math.min(28, plotWidth / Math.max(1, points.length) * 0.46));
 
   return (
-    <section aria-labelledby="expense-flow-heading" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+    <section aria-labelledby="expense-flow-heading" className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white xl:h-[30rem]">
+      <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Cost flow</p>
           <h2 id="expense-flow-heading" className="mt-1 text-base font-bold text-[#014171]">Purchases versus toner usage</h2>
@@ -96,7 +96,7 @@ export function ExpenseFlowVisual({
       </div>
 
       {hasValue && activePoint ? (
-        <div className="p-4 sm:p-5">
+        <div className="min-h-0 flex-1 p-4 sm:p-5">
           <div className="mb-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs font-bold text-slate-700">{activePoint.fullLabel}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-semibold text-slate-500">
@@ -106,7 +106,7 @@ export function ExpenseFlowVisual({
           </div>
 
           <div className="relative overflow-hidden rounded-lg border border-slate-100 bg-slate-50/35">
-            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Estimated toner delivery and request costs over time" className="block h-auto min-h-56 w-full">
+            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Estimated toner delivery and request costs over time" className="block h-auto min-h-56 w-full xl:h-60 xl:min-h-0">
               <defs>
                 <pattern id="expense-delivery-dither" width="6" height="6" patternUnits="userSpaceOnUse">
                   <rect width="6" height="6" fill="#ecfdf5" />
@@ -171,15 +171,19 @@ export function CostCenterVisual({ requests }: { requests: readonly TonerExpense
   const maximum = Math.max(1, ...rows.map((row) => row.expenseCents));
 
   return (
-    <section aria-labelledby="cost-center-heading" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
+    <section aria-labelledby="cost-center-heading" className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white xl:h-[30rem]">
+      <div className="shrink-0 border-b border-slate-200 px-4 py-4 sm:px-5">
         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Cost concentration</p>
         <h2 id="cost-center-heading" className="mt-1 text-base font-bold text-[#014171]">Highest-cost cost centers</h2>
         <p className="mt-1 text-xs text-slate-500">Ranked by estimated toner request expense in the current filtered view.</p>
       </div>
 
       {rows.length ? (
-        <div className="space-y-2.5 p-4 sm:p-5">
+        <div
+          aria-label="Cost centers ranked by estimated expense"
+          tabIndex={0}
+          className="min-h-0 max-h-[23rem] flex-1 space-y-2.5 overflow-y-auto overscroll-contain p-4 pr-2 [scrollbar-gutter:stable] sm:p-5 sm:pr-3 xl:max-h-none"
+        >
           {rows.map((row, index) => (
             <div key={row.key} tabIndex={0} className="group rounded-lg border border-transparent px-2 py-2 outline-none transition hover:border-slate-200 hover:bg-slate-50 focus-visible:border-[#014171] focus-visible:bg-sky-50/50">
               <div className="mb-1.5 flex items-start justify-between gap-3">

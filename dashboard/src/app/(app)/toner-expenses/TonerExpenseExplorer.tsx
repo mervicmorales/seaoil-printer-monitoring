@@ -241,7 +241,7 @@ export default function TonerExpenseExplorer({
         </div>
       )}
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.8fr)]">
+      <div className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.8fr)]">
         <ExpenseFlowVisual requests={filteredRecords} deliveries={filteredDeliveryRecords} />
         <CostCenterVisual requests={filteredRecords} />
       </div>
@@ -263,9 +263,9 @@ export default function TonerExpenseExplorer({
 
         {grouped.length ? (
           <div className="max-h-[38rem] overflow-auto overscroll-contain">
-            <table className="w-full min-w-[760px] table-fixed text-left text-xs">
+            <table className="w-full min-w-[760px] table-fixed text-left text-[13px]">
               <colgroup><col className="w-[28%]" /><col className="w-[36%]" /><col className="w-[11%]" /><col className="w-[10%]" /><col className="w-[15%]" /></colgroup>
-              <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-[10px] font-bold uppercase tracking-[0.07em] text-slate-500 backdrop-blur-sm">
+              <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-[11px] font-bold uppercase tracking-[0.07em] text-slate-500 backdrop-blur-sm">
                 <tr><th className="px-5 py-3">Department / Cost Center</th><th className="px-3 py-3">Toner type requests</th><th className="px-3 py-3 text-right">Records</th><th className="px-3 py-3 text-right">Units</th><th className="px-5 py-3 text-right">Estimated expense</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -309,7 +309,7 @@ function DepartmentRows({
   return (
     <>
       <tr className={`transition ${expanded ? "bg-sky-50/70" : "bg-white hover:bg-slate-50"}`}>
-        <td className="px-5 py-3.5"><button type="button" onClick={onToggle} aria-expanded={expanded} className="group flex w-full items-center gap-3 text-left"><span className={`flex size-7 shrink-0 items-center justify-center rounded-lg border transition ${expanded ? "border-[#014171] bg-[#014171] text-white" : "-rotate-90 border-slate-200 bg-white text-slate-500 group-hover:border-slate-300"}`}><IconGlyph icon={ChevronDown} size={14} /></span><span className="min-w-0"><span className="block truncate font-bold text-slate-800">{department.name}</span><span className="mt-0.5 block text-[10px] text-slate-500">{department.costCenters.length} {pluralize(department.costCenters.length, "cost center")} · {expanded ? "Hide details" : "View cost centers"}</span></span></button></td>
+        <td className="px-5 py-3.5"><button type="button" onClick={onToggle} aria-expanded={expanded} className="group flex w-full items-center gap-3 text-left"><span className={`flex size-7 shrink-0 items-center justify-center rounded-lg border transition ${expanded ? "border-[#014171] bg-[#014171] text-white" : "-rotate-90 border-slate-200 bg-white text-slate-500 group-hover:border-slate-300"}`}><IconGlyph icon={ChevronDown} size={14} /></span><span className="min-w-0"><span className="block truncate font-bold text-slate-800">{department.name}</span><span className="mt-0.5 block text-[11px] text-slate-500">{department.costCenters.length} {pluralize(department.costCenters.length, "cost center")} · {expanded ? "Hide details" : "View cost centers"}</span></span></button></td>
         <td className="px-3 py-3.5"><TonerPills rows={department.tonerTypes} /></td>
         <NumberCell value={department.requestLines} />
         <NumberCell value={department.units} strong />
@@ -348,7 +348,7 @@ function CostCenterRows({
             <span className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition ${expanded ? "border-[#4f7fa9] bg-[#4f7fa9] text-white" : "-rotate-90 border-sky-200 bg-white text-[#4f7fa9] group-hover:border-[#4f7fa9]"}`}><IconGlyph icon={ChevronDown} size={12} /></span>
             <span className="min-w-0">
               <span className="block truncate font-semibold text-slate-700">{costCenter.name}</span>
-              <span className="mt-0.5 block text-[10px] text-slate-500">{costCenter.tonerTypes.length} {pluralize(costCenter.tonerTypes.length, "toner type")} · {expanded ? "Hide costing" : "View costing"}</span>
+              <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={officeLabel(costCenter)}>{officeLabel(costCenter)}</span>
             </span>
           </button>
         </td>
@@ -359,11 +359,11 @@ function CostCenterRows({
       </tr>
       {expanded && costCenter.tonerTypes.map((tonerType) => (
         <tr key={`${costCenter.key}-${tonerType.key}`} className="border-t border-slate-100 bg-white">
-          <td className="px-5 py-3 pl-24 text-[10px] font-bold uppercase tracking-[0.07em] text-slate-400">Toner costing</td>
+          <td className="px-5 py-3 pl-24 text-[11px] font-bold uppercase tracking-[0.07em] text-slate-400">Toner costing</td>
           <td className="px-3 py-3">
             <div className="flex flex-col gap-0.5">
               <span className="font-bold text-slate-700">{tonerType.name}</span>
-              <span className="text-[10px] text-slate-500">{formatUnitCost(tonerType)} per unit</span>
+              <span className="text-[11px] text-slate-500">{formatUnitCost(tonerType)} per unit</span>
             </div>
           </td>
           <NumberCell value={tonerType.requestLines} />
@@ -376,7 +376,7 @@ function CostCenterRows({
 }
 
 function TonerPills({ rows }: { rows: TonerRequestGroup[] }) {
-  return <div className="flex flex-wrap gap-1.5">{rows.map((row) => <span key={row.key} title={`${row.requestLines} request records · ${currency.format(row.expenseCents / 100)}`} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600"><span className="max-w-32 truncate">{row.name}</span><strong className="text-[#014171]">×{integer.format(row.units)}</strong></span>)}</div>;
+  return <div className="flex flex-wrap gap-1.5">{rows.map((row) => <span key={row.key} title={`${row.requestLines} request records · ${currency.format(row.expenseCents / 100)}`} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"><span className="max-w-32 truncate">{row.name}</span><strong className="text-[#014171]">×{integer.format(row.units)}</strong></span>)}</div>;
 }
 
 function SummaryMetric({ label, value, format = "integer", icon, color, description }: { label: string; value: number; format?: "integer" | "currency"; icon: typeof PackageCheck; color: string; description: string }) {
@@ -403,4 +403,5 @@ function matchesFilters(record: TonerExpenseViewRecord, filters: FilterState) {
 
 function matchesLookup(filter: string, value: number | null) { return !filter || (filter === "unassigned" ? value === null : String(value) === filter); }
 function formatUnitCost(row: TonerRequestGroup) { return currency.format(row.units > 0 ? row.expenseCents / row.units / 100 : 0); }
+function officeLabel(row: TonerRequestGroup) { return row.officeNames.join(", ") || "Unassigned office"; }
 function pluralize(value: number, noun: string) { return value === 1 ? noun : `${noun}s`; }

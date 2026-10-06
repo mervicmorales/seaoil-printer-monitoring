@@ -36,6 +36,10 @@ test("groups toner requests by department, cost center, and toner type", () => {
     ["OPS-HO", 5],
     ["OPS-DEPOT", 1],
   ]);
+  assert.deepEqual(operations.costCenters.map((row) => [row.name, row.officeNames]), [
+    ["OPS-HO", ["Head Office"]],
+    ["OPS-DEPOT", ["Head Office"]],
+  ]);
   assert.deepEqual(operations.tonerTypes.map((row) => [row.name, row.units]), [
     ["TN-100", 3],
     ["TN-200", 3],

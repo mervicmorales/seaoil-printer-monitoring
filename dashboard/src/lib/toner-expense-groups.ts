@@ -12,6 +12,7 @@ export type TonerExpenseViewRecord = TonerExpenseRecord & {
 export type TonerRequestGroup = {
   key: string;
   name: string;
+  officeNames: string[];
   requestLines: number;
   units: number;
   expenseCents: number;
@@ -22,7 +23,8 @@ export type DepartmentRequestGroup = TonerRequestGroup & {
   costCenters: TonerRequestGroup[];
 };
 
-type MutableGroup = Omit<TonerRequestGroup, "tonerTypes"> & {
+type MutableGroup = Omit<TonerRequestGroup, "tonerTypes" | "officeNames"> & {
+  offices: Map<string, string>;
   tonerTypes: Map<string, MutableGroup>;
   costCenters?: Map<string, MutableGroup>;
 };
@@ -59,6 +61,7 @@ function getGroup(map: Map<string, MutableGroup>, key: string, name: string, wit
     requestLines: 0,
     units: 0,
     expenseCents: 0,
+    offices: new Map(),
     tonerTypes: new Map(),
     costCenters: withCostCenters ? new Map() : undefined,
   };
@@ -67,6 +70,8 @@ function getGroup(map: Map<string, MutableGroup>, key: string, name: string, wit
 }
 
 function addRecord(group: MutableGroup, record: TonerExpenseViewRecord) {
+  const officeKey = record.locationId === null ? "unassigned" : String(record.locationId);
+  group.offices.set(officeKey, record.locationName?.trim() || "Unassigned office");
   group.requestLines += 1;
   group.units += record.quantity;
   group.expenseCents += record.quantity * record.unitCostCents;
@@ -83,6 +88,7 @@ function withoutMaps(group: MutableGroup) {
   return {
     key: group.key,
     name: group.name,
+    officeNames: [...group.offices.values()].sort((left, right) => left.localeCompare(right)),
     requestLines: group.requestLines,
     units: group.units,
     expenseCents: group.expenseCents,
