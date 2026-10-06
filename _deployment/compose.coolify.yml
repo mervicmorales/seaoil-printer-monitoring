@@ -57,6 +57,13 @@ services:
       context: ./dashboard
       dockerfile: Dockerfile
     restart: unless-stopped
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "seaoil-printer-monitoring_default"
+      traefik.http.routers.seaprint-dashboard-http.entrypoints: "http"
+      traefik.http.routers.seaprint-dashboard-http.rule: "Host(`seaprint.seaoil.com.ph`)"
+      traefik.http.routers.seaprint-dashboard-http.service: "seaprint-dashboard"
+      traefik.http.services.seaprint-dashboard.loadbalancer.server.port: "3000"
     environment:
       NODE_ENV: production
       PORT: "3000"
