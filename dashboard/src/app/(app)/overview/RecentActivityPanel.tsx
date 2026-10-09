@@ -47,18 +47,18 @@ export default function RecentActivityPanel({ activities, generatedAt }: { activ
           <span className="shrink-0 text-[#014171]"><IconGlyph icon={History} size={16} /></span>
           <div className="min-w-0">
             <h2 id="recent-activity-heading" className="truncate text-sm font-bold text-slate-800">Recent Activity</h2>
-            <p className="truncate text-[10px] text-slate-500">Latest meaningful updates from pages you can access</p>
+            <p className="truncate text-xs text-slate-500">Latest meaningful updates from pages you can access</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Number of recent activities to display">
-          <span className="px-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-500">Show</span>
+          <span className="px-1.5 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Show</span>
           {activityLimits.map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={limit === option}
               onClick={() => setLimit(option)}
-              className={`min-w-8 rounded-md px-2 py-1 text-[10px] font-bold transition ${limit === option ? "bg-[#014171] text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-[#014171]"}`}
+              className={`min-w-8 rounded-md px-2 py-1 text-xs font-bold transition ${limit === option ? "bg-[#014171] text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-[#014171]"}`}
             >
               {option}
             </button>
@@ -90,12 +90,12 @@ function RecentActivityEntry({ activity, generatedAt }: { activity: RecentActivi
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-3">
           <span className="truncate text-[13px] font-bold text-slate-800">{activity.title}</span>
-          <time className="shrink-0 text-[10px] font-semibold text-slate-400" dateTime={activity.occurredAt} title={formatDateTime(occurredAt)}>{relativeTime(occurredAt, now)}</time>
+          <time className="shrink-0 text-xs font-semibold text-slate-400" dateTime={activity.occurredAt} title={formatDateTime(occurredAt)}>{relativeTime(occurredAt, now)}</time>
         </span>
         <span className="mt-0.5 flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-          <span className="truncate text-[11px] text-slate-600">{activity.detail}</span>
-          {activity.meta && <span className="hidden text-[10px] text-slate-300 sm:inline">•</span>}
-          {activity.meta && <span className="truncate text-[10px] text-slate-400">{activity.meta}</span>}
+          <span className="truncate text-xs text-slate-600">{activity.detail}</span>
+          {activity.meta && <span className="hidden text-xs text-slate-300 sm:inline">•</span>}
+          {activity.meta && <span className="truncate text-xs text-slate-400">{activity.meta}</span>}
         </span>
       </span>
     </div>

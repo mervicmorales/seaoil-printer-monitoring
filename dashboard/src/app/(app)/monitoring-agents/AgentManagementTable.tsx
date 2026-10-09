@@ -103,7 +103,7 @@ export default function AgentManagementTable({
   }, [agentFilters, agents, query, sort, statusFilters]);
 
   return (
-    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col overflow-hidden sm:h-[calc(100dvh-111px)]">
+    <div>
       <PageHeader
         parentTitle="Printers"
         title="Monitoring Agents"
@@ -138,7 +138,7 @@ export default function AgentManagementTable({
         </div>
       )}
 
-      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <TableCard className={`flex flex-col overflow-hidden ${filteredAgents.length > 10 ? "max-h-[calc(100dvh-10rem)]" : ""}`}>
         <RecordTableToolbar count={filteredAgents.length} label="agent">
           <Search
             value={query}
@@ -147,9 +147,16 @@ export default function AgentManagementTable({
             ariaLabel="Search monitoring agents"
           />
         </RecordTableToolbar>
-        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+        <div className={filteredAgents.length > 10 ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain" : "overflow-x-hidden"}>
         {filteredAgents.length === 0 ? (
-          <EmptyState message={query ? "No agents found" : "No monitoring agents registered"} />
+          <EmptyState
+            message={query || agentFilters.length || statusFilters.length ? "No monitoring agents match the current search and filters." : "No monitoring agents registered"}
+            action={query ? (
+              <button type="button" onClick={() => setQuery("")} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear search</button>
+            ) : agentFilters.length || statusFilters.length ? (
+              <Link href="/monitoring-agents" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear filters</Link>
+            ) : undefined}
+          />
         ) : (
           <table className="w-full table-fixed text-left text-sm">
             <colgroup>
@@ -160,7 +167,7 @@ export default function AgentManagementTable({
               <col className="w-[14%]" />
               <col className="w-[6%]" />
             </colgroup>
-            <thead className="bg-slate-50/95 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+            <thead className="bg-slate-50/95 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-2.5">
                   <FilterableHeading label="Office / Agent">
@@ -198,7 +205,7 @@ export default function AgentManagementTable({
                   </td>
                   <td className="px-4 py-3 align-top text-slate-700" title={formatDateTime(agent.lastSeen)}><time suppressHydrationWarning>{formatRelativeTime(agent.lastSeen)}</time></td>
                   <td className="px-3 py-3 text-right align-top">
-                    <Link href={`/monitoring-agents/${agent.id}`} aria-label={`View ${agent.name}`} className="inline-flex size-8 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100">
+                    <Link href={`/monitoring-agents/${agent.id}`} aria-label={`View ${agent.name}`} title="View monitoring agent" className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50">
                       <IconGlyph icon={Eye} size={16} />
                     </Link>
                   </td>

@@ -102,26 +102,28 @@ export default function ModalShell({
             : "max-h-[calc(100dvh-1.5rem)] rounded-2xl border border-slate-200 sm:max-h-[calc(100dvh-3rem)]"
         } ${panelClassName ?? (isRightPanel ? "max-w-[56rem]" : "max-w-6xl")}`}
       >
-        <div className={`flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-6 ${isRightPanel ? "h-[55px]" : "py-3"}`}>
+        <div className={`grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 border-b border-slate-200 bg-white px-4 py-2 sm:flex sm:flex-nowrap sm:gap-3 sm:px-6 ${isRightPanel ? "sm:min-h-[55px]" : "sm:py-3"}`}>
           {pageHeaderInModal ? (
             <div id="modal-page-header-slot" className="min-w-0 flex-1" />
           ) : (
-            <div className={showTitle ? "min-w-0 pr-3" : "sr-only"}>
-              <h2 className="truncate text-base font-bold tracking-[-0.015em] text-[#014171]">{title}</h2>
+            <div className={showTitle ? "min-w-0 pr-2 sm:pr-3" : "sr-only"}>
+              <h2 className="text-base font-bold leading-5 tracking-[-0.015em] text-[#014171] sm:truncate">{title}</h2>
               {subtitle && <p className="mt-0.5 truncate text-xs font-medium text-slate-500">{subtitle}</p>}
             </div>
           )}
-          <div className="flex items-center gap-2">
-            {headerActions}
-            <button
-              type="button"
-              onClick={close}
-              aria-label={`Close ${title.toLowerCase()}`}
-              className={`flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] ${closeButtonClassName}`}
-            >
-              <MorphIcon icon={X} size={17} strokeWidth={2} reducedMotion="user" />
-            </button>
-          </div>
+          {headerActions && (
+            <div className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 sm:order-none sm:ml-auto sm:flex-nowrap">
+              {headerActions}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={close}
+            aria-label={`Close ${title.toLowerCase()}`}
+            className={`col-start-2 row-start-1 flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] sm:order-last ${closeButtonClassName}`}
+          >
+            <MorphIcon icon={X} size={17} strokeWidth={2} reducedMotion="user" />
+          </button>
         </div>
         <PageHeaderPlacement inAppHeader={false} inModalHeader={pageHeaderInModal}>
           <div className={`min-h-0 overflow-y-auto p-4 sm:p-6 ${hideScrollbar || isRightPanel ? "scrollbar-hidden" : ""} ${contentClassName}`}>

@@ -1,8 +1,8 @@
 .search {
   position: relative;
   display: block;
-  width: 56px;
-  max-width: min(230px, calc(100vw - 2rem));
+  width: 230px;
+  max-width: min(280px, calc(100vw - 2rem));
   height: 40px;
   overflow: hidden;
   border: 1px solid #cbd5e1;
@@ -20,7 +20,7 @@
 .search:hover,
 .search:focus-within,
 .search:has(.field:not(:placeholder-shown)) {
-  width: 230px;
+  width: 280px;
   border-color: var(--seaoil-blue);
   box-shadow: 0 0 0 3px rgb(1 65 113 / 10%);
 }
@@ -47,7 +47,7 @@
 }
 
 .field {
-  width: 228px;
+  width: 278px;
   height: 100%;
   appearance: none;
   border: 0;
@@ -57,7 +57,7 @@
   font: inherit;
   font-size: 13px;
   outline: none;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 160ms ease 60ms;
 }
 
@@ -73,6 +73,34 @@
 
 .field::-webkit-search-cancel-button {
   cursor: pointer;
+}
+
+@media (max-width: 639px) {
+  .search {
+    width: 100%;
+    max-width: none;
+  }
+
+  .search:hover,
+  .search:focus-within,
+  .search:has(.field:not(:placeholder-shown)) {
+    width: 100%;
+  }
+
+  .field {
+    width: 100%;
+    opacity: 1;
+  }
+
+  .search:hover .field,
+  .search:focus-within .field,
+  .search:has(.field:not(:placeholder-shown)) .field {
+    opacity: 1;
+  }
+
+  .lens {
+    left: 14px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

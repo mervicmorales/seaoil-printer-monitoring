@@ -110,9 +110,9 @@ export default function LogoutConfirmationDialog({
         aria-modal="true"
         aria-labelledby="logout-dialog-title"
         aria-describedby="logout-dialog-description"
-        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl sm:p-7"
+        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl sm:px-8 sm:py-7"
       >
-        <AuthBlob mood={mood} size={148} skin={blobSkin} className="mx-auto -mt-3 -mb-2" />
+        <AuthBlob mood={mood} size={104} skin={blobSkin} className="mx-auto -mt-1 -mb-1" />
         <h2 id="logout-dialog-title" className="mt-2 text-xl font-bold text-[#014171]">
           Sign out?
         </h2>
@@ -122,7 +122,7 @@ export default function LogoutConfirmationDialog({
             : "You’ll need to sign in again to access printer management, monitoring, and employee print services."}
         </p>
 
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-2 gap-3">
           <button
             ref={cancelRef}
             type="button"
@@ -130,7 +130,7 @@ export default function LogoutConfirmationDialog({
             onClick={closeDialog}
             onMouseEnter={() => setMood("success")}
             onMouseLeave={() => setMood("idle")}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:opacity-60"
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] disabled:opacity-60"
           >
             Cancel
           </button>
@@ -140,7 +140,7 @@ export default function LogoutConfirmationDialog({
             onClick={confirmSignOut}
             onMouseEnter={() => setMood("concerned")}
             onMouseLeave={() => setMood("idle")}
-            className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-65"
+            className="min-h-11 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-65"
           >
             {signingOut ? "Signing out…" : "Sign out"}
           </button>

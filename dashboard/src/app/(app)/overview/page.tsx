@@ -272,7 +272,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
 }
 
 function FlatPanelHeader({ id, title, subtitle, icon, href, actions }: { id: string; title: string; subtitle: string; icon: IconNode; href?: string; actions?: ReactNode }) {
-  return <div className="flex min-h-[4.25rem] flex-col justify-between gap-3 border-t-2 border-t-[#7c3aed] border-b border-slate-200 px-4 py-2.5 sm:flex-row sm:items-center"><div className="flex min-w-0 items-center gap-2.5"><span className="shrink-0 text-[#014171]"><IconGlyph icon={icon} size={16} /></span><div className="min-w-0"><h2 id={id} className="truncate text-sm font-bold text-slate-800">{title}</h2><p className="truncate text-[10px] text-slate-500">{subtitle}</p></div></div><div className="shrink-0">{actions ?? (href && <Link href={href} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={10} /></Link>)}</div></div>;
+  return <div className="flex min-h-[4.25rem] flex-col justify-between gap-3 border-t-2 border-t-[#7c3aed] border-b border-slate-200 px-4 py-2.5 sm:flex-row sm:items-center"><div className="flex min-w-0 items-center gap-2.5"><span className="shrink-0 text-[#014171]"><IconGlyph icon={icon} size={16} /></span><div className="min-w-0"><h2 id={id} className="truncate text-base font-bold text-slate-800">{title}</h2><p className="truncate text-xs text-slate-500">{subtitle}</p></div></div><div className="shrink-0">{actions ?? (href && <Link href={href} className="inline-flex items-center gap-1 text-xs font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={11} /></Link>)}</div></div>;
 }
 
 function AccountStatusVisual({ active, pendingVerification, pendingApproval }: { active: number; pendingVerification: number; pendingApproval: number }) {
@@ -293,7 +293,7 @@ function AccountStatusVisual({ active, pendingVerification, pendingApproval }: {
       <div className="mt-3 grid grid-cols-3 gap-3">
         {values.map((item) => (
           <div key={item.label} className="min-w-0">
-            <p className="flex min-h-7 items-start gap-1.5 text-[8px] font-bold uppercase leading-3 tracking-[0.05em] text-slate-500"><span className={`mt-1 size-1.5 shrink-0 rounded-full ${item.dot}`} />{item.label}</p>
+            <p className="flex min-h-7 items-start gap-1.5 text-xs font-bold uppercase leading-4 tracking-[0.04em] text-slate-500"><span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${item.dot}`} />{item.label}</p>
             <p className={`mt-0.5 text-xl font-bold tabular-nums ${item.valueClass}`}><AnimatedNumber value={item.value} /></p>
           </div>
         ))}
@@ -302,7 +302,7 @@ function AccountStatusVisual({ active, pendingVerification, pendingApproval }: {
   );
 }
 
-function MiniMetric({ label, value, color }: { label: string; value: number; color: string }) { return <div className="bg-white px-4 py-2.5"><p className="text-[9px] font-bold uppercase tracking-[0.07em] text-slate-500">{label}</p><p className={`mt-0.5 text-lg font-bold tabular-nums ${color}`}><AnimatedNumber value={value} /></p></div>; }
+function MiniMetric({ label, value, color }: { label: string; value: number; color: string }) { return <div className="bg-white px-4 py-2.5"><p className="text-xs font-bold uppercase tracking-[0.06em] text-slate-500">{label}</p><p className={`mt-0.5 text-lg font-bold tabular-nums ${color}`}><AnimatedNumber value={value} /></p></div>; }
 function EmptyMessage({ children }: { children: ReactNode }) { return <div className="flex min-h-24 items-center justify-center border border-dashed border-slate-200 bg-slate-50/70 px-5 text-center text-xs leading-5 text-slate-500">{children}</div>; }
 
 function StockLevel({ name, stock, threshold, critical, trend }: { name: string; stock: number; threshold: number; critical: number; trend: number[] }) {
@@ -319,10 +319,10 @@ function StockLevel({ name, stock, threshold, critical, trend }: { name: string;
   return (
     <div className={`flex flex-col justify-center px-4 py-2.5 ${styles.row}`}>
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0"><p className="truncate text-xs font-bold text-slate-800">{name}</p><p className="mt-0.5 text-[9px] text-slate-500">Critical {critical} · Low {threshold}</p></div>
+        <div className="min-w-0"><p className="truncate text-xs font-bold text-slate-800">{name}</p><p className="mt-0.5 text-xs text-slate-500">Critical {critical} · Low {threshold}</p></div>
         <div className="flex shrink-0 items-center gap-2.5">
           <StockSparkline values={trend} label={`${name} inventory during the last 30 days`} className={styles.trend} />
-          <div className="text-right"><p className="text-sm font-bold tabular-nums text-[#014171]">{integer.format(stock)}</p><span className={`inline-flex rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.05em] ${styles.badge}`}>{styles.label}</span></div>
+          <div className="text-right"><p className="text-sm font-bold tabular-nums text-[#014171]">{integer.format(stock)}</p><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-[0.05em] ${styles.badge}`}>{styles.label}</span></div>
         </div>
       </div>
       <div className="relative mt-2 h-2.5 rounded-full bg-white/90 ring-1 ring-inset ring-slate-200" role="img" aria-label={`${name}: ${stock} units on hand, critical at ${critical}, low at ${threshold}`}>

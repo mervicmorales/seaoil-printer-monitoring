@@ -220,7 +220,7 @@ export default function UserForm({
           <p>The account will remain inactive until the user verifies the email link sent after creation. No administrator approval is required afterward.</p>
         </div>
       )}
-      <div className={showActions ? "flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-end" : "hidden"}>
+      <div className={showActions ? "sticky bottom-4 z-10 -mx-2 flex flex-col-reverse gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row sm:items-center sm:justify-end" : "hidden"}>
         <SubmitButton label={mode === "create" ? "Create Account" : "Save Changes"} />
         <Link href={returnTo} className="w-full sm:w-auto"><SecondaryButton type="button" className="w-full sm:w-auto">Cancel</SecondaryButton></Link>
       </div>

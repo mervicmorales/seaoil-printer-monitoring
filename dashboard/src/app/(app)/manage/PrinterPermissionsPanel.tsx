@@ -199,7 +199,7 @@ export default function PrinterPermissionsPanel({
                 </p>
               )}
             </div>
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200">
               {selectedCount} selected
             </span>
           </div>
@@ -241,7 +241,7 @@ export default function PrinterPermissionsPanel({
                   <p className="mt-1 text-xs text-slate-500">Try another serial number, model, office, department, or IP address.</p>
                 </div>
               ) : (
-                <div className="grid max-h-80 gap-2 overflow-y-auto p-3 sm:grid-cols-2">
+                <div className="grid min-h-64 max-h-[calc(100dvh-24rem)] gap-2 overflow-y-auto overscroll-contain p-3 sm:grid-cols-2">
               {filteredPrinters.map((printer) => {
                 const automatic = automaticIds.has(printer.id);
                 const requested = pendingIds.has(printer.id);
@@ -290,7 +290,7 @@ export default function PrinterPermissionsPanel({
             </>
           )}
 
-          <div className="flex justify-end border-t border-slate-200 bg-slate-50/40 px-4 py-3">
+          <div className="sticky bottom-0 z-10 flex justify-end border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur">
             <SaveButton disabled={selectedAgent.printers.length === 0} />
           </div>
         </form>

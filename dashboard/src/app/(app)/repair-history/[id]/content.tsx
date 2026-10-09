@@ -85,7 +85,7 @@ export async function ViewTicketPage({
             <p className="mt-0.5 text-[11px] text-slate-500">Printer, assignment, and service dates for this repair request.</p>
           </div>
         </div>
-        <dl className={embedded ? "px-7 py-3" : "px-8 py-4"}>
+        <dl className={`grid grid-cols-1 gap-x-8 md:grid-cols-2 ${embedded ? "px-6 py-4" : "px-6 py-5 sm:px-8"}`}>
           <Field label="Requested Date" value={formatDate(t.requestedDate)} />
           <Field label="Department" value={record.departmentName || "—"} />
           <Field label="Subunit" value={record.subunitName || "—"} />
@@ -94,9 +94,9 @@ export async function ViewTicketPage({
           <Field label="Vendor" value={record.vendorName || "—"} />
           <Field label="Date Closed" value={formatDate(t.dateClosed)} />
           {!access.repair && (
-            <div className="grid min-w-0 grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)] items-start gap-4 py-2">
-              <dt className="text-sm font-medium text-slate-500">Ticket Status</dt>
-              <dd><Badge color={statusBadgeColor(t.status)}>{t.status}</Badge></dd>
+            <div className="min-w-0 border-b border-slate-100 py-3 last:border-b-0 md:[&:nth-last-child(-n+2)]:border-b-0">
+              <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">Ticket Status</dt>
+              <dd className="mt-1.5"><Badge color={statusBadgeColor(t.status)}>{t.status}</Badge></dd>
             </div>
           )}
         </dl>
@@ -138,9 +138,9 @@ export async function ViewTicketPage({
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)] items-start gap-4 py-2">
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="break-words text-sm font-semibold text-slate-900">{value}</dd>
+    <div className="min-w-0 border-b border-slate-100 py-3 last:border-b-0 md:[&:nth-last-child(-n+2)]:border-b-0">
+      <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</dt>
+      <dd className="mt-1.5 break-words text-sm font-semibold text-slate-900">{value}</dd>
     </div>
   );
 }

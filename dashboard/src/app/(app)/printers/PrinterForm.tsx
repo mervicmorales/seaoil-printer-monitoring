@@ -45,7 +45,7 @@ type Printer = {
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <PrimaryButton type="submit" disabled={pending}>
+    <PrimaryButton type="submit" disabled={pending} className="w-full sm:w-auto">
       {pending ? "Saving..." : label}
     </PrimaryButton>
   );
@@ -308,16 +308,17 @@ export default function PrinterForm({
         <section>{replacementContent}</section>
       )}
 
-      <div className={!showActions ? "hidden" : "flex gap-3"}>
+      <div className={!showActions ? "hidden" : "sticky bottom-4 z-10 -mx-2 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row"}>
         <SubmitButton label={mode === "create" ? "Add Printer" : "Save Changes"} />
         <Link
+          className="w-full sm:w-auto"
           href={
             mode === "edit" && printer
               ? `/printers/${printer.id}?returnTo=${encodeURIComponent(returnTo)}`
               : returnTo
           }
         >
-          <SecondaryButton type="button">Cancel</SecondaryButton>
+          <SecondaryButton type="button" className="w-full sm:w-auto">Cancel</SecondaryButton>
         </Link>
       </div>
     </form>

@@ -1,5 +1,6 @@
 import { Clock3, FileText, Printer, Send, TriangleAlert } from "lucide";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Badge, Card, IconGlyph, PageHeader, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
 import { getModuleAccessMap, requireModuleFullAccess, requireSession } from "@/lib/server-utils";
@@ -97,7 +98,7 @@ export async function PrintOpsPrintPageContent({
         {!employeeMode && !access.printops ? (
           <div className="m-5 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-700 sm:m-6">
             <span className="mt-0.5 shrink-0 text-slate-500"><IconGlyph icon={FileText} size={17} /></span>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-semibold">View-only access</p>
               <p className="mt-0.5 text-xs text-slate-500">You can review print requests, but you cannot submit a new document.</p>
             </div>
@@ -114,6 +115,10 @@ export async function PrintOpsPrintPageContent({
                     ? "No assigned printers are currently online. Refresh an online office agent above."
                     : "No assigned printers are currently online."}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href={employeeMode ? "/portal/print" : "/printops/print"} className="inline-flex min-h-9 items-center justify-center rounded-lg border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100">Retry</Link>
+                {showAgentControls && <Link href="/monitoring-agents" className="inline-flex min-h-9 items-center justify-center rounded-lg bg-[#014171] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#00365f]">View monitoring agents</Link>}
+              </div>
             </div>
           </div>
         ) : (
@@ -140,9 +145,9 @@ export async function PrintOpsPrintPageContent({
           {commands.length} records
         </span>
       </div>
-      <TableCard className="h-[24rem]">
+      <TableCard className={commands.length > 8 ? "max-h-[30rem]" : ""}>
         {commands.length === 0 ? (
-          <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+          <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <IconGlyph icon={Printer} size={22} />
             </span>

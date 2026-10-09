@@ -233,7 +233,7 @@ export default async function DiscoverPrintersPage({
                     <th className="w-[17%] whitespace-nowrap px-4 py-3">IP Address</th>
                     <th className="w-[19%] whitespace-nowrap px-4 py-3">Serial Number</th>
                     <th className="w-[39%] whitespace-nowrap px-4 py-3">Model / Description</th>
-                    <th className="w-[25%] whitespace-nowrap px-4 py-3 text-right">Action</th>
+                    <th className="w-[25%] whitespace-nowrap px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

@@ -17,7 +17,7 @@ export default function RecordTableToolbar({
           {count} {label}{count === 1 ? "" : "s"}
         </span>
       </div>
-      {children && <div className="flex min-w-0 items-center justify-end gap-2">{children}</div>}
+      {children && <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end [&>form]:w-full sm:[&>form]:w-auto">{children}</div>}
     </div>
   );
 }

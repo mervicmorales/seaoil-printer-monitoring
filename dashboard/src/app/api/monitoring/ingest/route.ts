@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray, isNull, or, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   monitoringAgents,
   notifications,
   printerAlerts,
+  printerCurrentConsumables,
+  printerCurrentStatus,
   printerConsumableReadings,
   printerMonitoringAssignments,
   printerMonitoringReadings,
@@ -296,6 +298,47 @@ export async function POST(request: Request) {
           })
           .returning({ id: printerMonitoringReadings.id });
 
+        const currentStatusRows = await tx
+          .insert(printerCurrentStatus)
+          .values({
+            printerId,
+            agentId: agent.id,
+            monitoringReadingId: reading.id,
+            checkedAt,
+            online: observation.online,
+            printerStatus: observation.status ?? null,
+            responseTimeMs: observation.responseTimeMs ?? null,
+            pageCount: observation.pages ?? null,
+            uptimeSeconds: parseUptimeSeconds(
+              observation.uptime,
+              observation.uptimeSeconds,
+            ),
+            errorStatus: observation.errorStatus ?? null,
+            errorMessage: observation.errorMessage ?? null,
+            updatedAt: receivedAt,
+          })
+          .onConflictDoUpdate({
+            target: printerCurrentStatus.printerId,
+            set: {
+              agentId: agent.id,
+              monitoringReadingId: reading.id,
+              checkedAt,
+              online: observation.online,
+              printerStatus: observation.status ?? null,
+              responseTimeMs: observation.responseTimeMs ?? null,
+              pageCount: observation.pages ?? null,
+              uptimeSeconds: parseUptimeSeconds(
+                observation.uptime,
+                observation.uptimeSeconds,
+              ),
+              errorStatus: observation.errorStatus ?? null,
+              errorMessage: observation.errorMessage ?? null,
+              updatedAt: receivedAt,
+            },
+            setWhere: sql`${printerCurrentStatus.checkedAt} <= ${checkedAt}`,
+          })
+          .returning({ printerId: printerCurrentStatus.printerId });
+
         const consumables = normalizeConsumables(observation);
         if (consumables.length > 0) {
           await tx.insert(printerConsumableReadings).values(
@@ -306,6 +349,21 @@ export async function POST(request: Request) {
               checkedAt,
             })),
           );
+        }
+        if (currentStatusRows.length > 0) {
+          await tx
+            .delete(printerCurrentConsumables)
+            .where(eq(printerCurrentConsumables.printerId, printerId));
+          if (consumables.length > 0) {
+            await tx.insert(printerCurrentConsumables).values(
+              consumables.map((consumable) => ({
+                ...consumable,
+                printerId,
+                checkedAt,
+                updatedAt: receivedAt,
+              })),
+            );
+          }
         }
 
         const currentAlerts = normalizeAlerts(observation);

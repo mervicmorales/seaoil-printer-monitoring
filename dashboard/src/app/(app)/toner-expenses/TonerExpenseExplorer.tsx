@@ -283,7 +283,16 @@ export default function TonerExpenseExplorer({
               </tbody>
             </table>
           </div>
-        ) : <div className="p-5"><EmptyState message="No toner requests match the selected filters." /></div>}
+        ) : (
+          <div className="p-5">
+            <EmptyState
+              message="No toner requests match the selected filters."
+              action={activeFilters > 0 ? (
+                <button type="button" onClick={resetFilters} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Reset filters</button>
+              ) : undefined}
+            />
+          </div>
+        )}
       </Card>
 
       <p className="text-xs leading-5 text-slate-500">Expense figures are estimates based on current toner unit costs. Changing a unit cost recalculates historical estimates without changing the original request records.</p>

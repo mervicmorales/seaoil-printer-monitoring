@@ -60,14 +60,14 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
     });
 
   return (
-    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col overflow-hidden sm:h-[calc(100dvh-111px)]">
+    <div>
       <PageHeader
         parentTitle="User Management"
         title="User Management"
       />
       <SuccessBanner message={firstParam(sp.success) || undefined} errorMessage={firstParam(sp.error) || undefined} showInline={false} />
 
-      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <TableCard className={`flex flex-col overflow-hidden ${allUsers.length > 10 ? "max-h-[calc(100dvh-10rem)]" : ""}`}>
         <RecordTableToolbar count={allUsers.length} label="account">
           <AutoSubmitFilterForm method="get" resetKey={[statusFilters.join(","), sort].join("|")}>
             {statusFilters.map((value) => <input key={`status-${value}`} type="hidden" name="status" value={value} />)}
@@ -75,9 +75,9 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
             <Search name="q" defaultValue={query} placeholder="Search accounts" ariaLabel="Search user accounts" />
           </AutoSubmitFilterForm>
         </RecordTableToolbar>
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        <div className={allUsers.length > 10 ? "min-h-0 flex-1 overflow-auto overscroll-contain" : "overflow-x-auto"}>
           <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="bg-slate-50/95 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+            <thead className="bg-slate-50/95 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3">Full Name / Employee ID</th>
                 <th className="px-4 py-3">Email Address</th>
@@ -89,7 +89,7 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
                     <PrinterColumnFilter label="Status" paramName="status" options={statusOptions} selectedValues={statusFilters} currentSort={sort} sortAscValue="status_asc" sortDescValue="status_desc" />
                   </div>
                 </th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -98,7 +98,8 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
                   <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-500">
                     <span className="inline-flex flex-col items-center gap-3">
                       <span className="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400"><IconGlyph icon={SearchX} size={20} /></span>
-                      <span>No accounts found</span>
+                      <span>{query ? `No accounts match “${query}”` : "No accounts match the current filters"}</span>
+                      {(query || statusFilters.length > 0) && <Link href="/manage" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear search and filters</Link>}
                     </span>
                   </td>
                 </tr>
@@ -116,7 +117,7 @@ export default async function ManageUsersPage({ searchParams }: { searchParams: 
                   <td className="px-4 py-3 align-top"><Badge color={u.role === "super_admin" ? "orange" : u.role === "admin" ? "blue" : "gray"}>{roleLabel(u.role)}</Badge></td>
                   <td className="px-4 py-3 align-top"><Badge color={u.accountStatus === "active" ? "green" : "red"}>{u.accountStatus}</Badge></td>
                   <td className="px-4 py-3 text-right align-top">
-                    <Link href={`/manage/users/${u.id}`} aria-label={`View ${u.fullName}`} className="inline-flex size-8 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100">
+                    <Link href={`/manage/users/${u.id}`} aria-label={`View ${u.fullName}`} title="View account" className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50">
                       <IconGlyph icon={Eye} size={16} />
                     </Link>
                   </td>

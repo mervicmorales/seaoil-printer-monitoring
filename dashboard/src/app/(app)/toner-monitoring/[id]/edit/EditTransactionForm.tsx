@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { ClipboardList, Pencil, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { Input, PrimaryButton, Textarea } from "@/components/ui";
+import { Input, PrimaryButton, SecondaryButton, Textarea } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
 import SearchableDropdown from "@/components/SearchableDropdown";
 import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
@@ -107,7 +108,10 @@ export default function EditTransactionForm({
           <Textarea label="Remarks" name="remarks" defaultValue={txn.remarks ?? ""} rows={3} />
         </div>
       </section>
-      <div className={showActions ? "flex justify-end border-t border-slate-200 pt-5" : "hidden"}>
+      <div className={showActions ? "sticky bottom-4 z-10 -mx-2 flex flex-col-reverse gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row sm:justify-end" : "hidden"}>
+        <Link href="/toner-monitoring" className="w-full sm:w-auto">
+          <SecondaryButton type="button" className="w-full sm:w-auto">Cancel</SecondaryButton>
+        </Link>
         <SubmitButton />
       </div>
     </form>

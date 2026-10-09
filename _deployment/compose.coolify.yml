@@ -38,6 +38,7 @@ services:
         npx drizzle-kit push --config=drizzle.docker.config.ts --force &&
         node scripts/migrate-notifications-registration-smtp.mjs &&
         node scripts/migrate-monitoring-assignments.mjs &&
+        node scripts/migrate-monitoring-retention.mjs &&
         node scripts/add-printer-mac-address.mjs &&
         node scripts/add-printer-floor.mjs &&
         node scripts/migrate-auth-security.mjs &&
@@ -74,6 +75,13 @@ services:
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY}
       APP_BASE_URL: ${APP_BASE_URL:-http://seaprint.seaoil.com.ph:3000}
       MONITORING_STALE_SECONDS: ${MONITORING_STALE_SECONDS:-180}
+      MONITORING_RETENTION_ENABLED: ${MONITORING_RETENTION_ENABLED:-true}
+      MONITORING_RAW_RETENTION_DAYS: ${MONITORING_RAW_RETENTION_DAYS:-30}
+      MONITORING_SUMMARY_RETENTION_DAYS: ${MONITORING_SUMMARY_RETENTION_DAYS:-730}
+      RESOLVED_ALERT_RETENTION_DAYS: ${RESOLVED_ALERT_RETENTION_DAYS:-365}
+      MONITORING_RETENTION_HOUR: ${MONITORING_RETENTION_HOUR:-2}
+      MONITORING_RETENTION_MINUTE: ${MONITORING_RETENTION_MINUTE:-30}
+      MONITORING_RETENTION_TIMEZONE: ${MONITORING_RETENTION_TIMEZONE:-Asia/Manila}
       AGENT_STATUS_CRON_SECRET: ${AGENT_STATUS_CRON_SECRET}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
@@ -102,6 +110,31 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  monitoring-retention:
+    image: seaoil-printer-monitoring-dashboard:coolify
+    pull_policy: never
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["node", "scripts/monitoring-retention-worker.mjs"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://seaoil_app:${POSTGRES_PASSWORD}@db:5432/app_db
+      MONITORING_RETENTION_ENABLED: ${MONITORING_RETENTION_ENABLED:-true}
+      MONITORING_RAW_RETENTION_DAYS: ${MONITORING_RAW_RETENTION_DAYS:-30}
+      MONITORING_SUMMARY_RETENTION_DAYS: ${MONITORING_SUMMARY_RETENTION_DAYS:-730}
+      RESOLVED_ALERT_RETENTION_DAYS: ${RESOLVED_ALERT_RETENTION_DAYS:-365}
+      RETENTION_DELETE_BATCH_SIZE: ${RETENTION_DELETE_BATCH_SIZE:-10000}
+      MONITORING_RETENTION_HOUR: ${MONITORING_RETENTION_HOUR:-2}
+      MONITORING_RETENTION_MINUTE: ${MONITORING_RETENTION_MINUTE:-30}
+      MONITORING_RETENTION_TIMEZONE: ${MONITORING_RETENTION_TIMEZONE:-Asia/Manila}
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:

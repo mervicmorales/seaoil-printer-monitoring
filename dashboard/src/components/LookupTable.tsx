@@ -65,7 +65,7 @@ export default function LookupTable({
                 <td className="px-4 py-3 text-right">
                   {!readOnly && <div className="inline-flex items-center justify-end gap-2">
                     {editable && updateAction && <button type="button" onClick={() => setEditing(item)} aria-label={`Edit ${item.name}`} className="flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50"><MorphIcon icon={Pencil} size={16} strokeWidth={2} reducedMotion="user" /></button>}
-                    <DeleteButton action={deleteAction} id={item.id} confirmText={`Delete "${item.name}"?`} />
+                    <DeleteButton action={deleteAction} id={item.id} label={`Delete ${item.name}`} iconOnly confirmText={`Delete "${item.name}"?`} className="size-9 rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100" />
                   </div>}
                 </td>
               </tr>

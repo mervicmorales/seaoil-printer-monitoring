@@ -252,7 +252,7 @@ export default function TonerExpenseExportDialog({
               </button>
             </div>
 
-            <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-24">
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,0.8fr)]">
                 <div className="space-y-5">
                   <section aria-labelledby="export-scope-heading">
@@ -384,7 +384,7 @@ export default function TonerExpenseExportDialog({
                   type="button"
                   onClick={exportReport}
                   disabled={exporting || previewLoading || preview.recordCount === 0 || Boolean(error)}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#012c50] disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#014171] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#012c50] disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
                 >
                   <IconGlyph icon={exporting ? LoaderCircle : Download} size={16} />
                   {exporting ? "Preparing export…" : `Download ${format.toUpperCase()}`}

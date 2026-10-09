@@ -89,7 +89,7 @@ export default async function RegistrationsPage({
     .sort((left, right) => compareRegistrationRows(left, right, sort));
 
   return (
-    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col sm:h-[calc(100dvh-111px)]">
+    <div>
       <PageHeader
         parentTitle="Registrations"
         title="Registration Records"
@@ -102,7 +102,7 @@ export default async function RegistrationsPage({
         showInline={false}
       />
 
-      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <TableCard className={`flex flex-col overflow-hidden ${rows.length > 10 ? "max-h-[calc(100dvh-10rem)]" : ""}`}>
         <RecordTableToolbar count={rows.length} label="registration">
           <AutoSubmitFilterForm
             method="get"
@@ -120,9 +120,14 @@ export default async function RegistrationsPage({
             </Link>
           )}
         </RecordTableToolbar>
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        <div className={rows.length > 10 ? "min-h-0 flex-1 overflow-auto overscroll-contain" : "overflow-x-auto"}>
         {rows.length === 0 ? (
-          <EmptyState message="No registrations found" />
+          <EmptyState
+            message="No registrations match the current search and filters."
+            action={(query || priorityFilters.length || statusFilters.length) ? (
+              <Link href="/manage/registrations" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear search and filters</Link>
+            ) : undefined}
+          />
         ) : (
           <>
             <div className="divide-y divide-slate-100 lg:hidden">
@@ -130,7 +135,7 @@ export default async function RegistrationsPage({
             </div>
             <div className="hidden lg:block">
               <table className="w-full min-w-[1100px] text-left text-sm">
-                <thead className="bg-slate-50/95 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+                <thead className="bg-slate-50/95 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3">Full Name / Employee ID</th>
                 <th className="px-4 py-3">Email Address</th>
@@ -145,7 +150,7 @@ export default async function RegistrationsPage({
                     <PrinterColumnFilter label="Status" paramName="status" options={statusOptions} selectedValues={statusFilters} currentSort={sort} sortAscValue="status_asc" sortDescValue="status_desc" />
                   </FilterableHeading>
                 </th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -171,7 +176,8 @@ export default async function RegistrationsPage({
                     <Link
                       href={`/manage/registrations/${row.id}`}
                       aria-label={`Review registration for ${row.fullName}`}
-                      className="inline-flex size-8 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100"
+                      title="Review registration"
+                      className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50"
                     >
                       <IconGlyph icon={Eye} size={16} />
                     </Link>

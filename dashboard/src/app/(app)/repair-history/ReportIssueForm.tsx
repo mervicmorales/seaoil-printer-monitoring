@@ -209,7 +209,7 @@ export default function ReportIssueForm({
           <Textarea label="Remarks" name="remarks" rows={showActions ? 4 : 3} />
         </div>
       </section>
-      <div className={showActions ? "flex gap-3 border-t border-slate-200 pt-5" : "hidden"}>
+      <div className={showActions ? "sticky bottom-4 z-10 -mx-2 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row" : "hidden"}>
         <SubmitButton />
         <Link href="/repair-history"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>

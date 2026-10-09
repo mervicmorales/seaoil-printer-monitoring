@@ -20,7 +20,9 @@ import {
   ChevronDown,
   ChevronUp,
   Droplets,
+  Database,
   FileText,
+  HardDrive,
   LayoutDashboard,
   KeyRound,
   LogOut,
@@ -29,6 +31,7 @@ import {
   Radar,
   ReceiptText,
   ServerCog,
+  ScanLine,
   PanelLeftClose,
   Printer,
   Settings,
@@ -37,6 +40,7 @@ import {
   Truck,
   Users,
   Wrench,
+  Workflow,
   X,
 } from "lucide";
 import AuthBlob from "@/components/AuthBlob";
@@ -77,7 +81,7 @@ const NAV: NavItem[] = [
     icon: Printer,
     module: "printers",
     children: [
-      { href: "/printers", label: MODULE_LABELS.printer_records, icon: Printer, module: "printer_records" },
+      { href: "/printers", label: MODULE_LABELS.printer_records, icon: HardDrive, module: "printer_records" },
       { href: "/repair-history", label: "Repair History", icon: Wrench, module: "repair" },
       { href: "/printdash/alerts", label: MODULE_LABELS.monitoring_alerts, icon: Bell, module: "monitoring_alerts" },
       { href: "/printdash/discover", label: MODULE_LABELS.discover_printers, icon: Radar, module: "discover_printers" },
@@ -99,12 +103,12 @@ const NAV: NavItem[] = [
   {
     href: "/printops",
     label: MODULE_LABELS.printops,
-    icon: Printer,
+    icon: Workflow,
     separated: true,
     module: "printops",
     children: [
       { href: "/printops/print", label: "Print", icon: Printer },
-      { href: "/printops/scan", label: "Scan", icon: Radar },
+      { href: "/printops/scan", label: "Scan", icon: ScanLine },
     ],
   },
   { href: "/manage/registrations", label: MODULE_LABELS.registrations, icon: KeyRound, separated: true, module: "registrations" },
@@ -120,6 +124,7 @@ const NAV: NavItem[] = [
       { href: "/system/toner-types", label: "Toner Types", icon: Droplets },
       { href: "/system/its-names", label: "ITS Names", icon: Users },
       { href: "/system/vendors", label: "Vendor / Supplier", icon: Truck },
+      { href: "/system/retention", label: "Data Retention", icon: Database, adminOnly: true },
     ],
   },
 ];
@@ -129,11 +134,11 @@ const EMPLOYEE_NAV: NavItem[] = [
   {
     href: "/portal/printer-services",
     label: "Printer Services",
-    icon: Printer,
+    icon: Workflow,
     separated: true,
     children: [
       { href: "/portal/print", label: "Print", icon: Printer },
-      { href: "/portal/scan", label: "Scan", icon: Radar },
+      { href: "/portal/scan", label: "Scan", icon: ScanLine },
     ],
   },
 ];

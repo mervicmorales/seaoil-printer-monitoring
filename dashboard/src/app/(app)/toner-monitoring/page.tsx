@@ -120,6 +120,8 @@ export default async function TonerMonitoringPage({
     ))
     .sort((left, right) => compareTonerRows(left, right, sort));
   const paginated = paginateRecords(txnRows, firstParam(sp.page));
+  const totalInventoryUnits = inventoryRows.reduce((sum, row) => sum + (row.stock ?? 0), 0);
+  const lowStockTypes = inventoryRows.filter((row) => (row.stock ?? 0) <= (row.threshold ?? 5)).length;
 
   return (
     <div>
@@ -152,7 +154,8 @@ export default async function TonerMonitoringPage({
           <Card className="p-8 text-center text-sm text-slate-500 sm:col-span-2 lg:col-span-4">
             No toner types are currently configured for inventory alerts.
           </Card>
-        ) : inventoryRows.map((t) => {
+        ) : <>
+        {inventoryRows.map((t) => {
           const stock = t.stock ?? 0;
           const threshold = t.threshold ?? 5;
           const criticalThreshold = t.criticalThreshold ?? 2;
@@ -182,11 +185,25 @@ export default async function TonerMonitoringPage({
               </div>
               <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-100 pt-3.5">
                 <p className="text-2xl font-bold leading-none tracking-[-0.025em] text-slate-900">{stock} <span className="text-xs font-semibold tracking-normal text-slate-500">on hand</span></p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Low at {threshold}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Low at {threshold}</p>
               </div>
             </Card>
           );
         })}
+        {inventoryRows.length % 4 === 3 && (
+          <Card className="relative min-h-28 overflow-hidden border-sky-200 bg-gradient-to-br from-sky-50/80 to-white p-4">
+            <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-[#014171]" />
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-white text-[#014171] shadow-sm"><IconGlyph icon={Droplets} size={16} /></span>
+              <p className="text-sm font-semibold text-[#014171]">Inventory summary</p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-sky-100 pt-3.5">
+              <div><p className="text-xl font-bold leading-none text-slate-900">{totalInventoryUnits}</p><p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total units</p></div>
+              <div><p className={`text-xl font-bold leading-none ${lowStockTypes ? "text-amber-700" : "text-emerald-700"}`}>{lowStockTypes}</p><p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Low-stock types</p></div>
+            </div>
+          </Card>
+        )}
+        </>}
       </section>
 
       <TableCard className="mt-7 flex flex-col overflow-hidden">
@@ -224,7 +241,12 @@ export default async function TonerMonitoringPage({
         </RecordTableToolbar>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         {txnRows.length === 0 ? (
-          <EmptyState message="No toner transactions found" />
+          <EmptyState
+            message="No toner transactions match the current search and filters."
+            action={(ticket || statusFilters.length || dateFilters.length || tonerFilters.length || officeFilters.length || subunitFilters.length) ? (
+              <Link href="/toner-monitoring" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear search and filters</Link>
+            ) : undefined}
+          />
         ) : (
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
@@ -363,15 +385,18 @@ export default async function TonerMonitoringPage({
                   <td className="px-2 py-3">
                     {access.toner_monitoring && (
                       <div className="flex items-center justify-center gap-1.5">
-                        <Link href={`/toner-monitoring/${t.id}/edit`} aria-label={`Edit ${t.tonerTypeName} transaction`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-[#014171] transition hover:bg-slate-100">
+                        <Link href={`/toner-monitoring/${t.id}/edit`} aria-label={`Edit ${t.tonerTypeName} transaction`} title="Edit transaction" className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50">
                           <IconGlyph icon={Pencil} size={16} />
                         </Link>
                         <DeleteButton
                           action={deleteTransactionAction}
                           id={t.id}
                           title="Delete transaction?"
+                          label={`Delete ${t.tonerTypeName} transaction`}
+                          iconOnly
                           confirmText="This transaction will be permanently removed and the toner inventory will be adjusted automatically."
                           confirmLabel="Delete transaction"
+                          className="size-9 rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100"
                         />
                       </div>
                     )}

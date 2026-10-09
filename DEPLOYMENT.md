@@ -7,6 +7,7 @@ definition. The production definition runs:
 - PostgreSQL with a persistent volume;
 - a one-shot, idempotent database initializer;
 - the Next.js dashboard on internal port 3000;
+- a monitoring-retention worker that aggregates and prunes history nightly;
 - the PrintDash agent on internal port 3003 with persistent data and scan volumes.
 
 The three repository-built services use explicit local image names ending in
@@ -45,6 +46,30 @@ Do not delete, recreate, or rename these volumes during deployment.
    to `SEA Print`. Saved database settings take priority over Coolify variables.
 7. Deploy and wait for `db-init` to finish successfully and both health checks
    to become healthy.
+
+## Monitoring retention
+
+The `monitoring-retention` service runs once when it starts and then every day
+at 02:30 Asia/Manila by default. It preserves the newest raw reading for every
+printer, writes hourly monitoring and daily consumable summaries, deletes raw
+history older than 30 days in batches, deletes resolved alerts older than 365
+days, and deletes summaries older than 730 days. Open alerts are never removed.
+
+Review the prospective cleanup without deleting anything:
+
+```bash
+node dashboard/scripts/prune-monitoring-history.mjs --dry-run
+```
+
+The retention settings are configurable through the
+`MONITORING_RETENTION_*`, `RESOLVED_ALERT_RETENTION_DAYS`, and
+`RETENTION_DELETE_BATCH_SIZE` variables in `.env.production.example`. Back up
+PostgreSQL before the first production cleanup. Successful and failed runs are
+recorded in `monitoring_retention_runs`; failures also create a dashboard
+notification.
+
+Administrators can review the same health, database size, summary coverage, and
+recent run history from **System → Data Retention** after deployment.
 
 ## Connect the agent after first deployment
 

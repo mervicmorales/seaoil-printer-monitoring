@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, ChevronRight, Droplets, Mail, Truck, UserRound } from "lucide";
+import { Building2, ChevronRight, Database, Droplets, Mail, Truck, UserRound } from "lucide";
 import { MorphIcon } from "morphicons/react";
 import { PageHeader } from "@/components/ui";
 import { requireModuleFullAccess } from "@/lib/server-utils";
+import { hasAdminPrivileges } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -60,12 +61,20 @@ const sections = [
   },
 ];
 
+const retentionSection = {
+  href: "/system/retention",
+  title: "Data retention",
+  description: "Monitoring summaries, cleanup health, database size, and retention history.",
+  icon: Database,
+  meta: "Admin only · Automatic cleanup",
+};
+
 export default async function SystemPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string; success?: string; error?: string }>;
 }) {
-  await requireModuleFullAccess("system");
+  const session = await requireModuleFullAccess("system");
   const sp = await searchParams;
   if (sp.tab && legacyRoutes[sp.tab]) {
     const params = new URLSearchParams();
@@ -79,7 +88,7 @@ export default async function SystemPage({
     <div className="space-y-5">
       <PageHeader title="System Settings" parentTitle="Administration" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {sections.map((section) => (
+        {(hasAdminPrivileges(session.role) ? [...sections, retentionSection] : sections).map((section) => (
           <Link
             key={section.href}
             href={section.href}

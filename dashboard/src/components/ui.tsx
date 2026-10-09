@@ -28,31 +28,32 @@ export function PageHeader({
   hideTitle?: boolean;
 }) {
   const sectionTitle = parentTitle || pageHeaderSection(title);
-  const showPageTitle = !hideTitle && sectionTitle.trim().toLowerCase() !== title.trim().toLowerCase();
+  const showSectionTitle = sectionTitle.trim().toLowerCase() !== title.trim().toLowerCase();
+  const showPageTitle = !hideTitle;
 
   return (
     <PageHeaderPortal>
-      <div className="flex flex-col justify-between gap-2.5 sm:flex-row sm:items-center sm:gap-5">
+      <div className="flex min-w-0 flex-col justify-between gap-2.5 sm:flex-row sm:items-center sm:gap-5">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />
-            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 sm:text-[11px]">
+            {showSectionTitle && <span className="h-5 w-px shrink-0 bg-slate-200 max-[479px]:hidden" aria-hidden="true" />}
+            {showSectionTitle && <span className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 max-[479px]:hidden">
               {sectionTitle}
-            </span>
+            </span>}
             {showPageTitle && (
               <>
-                <span className="shrink-0 text-slate-400" aria-hidden="true">
+                {showSectionTitle && <span className="shrink-0 text-slate-400 max-[479px]:hidden" aria-hidden="true">
                   <IconGlyph icon={ChevronRight} size={13} />
-                </span>
-                <h1 className="truncate text-sm font-medium tracking-[-0.01em] text-slate-800 sm:text-[15px]">
+                </span>}
+                <h1 className="truncate text-lg font-semibold tracking-[-0.015em] text-slate-800 sm:text-xl">
                   {title}
                 </h1>
               </>
             )}
-            {!showPageTitle && <h1 className="sr-only">{title}</h1>}
+            {!showPageTitle && <h1 className="truncate text-lg font-semibold tracking-[-0.015em] text-slate-800 sm:sr-only">{title}</h1>}
           </div>
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 max-[479px]:justify-start sm:w-auto sm:shrink-0 sm:flex-nowrap">{actions}</div>}
       </div>
     </PageHeaderPortal>
   );
@@ -80,7 +81,7 @@ export function TableCard({
   className?: string;
 }) {
   return (
-    <Card className={`table-card h-[32rem] overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 ${className}`}>
+    <Card className={`table-card overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 ${className}`}>
       {children}
     </Card>
   );
@@ -291,13 +292,14 @@ export function DangerButton(
   );
 }
 
-export function EmptyState({ message }: { message: string }) {
+export function EmptyState({ message, action }: { message: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center text-slate-500">
+    <div className="flex min-h-[15rem] flex-col items-center justify-center gap-3 px-6 py-8 text-center text-slate-500">
       <span className="flex size-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 shadow-sm">
         <IconGlyph icon={Inbox} size={21} />
       </span>
       <p className="max-w-md text-sm leading-6">{message}</p>
+      {action}
     </div>
   );
 }

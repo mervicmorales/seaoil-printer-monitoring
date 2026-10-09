@@ -223,7 +223,7 @@ export default function CustomizableDashboard({
               <div className="absolute right-0 top-[calc(100%+0.5rem)] w-[min(22rem,calc(100vw-4.5rem))] rounded-lg border border-slate-200 bg-white p-2 shadow-xl" role="group" aria-label="Visible dashboard panels">
                 <div className="border-b border-slate-100 px-2 pb-2 pt-1">
                   <p className="text-xs font-bold text-slate-800">Visible panels</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Choose which sections appear on your Overview.</p>
+                  <p className="mt-0.5 text-xs text-slate-500">Choose which sections appear on your Overview.</p>
                 </div>
                 <div className="mt-1 grid gap-1 sm:grid-cols-2">
                   {widgets.map((widget) => {
@@ -282,7 +282,7 @@ export default function CustomizableDashboard({
                 <div key={widget.id} className={`dashboard-grid-item min-w-0 overflow-hidden ${editing ? "rounded-lg ring-2 ring-[#014171]/15" : ""}`}>
                   {editing && (
                     <div className="dashboard-widget-toolbar absolute inset-x-0 top-0 z-20 flex h-9 items-center gap-1 border-b border-slate-200 bg-slate-50/95 px-2 backdrop-blur">
-                      <button type="button" className="dashboard-drag-handle flex min-w-0 flex-1 cursor-grab items-center gap-1.5 text-left text-[10px] font-bold uppercase tracking-[0.07em] text-slate-600 active:cursor-grabbing" aria-label={`Move ${widget.title}`}>
+                      <button type="button" className="dashboard-drag-handle flex min-w-0 flex-1 cursor-grab items-center gap-1.5 text-left text-xs font-bold uppercase tracking-[0.07em] text-slate-600 active:cursor-grabbing" aria-label={`Move ${widget.title}`}>
                         <IconGlyph icon={GripVertical} size={14} />
                         <span className="truncate">{widget.title}</span>
                       </button>
@@ -294,8 +294,8 @@ export default function CustomizableDashboard({
 
                   {compact ? (
                     <div className={`flex h-full items-center justify-between gap-3 rounded-lg border border-slate-200 border-t-2 border-t-[#7c3aed] bg-white px-4 shadow-sm ${editing ? "pt-9" : ""}`}>
-                      <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#4f7fa9]">Minimized</p><p className="truncate text-sm font-bold text-slate-800">{widget.title}</p></div>
-                      <button type="button" onClick={() => setWidgetMode(widget.id, "normal")} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-[#014171] transition hover:bg-slate-50"><IconGlyph icon={Maximize2} size={12} /> Expand</button>
+                      <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.1em] text-[#4f7fa9]">Minimized</p><p className="truncate text-sm font-bold text-slate-800">{widget.title}</p></div>
+                      <button type="button" onClick={() => setWidgetMode(widget.id, "normal")} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-[#014171] transition hover:bg-slate-50"><IconGlyph icon={Maximize2} size={12} /> Expand</button>
                     </div>
                   ) : (
                     <div className={`dashboard-widget-content h-full min-h-0 ${editing ? "dashboard-widget-content--editing pointer-events-none" : ""}`}>{widget.content}</div>

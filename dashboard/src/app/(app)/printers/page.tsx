@@ -271,7 +271,7 @@ export default async function PrintersPage({
     : "/printers";
 
   return (
-    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col sm:h-[calc(100dvh-111px)]">
+    <div>
       <PageHeader
         parentTitle="Printers"
         title="Printer Records"
@@ -286,7 +286,7 @@ export default async function PrintersPage({
 
       <SuccessBanner message={firstParam(params.success) || undefined} showInline={false} />
 
-      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <TableCard className={`flex flex-col overflow-hidden ${rows.length > 10 ? "max-h-[calc(100dvh-10rem)]" : ""}`}>
         <PrinterRecordsToolbar
           query={query}
           sort={sort}
@@ -299,11 +299,18 @@ export default async function PrintersPage({
           selectedStatuses={statusFilters}
           canAddPrinter={Boolean(access.printer_records)}
         />
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10">
+        <div className={`${rows.length > 10 ? "min-h-0 flex-1 overflow-y-auto" : ""} overflow-x-auto overscroll-contain [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10`}>
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
             {rows.length === 0 ? (
-              <EmptyState message="No printers found" />
+              <EmptyState
+                message={query ? `No printers match “${query}”.` : "No printers match the current filters."}
+                action={(query || locationFilters.length || modelFilters.length || monitoringFilters.length || tonerFilters.length || statusFilters.length) ? (
+                  <Link href="/printers" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear search and filters</Link>
+                ) : access.printer_records ? (
+                  <Link href="/printers/new" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#014171] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#00365f]">Add Printer</Link>
+                ) : undefined}
+              />
             ) : paginated.items.map((p) => {
               const monitoring = monitoringByPrinter.get(p.id) ?? null;
               return (
@@ -455,7 +462,12 @@ export default async function PrintersPage({
                       <span className="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
                         <IconGlyph icon={SearchX} size={20} />
                       </span>
-                      <span>No printers found</span>
+                      <span>{query ? `No printers match “${query}”.` : "No printers match the current filters."}</span>
+                      {(query || locationFilters.length || modelFilters.length || monitoringFilters.length || tonerFilters.length || statusFilters.length) ? (
+                        <Link href="/printers" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear search and filters</Link>
+                      ) : access.printer_records ? (
+                        <Link href="/printers/new" className="rounded-xl bg-[#014171] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#00365f]">Add Printer</Link>
+                      ) : null}
                     </span>
                   </td>
                 </tr>
@@ -511,7 +523,7 @@ export default async function PrintersPage({
                         href={printerDetailHref(p.id, printerListReturnTo)}
                         aria-label={`View printer ${p.serialNumber}`}
                         title={`View printer ${p.serialNumber}`}
-                        className="inline-flex size-8 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#014171]/30"
+                        className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#014171]/30"
                       >
                         <IconGlyph icon={Eye} size={16} />
                       </Link>

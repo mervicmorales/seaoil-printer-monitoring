@@ -37,6 +37,15 @@ function abortActiveAgentRequests() {
   activeRequestControllers.clear();
 }
 
+async function discardResponseBody(response) {
+  if (!response.body) return;
+  try {
+    await response.body.cancel();
+  } catch {
+    // The body may already be closed after an abort or network failure.
+  }
+}
+
 function optionalEnvironmentValue(name) {
   const value = process.env[name]?.trim();
   return value || null;
@@ -331,6 +340,7 @@ async function fetchMonitoringConfig() {
       signal: controller.signal,
     });
     if (!response.ok) {
+      await discardResponseBody(response);
       console.error(
         `[SEAOIL Agent] Configuration sync failed: central API returned HTTP ${response.status}. Keeping the last known printer list.`,
       );
@@ -422,6 +432,7 @@ async function sendToSeaoil(printers) {
     });
 
     if (!response.ok) {
+      await discardResponseBody(response);
       console.error(
         `[SEAOIL Agent] Upload failed: central API returned HTTP ${response.status}. Local monitoring continues; retrying next poll.`,
       );
@@ -475,10 +486,12 @@ async function fetchDiscoveryJob() {
       signal: controller.signal,
     });
     if (!response.ok) {
+      await discardResponseBody(response);
       logDiscoveryEndpointError(`central API returned HTTP ${response.status}`);
       return null;
     }
     if (!response.headers.get("content-type")?.includes("application/json")) {
+      await discardResponseBody(response);
       logDiscoveryEndpointError("central API returned a non-JSON response");
       return null;
     }
@@ -511,7 +524,9 @@ async function completeDiscoveryJob(jobId, results, error) {
       body: JSON.stringify(error ? { jobId, error } : { jobId, results }),
       signal: controller.signal,
     });
-    return response.ok;
+    const ok = response.ok;
+    await discardResponseBody(response);
+    return ok;
   } catch {
     return false;
   } finally {
@@ -542,10 +557,12 @@ async function fetchPrintOpsCommand() {
       signal: controller.signal,
     });
     if (!response.ok) {
+      await discardResponseBody(response);
       logPrintOpsEndpointError(`central API returned HTTP ${response.status}`);
       return null;
     }
     if (!response.headers.get("content-type")?.includes("application/json")) {
+      await discardResponseBody(response);
       logPrintOpsEndpointError("central API returned a non-JSON response");
       return null;
     }
@@ -583,7 +600,9 @@ async function completePrintOpsCommand(commandId, result, output, error) {
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    return response.ok;
+    const ok = response.ok;
+    await discardResponseBody(response);
+    return ok;
   } catch {
     return false;
   } finally {

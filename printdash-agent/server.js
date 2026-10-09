@@ -824,9 +824,6 @@ async function refreshAll() {
     const oldData = cache.data;
     const targets = [...PRINTERS];
     const newData = await Promise.all(targets.map(pollPrinterSafely));
-    void sendToSeaoil(newData).catch(() => {
-      console.error('[SEAOIL Agent] Unexpected upload error. Local monitoring continues; retrying next poll.');
-    });
     cache.data=newData; cache.updatedAt=new Date().toISOString();
     const online = newData.filter(printer => printer.online).length;
     console.log(`[SEAOIL Agent] Poll complete: ${newData.length} printer(s), ${online} online, ${newData.length-online} offline.`);
@@ -834,6 +831,9 @@ async function refreshAll() {
       const old = oldData.find(o=>o.id===p.id);
       checkAlerts(p, old).catch(()=>{});
     }
+    await sendToSeaoil(newData).catch(() => {
+      console.error('[SEAOIL Agent] Unexpected upload error. Local monitoring continues; retrying next poll.');
+    });
   }
   finally { polling=false; }
 }
@@ -857,11 +857,12 @@ async function syncCentralPrinterConfig() {
 
 async function processCentralDiscoveryJob() {
   if (centralDiscoveryRunning || lifecycleState === 'stopping') return;
-  const job = await fetchDiscoveryJob();
-  if (!job) return;
   centralDiscoveryRunning = true;
-  console.log(`[SEAOIL Agent] Scanning ${job.subnet} for network printers.`);
+  let job = null;
   try {
+    job = await fetchDiscoveryJob();
+    if (!job) return;
+    console.log(`[SEAOIL Agent] Scanning ${job.subnet} for network printers.`);
     const found = await discoverSnmpDevices(job.subnet, agentConfig.snmpCommunity);
     const results = found.map(device => ({
       ip: device.ip,
@@ -873,7 +874,7 @@ async function processCentralDiscoveryJob() {
     const uploaded = await completeDiscoveryJob(job.id, results);
     console.log(`[SEAOIL Agent] Discovery found ${results.length} printer(s)${uploaded ? '.' : ', but the result upload failed.'}`);
   } catch (error) {
-    await completeDiscoveryJob(job.id, null, error?.message || 'Network scan failed');
+    if (job) await completeDiscoveryJob(job.id, null, error?.message || 'Network scan failed');
   } finally {
     centralDiscoveryRunning = false;
   }
@@ -972,11 +973,12 @@ async function executePrintOpsCommand(command) {
 
 async function processCentralPrintOpsCommand() {
   if (centralPrintOpsRunning || lifecycleState === 'stopping') return;
-  const command = await fetchPrintOpsCommand();
-  if (!command) return;
   centralPrintOpsRunning = true;
-  console.log(`[SEAOIL Agent] Running PrintOps ${command.type} command ${command.id}.`);
+  let command = null;
   try {
+    command = await fetchPrintOpsCommand();
+    if (!command) return;
+    console.log(`[SEAOIL Agent] Running PrintOps ${command.type} command ${command.id}.`);
     const completion = await executePrintOpsCommand(command);
     const uploaded = await completePrintOpsCommand(
       command.id,
@@ -988,12 +990,14 @@ async function processCentralPrintOpsCommand() {
     }
     console.log(`[SEAOIL Agent] PrintOps command ${command.id} ${uploaded ? 'completed.' : 'finished, but the result upload failed.'}`);
   } catch (error) {
-    await completePrintOpsCommand(
-      command.id,
-      null,
-      null,
-      error?.message || 'PrintOps command failed',
-    );
+    if (command) {
+      await completePrintOpsCommand(
+        command.id,
+        null,
+        null,
+        error?.message || 'PrintOps command failed',
+      );
+    }
   } finally {
     centralPrintOpsRunning = false;
   }

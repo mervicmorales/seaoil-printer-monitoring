@@ -46,6 +46,14 @@ export default function PrinterRecordsToolbar({
   const resultLabel = resultCount === totalCount
     ? `${totalCount} printer${totalCount === 1 ? "" : "s"}`
     : `${resultCount} of ${totalCount} printers`;
+  const activeFilters = [
+    ...(query ? [`Search: ${query}`] : []),
+    ...selectedLocations.map((value) => `Office: ${value}`),
+    ...selectedModels.map((value) => `Model: ${value}`),
+    ...selectedMonitoringStatuses.map((value) => `Monitoring: ${value}`),
+    ...selectedTonerTypes.map((value) => `Toner: ${value}`),
+    ...selectedStatuses.map((value) => `Status: ${value}`),
+  ];
 
   return (
     <AutoSubmitFilterForm
@@ -73,7 +81,7 @@ export default function PrinterRecordsToolbar({
           <span className="ml-2 whitespace-nowrap">{resultLabel}</span>
         </div>
 
-        <div className="flex min-w-0 items-center justify-end gap-2">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <Search
             name="q"
             defaultValue={query}
@@ -92,6 +100,13 @@ export default function PrinterRecordsToolbar({
           )}
         </div>
       </div>
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-2">
+          <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">Active filters</span>
+          {activeFilters.map((filter) => <span key={filter} className="max-w-full truncate rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-[#014171]">{filter}</span>)}
+          <Link href="/printers" className="ml-auto text-xs font-semibold text-[#0b70a8] hover:text-[#014171]">Clear all</Link>
+        </div>
+      )}
     </AutoSubmitFilterForm>
   );
 }

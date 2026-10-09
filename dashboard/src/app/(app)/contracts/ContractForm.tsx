@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Input, Textarea, PrimaryButton } from "@/components/ui";
+import { Input, Textarea, PrimaryButton, SecondaryButton } from "@/components/ui";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { ContractFormState } from "./actions";
 
@@ -45,13 +46,13 @@ export default function ContractForm({
     <form
       id={mode === "create" ? "contract-create-form" : "contract-edit-form"}
       action={formAction}
-      className={showActions ? "space-y-6" : "flex h-full min-h-0 flex-col"}
+      className="space-y-5"
     >
       {mode === "edit" && contract && <input type="hidden" name="id" value={contract.id} />}
       {state.error && (
         <div role="alert" className={`rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 ${showActions ? "" : "mb-3"}`}>{state.error}</div>
       )}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${showActions ? "gap-x-5 gap-y-4" : "min-h-0 flex-1 gap-x-4 gap-y-3 sm:grid-rows-[auto_auto_auto_minmax(6rem,1fr)]"}`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${showActions ? "gap-x-5 gap-y-4" : "gap-x-4 gap-y-3"}`}>
         <Input
           label="Contract Number"
           floatingLabel
@@ -90,11 +91,14 @@ export default function ContractForm({
             )}
           </div>
         </div>
-        <div className={`sm:col-span-2 ${showActions ? "" : "min-h-0 [&>div]:h-full [&_textarea]:h-[calc(100%-1.75rem)] [&_textarea]:min-h-20 [&_textarea]:resize-none"}`}>
-          <Textarea label="Notes" name="notes" rows={showActions ? 4 : 3} defaultValue={contract?.notes ?? ""} />
+        <div className="sm:col-span-2 [&_textarea]:min-h-28 [&_textarea]:max-h-40 [&_textarea]:resize-y">
+          <Textarea label="Notes" name="notes" rows={4} defaultValue={contract?.notes ?? ""} />
         </div>
       </div>
-      <div className={showActions ? "flex border-t border-slate-200 pt-5 sm:justify-end" : "hidden"}>
+      <div className={showActions ? "sticky bottom-4 z-10 -mx-2 flex flex-col-reverse gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row sm:justify-end" : "hidden"}>
+        <Link href={mode === "edit" && contract ? `/contracts/${contract.id}` : "/contracts"} className="w-full sm:w-auto">
+          <SecondaryButton type="button" className="w-full sm:w-auto">Cancel</SecondaryButton>
+        </Link>
         <SubmitButton label={mode === "create" ? "Upload Contract" : "Save Changes"} />
       </div>
     </form>

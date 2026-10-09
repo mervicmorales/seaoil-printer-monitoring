@@ -225,11 +225,11 @@ function DetailSection({
           {description && <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>}
         </div>
       </div>
-      <dl className={compact ? "px-3 py-2" : "px-4 py-3 sm:px-5"}>
+      <dl className={`grid grid-cols-1 gap-x-8 md:grid-cols-2 ${compact ? "px-3 py-2" : "px-4 py-3 sm:px-5"}`}>
         {details.map(([label, value]) => (
-          <div key={label} className={`grid min-w-0 grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)] items-start gap-4 ${compact ? "py-2" : "py-2.5"}`}>
-            <dt className="text-sm font-medium text-slate-500">{label}</dt>
-            <dd className="break-words text-sm font-semibold text-slate-900">{value || "—"}</dd>
+          <div key={label} className={`min-w-0 border-b border-slate-100 last:border-b-0 md:[&:nth-last-child(-n+2)]:border-b-0 ${compact ? "py-2.5" : "py-3"}`}>
+            <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</dt>
+            <dd className="mt-1.5 break-words text-sm font-semibold text-slate-900">{value || "—"}</dd>
           </div>
         ))}
       </dl>

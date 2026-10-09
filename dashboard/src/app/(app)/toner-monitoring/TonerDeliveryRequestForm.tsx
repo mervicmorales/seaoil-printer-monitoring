@@ -159,7 +159,7 @@ export default function TonerDeliveryRequestForm({
         </div>
       </section>
 
-      <div className={showActions ? "flex gap-3 border-t border-slate-200 pt-5" : "hidden"}>
+      <div className={showActions ? "sticky bottom-4 z-10 -mx-2 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row" : "hidden"}>
         <SubmitButton label={mode === "delivery" ? "Save Delivery" : "Save Request"} disabled={requestBlocked} />
         <Link href="/toner-monitoring"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>
@@ -221,7 +221,7 @@ function TonerTypePicker({
           )}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
         {tonerTypes.length === 0 && <p className="text-sm text-slate-400">No toner types configured yet.</p>}
         {tonerTypes.map((toner) => {
           const selected = checkedToners.includes(toner.id);

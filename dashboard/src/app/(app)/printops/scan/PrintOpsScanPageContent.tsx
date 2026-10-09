@@ -1,5 +1,6 @@
 import { Clock3, FileText, Radar, TriangleAlert } from "lucide";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Badge, Card, IconGlyph, PageHeader, TableCard } from "@/components/ui";
 import RefreshControl from "@/components/RefreshControl";
 import { getModuleAccessMap, requireModuleFullAccess, requireSession } from "@/lib/server-utils";
@@ -112,7 +113,7 @@ export async function PrintOpsScanPageContent({
         {!employeeMode && !access.printops ? (
           <div className="m-5 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-700 sm:m-6">
             <span className="mt-0.5 shrink-0 text-slate-500"><IconGlyph icon={FileText} size={17} /></span>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-semibold">View-only access</p>
               <p className="mt-0.5 text-xs text-slate-500">You can review scan requests and download completed files, but you cannot start a new scan.</p>
             </div>
@@ -129,6 +130,10 @@ export async function PrintOpsScanPageContent({
                     ? "No compatible scanners are available yet. Refresh an online office agent above."
                     : "No compatible scanners are currently available."}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href={employeeMode ? "/portal/scan" : "/printops/scan"} className="inline-flex min-h-9 items-center justify-center rounded-lg border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100">Retry</Link>
+                {showAgentControls && <Link href="/monitoring-agents" className="inline-flex min-h-9 items-center justify-center rounded-lg bg-[#014171] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#00365f]">View monitoring agents</Link>}
+              </div>
             </div>
           </div>
         ) : (
@@ -163,9 +168,9 @@ export async function PrintOpsScanPageContent({
           </p>
         </div>
       </div>
-      <TableCard className="h-[28rem]">
+      <TableCard className={scans.length > 8 ? "max-h-[32rem]" : ""}>
         {scans.length === 0 ? (
-          <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+          <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <IconGlyph icon={Radar} size={22} />
             </span>
@@ -186,7 +191,7 @@ export async function PrintOpsScanPageContent({
             <div className="hidden lg:block">
               <table className="w-full min-w-[1120px] text-sm">
                 <thead className="bg-slate-50/95 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
-                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Office / Department</th><th className="px-4 py-3">Printer / SN</th><th className="px-4 py-3">Date Requested</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr>
+                  <tr><th className="px-4 py-3">File</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Office / Department</th><th className="px-4 py-3">Printer / SN</th><th className="px-4 py-3">Date Requested</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {scans.map((scan) => {

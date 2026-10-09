@@ -87,14 +87,14 @@ export default async function RepairHistoryPage({
   const paginated = paginateRecords(rows, firstParam(sp.page));
 
   return (
-    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col sm:h-[calc(100dvh-111px)]">
+    <div>
       <PageHeader
         parentTitle="Printers"
         title="Repair History"
       />
       <SuccessBanner message={firstParam(sp.success) || undefined} showInline={false} />
 
-      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <TableCard className={`flex flex-col overflow-hidden ${rows.length > 10 ? "max-h-[calc(100dvh-10rem)]" : ""}`}>
         <RecordTableToolbar count={rows.length} label="repair ticket">
           <AutoSubmitFilterForm
             method="get"
@@ -114,9 +114,14 @@ export default async function RepairHistoryPage({
             </Link>
           )}
         </RecordTableToolbar>
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        <div className={rows.length > 10 ? "min-h-0 flex-1 overflow-auto overscroll-contain" : "overflow-x-auto"}>
         {rows.length === 0 ? (
-          <EmptyState message="No repair tickets found" />
+          <EmptyState
+            message="No repair tickets match the current search and filters."
+            action={(searchTerm || requestedDateFilters.length || departmentFilters.length || subunitFilters.length || statusFilters.length) ? (
+              <Link href="/repair-history" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Clear search and filters</Link>
+            ) : undefined}
+          />
         ) : (
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
@@ -154,7 +159,7 @@ export default async function RepairHistoryPage({
 
           <div className="hidden lg:block">
           <table className="w-full min-w-[950px] text-left text-sm">
-            <thead className="bg-slate-50/95 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+            <thead className="bg-slate-50/95 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3">Ticket #</th>
                 <th className="px-4 py-2.5">
@@ -199,7 +204,7 @@ export default async function RepairHistoryPage({
                   <td className="px-4 py-3"><Badge color={statusBadgeColor(t.status)}>{t.status}</Badge></td>
                   <td className="w-px whitespace-nowrap px-4 py-3">
                     <div className="flex justify-end gap-2">
-                      <Link href={`/repair-history/${t.id}`} aria-label={`View ticket ${t.ticketNumber}`} className="inline-flex size-8 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100">
+                      <Link href={`/repair-history/${t.id}`} aria-label={`View ticket ${t.ticketNumber}`} title="View repair ticket" className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50">
                         <IconGlyph icon={Eye} size={16} />
                       </Link>
                     </div>

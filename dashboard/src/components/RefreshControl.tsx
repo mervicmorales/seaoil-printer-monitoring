@@ -30,7 +30,7 @@ export default function RefreshControl({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2.5">
-      <span className="text-[11px] font-medium text-slate-500" aria-live="polite">
+      <span className="text-xs font-medium text-slate-500 max-[479px]:hidden" aria-live="polite">
         Last refreshed: {refreshedAtLabel}
       </span>
       <button

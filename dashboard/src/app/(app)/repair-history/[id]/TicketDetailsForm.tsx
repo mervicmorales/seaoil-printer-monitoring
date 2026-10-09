@@ -1,18 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { ClipboardCheck, Paperclip } from "lucide";
 import { MorphIcon } from "morphicons/react";
-import { PrimaryButton, Textarea } from "@/components/ui";
+import { PrimaryButton, SecondaryButton, Textarea } from "@/components/ui";
 import { notifyActionSuccess } from "@/lib/toast-notifications";
 import type { RepairFormState } from "../actions";
 
 function SubmitButton({ label = "Save Changes" }: { label?: string }) {
   const { pending } = useFormStatus();
   return (
-    <PrimaryButton type="submit" disabled={pending} className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none">
+    <PrimaryButton type="submit" disabled={pending}>
       {pending ? "Saving..." : label}
     </PrimaryButton>
   );
@@ -155,7 +156,10 @@ export default function TicketDetailsForm({
         </div>
       </div>
       {showActions && (
-        <div className="mt-6 flex justify-end border-t border-slate-200 pt-5">
+        <div className="sticky bottom-4 z-10 -mx-2 mt-6 flex flex-col-reverse gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row sm:justify-end">
+          <Link href="/repair-history" className="w-full sm:w-auto">
+            <SecondaryButton type="button" className="w-full sm:w-auto">Cancel</SecondaryButton>
+          </Link>
           <SubmitButton label={statusOnly ? "Save Status" : "Save Changes"} />
         </div>
       )}

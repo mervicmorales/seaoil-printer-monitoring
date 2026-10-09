@@ -40,14 +40,14 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
     .orderBy(asc(contracts.contractNumber));
 
   return (
-    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col sm:h-[calc(100dvh-111px)]">
+    <div>
       <PageHeader
         parentTitle="Contracts"
         title="Contract Records"
       />
       <SuccessBanner message={sp.success} showInline={false} />
 
-      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <TableCard className={`flex flex-col overflow-hidden ${rows.length > 10 ? "max-h-[calc(100dvh-10rem)]" : ""}`}>
         <RecordTableToolbar count={rows.length} label="contract">
           <AutoSubmitFilterForm method="get">
             <Search
@@ -64,7 +64,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
             </Link>
           )}
         </RecordTableToolbar>
-        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+        <div className={rows.length > 10 ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain" : "overflow-x-hidden"}>
           <table className="w-full table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[17%]" />
@@ -74,7 +74,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
               <col className="w-[20%]" />
               <col className="w-[15%]" />
             </colgroup>
-            <thead className="bg-slate-50/95 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+            <thead className="bg-slate-50/95 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3">Contract Number</th>
                 <th className="px-4 py-3">Vendor / Supplier</th>
@@ -103,11 +103,11 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
                   <td className="px-4 py-3"><p className="truncate" title={c.documentName || "—"}>{c.documentName || "—"}</p></td>
                   <td className="px-3 py-3">
                     <div className="flex justify-end gap-2">
-                      <Link href={`/contracts/${c.id}`} aria-label={`View contract ${c.contractNumber}`} className="inline-flex size-8 items-center justify-center rounded-md text-[#014171] transition hover:bg-slate-100">
+                      <Link href={`/contracts/${c.id}`} aria-label={`View contract ${c.contractNumber}`} title="View contract" className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50">
                         <IconGlyph icon={Eye} size={16} />
                       </Link>
                       {hasAdminPrivileges(session.role) && (
-                        <DeleteButton action={deleteContractAction} id={c.id} confirmText="Delete this contract?" />
+                        <DeleteButton action={deleteContractAction} id={c.id} label={`Delete contract ${c.contractNumber}`} iconOnly confirmText="Delete this contract?" className="size-9 rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100" />
                       )}
                     </div>
                   </td>

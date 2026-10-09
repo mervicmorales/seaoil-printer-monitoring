@@ -27,7 +27,9 @@ export default function PrintFilePreview({
   const [target, setTarget] = useState(initialTarget);
   const [open, setOpen] = useState(false);
   const [pageMode, setPageMode] = useState("all");
+  const [copies, setCopies] = useState("1");
   const [colorMode, setColorMode] = useState("color");
+  const [duplex, setDuplex] = useState("none");
   const [orientation, setOrientation] = useState("portrait");
   const [moreSettings, setMoreSettings] = useState(false);
   const previewUrlRef = useRef("");
@@ -222,7 +224,7 @@ export default function PrintFilePreview({
                   </Setting>
 
                   <Setting label="Copies">
-                    <input aria-label="Copies" name="copies" type="number" min="1" max="99" defaultValue="1" required className={darkInputClassName} />
+                    <input aria-label="Copies" name="copies" type="number" min="1" max="99" value={copies} onChange={(event) => setCopies(event.target.value)} required className={darkInputClassName} />
                   </Setting>
 
                   <Setting label="Color">
@@ -230,7 +232,7 @@ export default function PrintFilePreview({
                   </Setting>
 
                   <Setting label="Duplex">
-                    <SearchableDropdown ariaLabel="Duplex" name="duplex" defaultValue="none" placeholder="Search duplex modes..." options={[{ value: "none", label: "Single-sided" }, { value: "long", label: "Double-sided · long edge" }, { value: "short", label: "Double-sided · short edge" }]} inputClassName={darkSelectClassName} />
+                    <SearchableDropdown ariaLabel="Duplex" name="duplex" value={duplex} onValueChange={setDuplex} placeholder="Search duplex modes..." options={[{ value: "none", label: "Single-sided" }, { value: "long", label: "Double-sided · long edge" }, { value: "short", label: "Double-sided · short edge" }]} inputClassName={darkSelectClassName} />
                   </Setting>
 
                   <button
@@ -242,6 +244,18 @@ export default function PrintFilePreview({
                     More settings
                     <MorphIcon icon={ChevronDown} size={16} strokeWidth={2} reducedMotion="user" className={`transition ${moreSettings ? "rotate-180" : ""}`} />
                   </button>
+
+                  {!moreSettings && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Print summary</p>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                        <SummaryItem label="Pages" value={pageMode === "all" ? "All pages" : "Custom range"} />
+                        <SummaryItem label="Copies" value={copies || "—"} />
+                        <SummaryItem label="Color" value={colorMode === "color" ? "Color" : "Grayscale"} />
+                        <SummaryItem label="Duplex" value={duplex === "none" ? "Single-sided" : duplex === "long" ? "Long edge" : "Short edge"} />
+                      </dl>
+                    </div>
+                  )}
 
                   <div className={moreSettings ? "space-y-5" : "hidden"}>
                       <Setting label="Paper size">
@@ -282,6 +296,15 @@ function Setting({ label, children }: { label: string; children: ReactNode }) {
     <div className="grid min-w-0 gap-2 text-sm sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-center">
       <span className="font-semibold text-slate-600">{label}</span>
       <span className="min-w-0">{children}</span>
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="mt-0.5 truncate font-semibold text-slate-800" title={value}>{value}</dd>
     </div>
   );
 }

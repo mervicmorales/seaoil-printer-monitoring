@@ -69,9 +69,9 @@ export default function FleetHealthVisual({
   let offset = 0;
 
   return (
-    <div className="grid flex-1 grid-cols-1 items-stretch gap-2 px-2 py-2.5 @min-[24rem]:grid-cols-[11rem_minmax(0,1fr)] @min-[32rem]:grid-cols-[13rem_minmax(0,1fr)] @min-[32rem]:gap-3 @min-[32rem]:px-4">
-      <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-2 @min-[32rem]:gap-3 @min-[32rem]:px-3">
-        <div className="relative size-16 shrink-0 @min-[32rem]:size-[4.5rem]" role="img" aria-label={chartLabel}>
+    <div className="grid flex-1 grid-cols-1 items-stretch gap-2 px-2 py-2.5 @min-[24rem]:grid-cols-[minmax(10.5rem,0.95fr)_minmax(0,1.65fr)] @min-[32rem]:gap-3 @min-[32rem]:px-4">
+      <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-2 @min-[32rem]:gap-2.5 @min-[32rem]:px-3">
+        <div className="relative size-[clamp(3.75rem,11cqi,4.5rem)] shrink-0" role="img" aria-label={chartLabel}>
           <svg viewBox="0 0 88 88" aria-hidden="true" className="size-full -rotate-90 overflow-visible">
             <circle cx="44" cy="44" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="9" />
             {segments.filter((segment) => segment.value > 0).map((segment) => {
@@ -99,19 +99,19 @@ export default function FleetHealthVisual({
             })}
           </svg>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className={`text-[17px] font-bold tabular-nums ${highlighted === "underRepair" ? "text-amber-700" : highlighted === "spare" ? "text-[#4f7fa9]" : highlighted === "openTickets" ? "text-rose-700" : "text-emerald-700"}`}>
+            <span className={`text-[clamp(0.875rem,2.7cqi,1.0625rem)] font-bold tabular-nums ${highlighted === "underRepair" ? "text-amber-700" : highlighted === "spare" ? "text-[#4f7fa9]" : highlighted === "openTickets" ? "text-rose-700" : "text-emerald-700"}`}>
               <span className={highlighted ? "hidden" : "inline"}><AnimatedNumber value={rate} format="percent" /></span>
               {highlighted ? integer.format(selectedValue) : null}
             </span>
-            <span className="max-w-12 text-[6px] font-bold uppercase leading-[8px] tracking-[0.04em] text-slate-400">{selectedLabel}</span>
+            <span className="max-w-12 text-[clamp(0.5625rem,1.65cqi,0.6875rem)] font-bold uppercase leading-[1.05] tracking-[0.02em] text-slate-500">{selectedLabel}</span>
           </div>
         </div>
         <div className="min-w-0">
-          <p className="flex items-baseline gap-1 whitespace-nowrap text-xl font-bold tabular-nums text-[#014171] @min-[32rem]:gap-1.5 @min-[32rem]:text-2xl">
+          <p className="flex items-baseline gap-1 whitespace-nowrap text-[clamp(1.125rem,3.5cqi,1.5rem)] font-bold tabular-nums text-[#014171]">
             <AnimatedNumber value={operational} />
-            <span className="text-xs font-semibold text-slate-400 @min-[32rem]:text-sm">of {integer.format(total)}</span>
+            <span className="text-[clamp(0.625rem,1.8cqi,0.875rem)] font-semibold text-slate-400">of {integer.format(total)}</span>
           </p>
-          <p className="mt-0.5 whitespace-nowrap text-[7px] font-bold uppercase tracking-[0.01em] text-slate-500 @min-[32rem]:text-[8px] @min-[32rem]:tracking-[0.02em]">Operational printers</p>
+          <p className="mt-0.5 max-w-full text-[clamp(0.625rem,1.75cqi,0.75rem)] font-bold uppercase leading-[1.05] tracking-[0.015em] text-slate-500">Operational printers</p>
         </div>
       </div>
       <div className="grid min-w-0 grid-cols-3 divide-x divide-slate-200 overflow-hidden rounded-lg border border-slate-200 bg-slate-50/70">
@@ -128,13 +128,13 @@ export default function FleetHealthVisual({
               onMouseLeave={() => setHighlighted(null)}
               onFocus={() => setHighlighted(item.key)}
               onBlur={() => setHighlighted(null)}
-              className={`flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-center transition-colors duration-150 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#014171] @min-[32rem]:px-2 ${isActive ? item.active : "hover:bg-white/80"}`}
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-center transition-colors duration-150 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#014171] @min-[32rem]:px-1.5 ${isActive ? item.active : "hover:bg-white/80"}`}
             >
-              <span className="flex flex-col items-center gap-0.5 @min-[32rem]:flex-row @min-[32rem]:gap-2">
-                <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ${item.surface} ${item.color}`}><IconGlyph icon={item.icon} size={13} /></span>
-                <span className={`text-lg font-bold tabular-nums ${item.color}`}><AnimatedNumber value={item.value} /></span>
+              <span className="flex flex-col items-center gap-0.5 @min-[32rem]:flex-row @min-[32rem]:gap-[clamp(0.25rem,1cqi,0.5rem)]">
+                <span className={`flex size-[clamp(1.5rem,4.5cqi,1.75rem)] shrink-0 items-center justify-center rounded-md ${item.surface} ${item.color}`}><IconGlyph icon={item.icon} size={13} /></span>
+                <span className={`text-[clamp(1rem,3cqi,1.125rem)] font-bold tabular-nums ${item.color}`}><AnimatedNumber value={item.value} /></span>
               </span>
-              <span className="whitespace-nowrap text-[7px] font-bold uppercase tracking-normal text-slate-500 @min-[32rem]:text-[8px] @min-[32rem]:tracking-[0.03em]">{item.label}</span>
+              <span className="max-w-full text-[clamp(0.6rem,1.65cqi,0.75rem)] font-bold uppercase leading-[1.05] tracking-[0.015em] text-slate-500">{item.label}</span>
             </button>
           );
         })}

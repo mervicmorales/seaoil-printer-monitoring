@@ -526,6 +526,151 @@ export const printerConsumableReadings = pgTable(
   ],
 );
 
+// Small, durable snapshots used independently from the expiring raw history.
+export const printerCurrentStatus = pgTable(
+  "printer_current_status",
+  {
+    printerId: integer("printer_id")
+      .primaryKey()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    agentId: integer("agent_id")
+      .notNull()
+      .references(() => monitoringAgents.id),
+    monitoringReadingId: integer("monitoring_reading_id").references(
+      () => printerMonitoringReadings.id,
+      { onDelete: "set null" },
+    ),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+    online: boolean("online").notNull(),
+    printerStatus: text("printer_status"),
+    responseTimeMs: integer("response_time_ms"),
+    pageCount: bigint("page_count", { mode: "number" }),
+    uptimeSeconds: bigint("uptime_seconds", { mode: "number" }),
+    errorStatus: text("error_status"),
+    errorMessage: text("error_message"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("printer_current_status_checked_idx").on(t.checkedAt)],
+);
+
+export const printerCurrentConsumables = pgTable(
+  "printer_current_consumables",
+  {
+    id: serial("id").primaryKey(),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    levelPercent: integer("level_percent"),
+    status: text("status"),
+    isUnknown: boolean("is_unknown").notNull().default(false),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("printer_current_consumables_printer_name_type_unique").on(
+      t.printerId,
+      t.name,
+      t.type,
+    ),
+    index("printer_current_consumables_printer_idx").on(t.printerId),
+  ],
+);
+
+export const printerMonitoringHourly = pgTable(
+  "printer_monitoring_hourly",
+  {
+    id: serial("id").primaryKey(),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    bucketStart: timestamp("bucket_start", { withTimezone: true }).notNull(),
+    sampleCount: integer("sample_count").notNull(),
+    onlineCount: integer("online_count").notNull(),
+    offlineCount: integer("offline_count").notNull(),
+    errorCount: integer("error_count").notNull(),
+    averageResponseTimeMs: integer("average_response_time_ms"),
+    minimumPageCount: bigint("minimum_page_count", { mode: "number" }),
+    maximumPageCount: bigint("maximum_page_count", { mode: "number" }),
+    lastPageCount: bigint("last_page_count", { mode: "number" }),
+    maximumUptimeSeconds: bigint("maximum_uptime_seconds", { mode: "number" }),
+    lastPrinterStatus: text("last_printer_status"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("printer_monitoring_hourly_printer_bucket_unique").on(
+      t.printerId,
+      t.bucketStart,
+    ),
+    index("printer_monitoring_hourly_bucket_idx").on(t.bucketStart),
+  ],
+);
+
+export const printerConsumableDaily = pgTable(
+  "printer_consumable_daily",
+  {
+    id: serial("id").primaryKey(),
+    printerId: integer("printer_id")
+      .notNull()
+      .references(() => printers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    bucketDate: date("bucket_date").notNull(),
+    sampleCount: integer("sample_count").notNull(),
+    minimumLevelPercent: integer("minimum_level_percent"),
+    maximumLevelPercent: integer("maximum_level_percent"),
+    averageLevelPercent: integer("average_level_percent"),
+    lastLevelPercent: integer("last_level_percent"),
+    warningCount: integer("warning_count").notNull(),
+    unknownCount: integer("unknown_count").notNull(),
+    lastStatus: text("last_status"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("printer_consumable_daily_printer_name_type_date_unique").on(
+      t.printerId,
+      t.name,
+      t.type,
+      t.bucketDate,
+    ),
+    index("printer_consumable_daily_date_idx").on(t.bucketDate),
+  ],
+);
+
+export const monitoringRetentionRuns = pgTable(
+  "monitoring_retention_runs",
+  {
+    id: serial("id").primaryKey(),
+    status: text("status").notNull(),
+    dryRun: boolean("dry_run").notNull().default(false),
+    rawRetentionDays: integer("raw_retention_days").notNull(),
+    summaryRetentionDays: integer("summary_retention_days").notNull(),
+    resolvedAlertRetentionDays: integer("resolved_alert_retention_days").notNull(),
+    result: jsonb("result").$type<Record<string, unknown>>().notNull().default({}),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [index("monitoring_retention_runs_started_idx").on(t.startedAt)],
+);
+
 export const printerAlerts = pgTable(
   "printer_alerts",
   {

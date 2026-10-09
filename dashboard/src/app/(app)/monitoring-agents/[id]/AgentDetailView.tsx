@@ -121,7 +121,7 @@ function DetailSection({ icon, title, description, children, compact = false }: 
     <Card className={`flex min-h-0 flex-col overflow-hidden ${compact ? "h-full" : ""}`}>
       <div className={`flex shrink-0 items-start border-b border-slate-200 bg-slate-50/60 ${compact ? "gap-2.5 px-3 py-2.5" : "gap-3 px-5 py-4"}`}>
         <span className={`flex shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#014171] ${compact ? "size-8" : "size-10"}`}><IconGlyph icon={icon} size={compact ? 15 : 18} /></span>
-        <div className="min-w-0"><h2 className={`${compact ? "text-sm" : ""} truncate font-bold text-[#014171]`}>{title}</h2><p className={`${compact ? "line-clamp-1 text-[10px] leading-4" : "mt-0.5 text-xs leading-5"} text-slate-500`}>{description}</p></div>
+        <div className="min-w-0"><h2 className={`${compact ? "text-sm" : ""} truncate font-bold text-[#014171]`}>{title}</h2><p className={`${compact ? "line-clamp-2 text-xs leading-4" : "mt-0.5 text-xs leading-5"} text-slate-500`}>{description}</p></div>
       </div>
       <dl className={`grid min-h-0 flex-1 content-start ${compact ? "grid-cols-2 gap-x-3 gap-y-2 overflow-hidden p-3 [&_dt]:text-[9px] [&_dd]:mt-0.5 [&_dd]:line-clamp-2 [&_dd]:text-xs" : "gap-4 p-5 sm:grid-cols-2"}`}>{children}</dl>
     </Card>

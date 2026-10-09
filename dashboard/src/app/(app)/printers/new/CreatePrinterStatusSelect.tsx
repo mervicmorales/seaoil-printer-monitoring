@@ -26,7 +26,7 @@ export default function CreatePrinterStatusSelect({
 
   if (compact) {
     return (
-      <div className={`flex h-8 shrink-0 items-center rounded-lg border shadow-sm transition focus-within:ring-2 ${statusColor}`}>
+      <div className={`flex h-10 w-full items-center rounded-lg border shadow-sm transition focus-within:ring-2 sm:h-8 sm:w-auto sm:shrink-0 ${statusColor}`}>
         <span className="flex h-full items-center border-r border-current/15 px-2 text-[9px] font-bold uppercase tracking-[0.09em] opacity-75">
           Asset status
         </span>
@@ -38,7 +38,7 @@ export default function CreatePrinterStatusSelect({
           required
           placeholder="Search statuses..."
           options={PRINTER_STATUSES.map((item) => ({ value: item, label: item }))}
-          className="min-w-32"
+          className="min-w-0 flex-1 sm:min-w-32"
           inputClassName="!h-[1.875rem] !rounded-l-none !rounded-r-lg !border-0 !bg-transparent !px-2.5 !pr-8 !text-xs !font-bold !shadow-none !ring-0"
         />
       </div>

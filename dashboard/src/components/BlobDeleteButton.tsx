@@ -44,6 +44,7 @@ export default function BlobDeleteButton({
   title = "Delete item?",
   confirmText = "This item will be permanently deleted. This action cannot be undone.",
   label = "Delete",
+  iconOnly = false,
   confirmLabel = "Delete",
   requireReason = false,
   reasonLabel = "Reason for deletion",
@@ -55,6 +56,7 @@ export default function BlobDeleteButton({
   title?: string;
   confirmText?: string;
   label?: string;
+  iconOnly?: boolean;
   confirmLabel?: string;
   requireReason?: boolean;
   reasonLabel?: string;
@@ -131,10 +133,12 @@ export default function BlobDeleteButton({
         ref={triggerRef}
         type="button"
         onClick={openDialog}
+        aria-label={iconOnly ? label : undefined}
+        title={iconOnly ? label : undefined}
         className={`inline-flex items-center justify-center gap-1.5 ${className}`}
       >
         <MorphIcon icon={Trash2} size={13} strokeWidth={2} reducedMotion="user" />
-        {label}
+        <span className={iconOnly ? "sr-only" : ""}>{label}</span>
       </button>
 
       {open && createPortal(

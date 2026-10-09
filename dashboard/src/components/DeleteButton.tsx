@@ -8,6 +8,7 @@ export default function DeleteButton({
   confirmText = "Are you sure you want to delete this item?",
   title = "Delete item?",
   label = "Delete",
+  iconOnly = false,
   confirmLabel = "Delete",
   requireReason = false,
   reasonLabel = "Reason for deletion",
@@ -19,6 +20,7 @@ export default function DeleteButton({
   confirmText?: string;
   title?: string;
   label?: string;
+  iconOnly?: boolean;
   confirmLabel?: string;
   requireReason?: boolean;
   reasonLabel?: string;
@@ -32,6 +34,7 @@ export default function DeleteButton({
       title={title}
       confirmText={confirmText}
       label={label}
+      iconOnly={iconOnly}
       confirmLabel={confirmLabel}
       requireReason={requireReason}
       reasonLabel={reasonLabel}

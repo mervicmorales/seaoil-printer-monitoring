@@ -60,10 +60,10 @@ export default function InventoryMovementPanel({
           <span className="shrink-0 text-[#014171]"><IconGlyph icon={BarChart3} size={16} /></span>
           <div className="min-w-0">
             <h2 id="inventory-movement-heading" className="truncate text-sm font-bold text-slate-800">Stock Movement</h2>
-            <p className="truncate text-[10px] text-slate-500">How deliveries and requests changed total stock</p>
+            <p className="truncate text-xs text-slate-500">How deliveries and requests changed total stock</p>
           </div>
         </div>
-        <Link href="/toner-monitoring" className="absolute right-4 top-2.5 inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={10} /></Link>
+        <Link href="/toner-monitoring" className="absolute right-4 top-2.5 inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={10} /></Link>
         <div className="col-start-1 row-start-2 shrink-0 self-end justify-self-end @min-[28rem]:col-start-2">
           <PeriodTabs value={period} onChange={setPeriod} />
         </div>
@@ -94,7 +94,7 @@ function PeriodTabs({ value, onChange }: { value: OverviewTonerPeriod; onChange:
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className={`rounded-full px-2.5 py-1 text-[9px] font-bold transition ${value === option.value ? "bg-[#014171] text-white shadow-sm" : "text-slate-500 hover:bg-white hover:text-[#014171]"}`}
+          className={`rounded-full px-2.5 py-1 text-xs font-bold transition ${value === option.value ? "bg-[#014171] text-white shadow-sm" : "text-slate-500 hover:bg-white hover:text-[#014171]"}`}
         >
           {option.label}
         </button>
@@ -106,7 +106,7 @@ function PeriodTabs({ value, onChange }: { value: OverviewTonerPeriod; onChange:
 function MovementMetric({ label, value, prefix = "", color }: { label: string; value: number; prefix?: string; color: string }) {
   return (
     <div className="px-4 py-2">
-      <p className="text-[8px] font-bold uppercase tracking-[0.06em] text-slate-500">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-[0.06em] text-slate-500">{label}</p>
       <p className={`mt-0.5 text-lg font-bold tabular-nums ${color}`}><AnimatedNumber value={value} prefix={prefix} /></p>
     </div>
   );
