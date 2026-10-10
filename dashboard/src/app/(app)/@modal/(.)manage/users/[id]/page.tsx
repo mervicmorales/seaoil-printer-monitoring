@@ -38,9 +38,9 @@ export default async function ViewUserModal({
       closeHref="/manage"
       variant="right-panel"
       hideScrollbar
-      panelClassName="max-w-[52rem] !bg-white sm:m-3 sm:!h-[calc(100dvh-1.5rem)] sm:rounded-3xl sm:border sm:border-slate-200"
-      contentClassName="flex-1 !overflow-x-hidden !overflow-y-auto !bg-white !p-4 sm:!p-5"
-      closeButtonClassName="!rounded-full !border-transparent !bg-slate-100 !shadow-none hover:!bg-slate-200"
+      panelClassName="max-w-[52rem] !bg-app-surface sm:m-3 sm:!h-[calc(100dvh-1.5rem)] sm:rounded-3xl sm:border sm:border-app-border"
+      contentClassName="flex-1 !overflow-x-hidden !overflow-y-auto !bg-app-surface !p-4 sm:!p-5"
+      closeButtonClassName="!rounded-full !border-transparent !bg-app-surface-subtle !shadow-none hover:!bg-app-surface-raised"
       headerActions={
         <>
           {hasAdminPrivileges(session.role) && canManageUser && canAssignTemporaryPassword && (

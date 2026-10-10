@@ -96,19 +96,19 @@ export default function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`flex w-full flex-col overflow-hidden bg-[#f4f7fa] shadow-[0_28px_80px_rgba(15,23,42,0.32)] ${
+        className={`flex w-full flex-col overflow-hidden bg-app-canvas text-app-ink shadow-[0_28px_80px_rgba(15,23,42,0.32)] ${
           isRightPanel
             ? `h-dvh border-l border-white/20 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isVisible ? "translate-x-0" : "translate-x-full"}`
-            : "max-h-[calc(100dvh-1.5rem)] rounded-2xl border border-slate-200 sm:max-h-[calc(100dvh-3rem)]"
+            : "max-h-[calc(100dvh-1.5rem)] rounded-2xl border border-app-border sm:max-h-[calc(100dvh-3rem)]"
         } ${panelClassName ?? (isRightPanel ? "max-w-[56rem]" : "max-w-6xl")}`}
       >
-        <div className={`grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 border-b border-slate-200 bg-white px-4 py-2 sm:flex sm:flex-nowrap sm:gap-3 sm:px-6 ${isRightPanel ? "sm:min-h-[55px]" : "sm:py-3"}`}>
+        <div className={`grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 border-b border-app-border bg-app-surface px-4 py-2 sm:flex sm:flex-nowrap sm:gap-3 sm:px-6 ${isRightPanel ? "sm:min-h-[55px]" : "sm:py-3"}`}>
           {pageHeaderInModal ? (
             <div id="modal-page-header-slot" className="min-w-0 flex-1" />
           ) : (
             <div className={showTitle ? "min-w-0 pr-2 sm:pr-3" : "sr-only"}>
-              <h2 className="text-base font-bold leading-5 tracking-[-0.015em] text-[#014171] sm:truncate">{title}</h2>
-              {subtitle && <p className="mt-0.5 truncate text-xs font-medium text-slate-500">{subtitle}</p>}
+              <h2 className="text-base font-bold leading-5 tracking-[-0.015em] text-app-primary sm:truncate">{title}</h2>
+              {subtitle && <p className="mt-0.5 truncate text-xs font-medium text-app-muted">{subtitle}</p>}
             </div>
           )}
           {headerActions && (
@@ -120,7 +120,7 @@ export default function ModalShell({
             type="button"
             onClick={close}
             aria-label={`Close ${title.toLowerCase()}`}
-            className={`col-start-2 row-start-1 flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] sm:order-last ${closeButtonClassName}`}
+            className={`col-start-2 row-start-1 flex size-9 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-muted shadow-sm transition hover:border-app-border-strong hover:bg-app-surface-raised hover:text-app-ink focus:outline-none focus:ring-2 focus:ring-app-focus sm:order-last ${closeButtonClassName}`}
           >
             <MorphIcon icon={X} size={17} strokeWidth={2} reducedMotion="user" />
           </button>

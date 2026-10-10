@@ -1,4 +1,4 @@
-import { BarChart3, LockKeyhole, Printer, ShieldCheck, type IconNode } from "lucide";
+import { BarChart3, CircleCheckBig, LockKeyhole, PackageX, ShieldCheck, type IconNode } from "lucide";
 import { IconGlyph } from "@/components/ui";
 import { AUTH_LOGO_URL } from "@/lib/branding";
 import LoginForm from "./LoginForm";
@@ -58,16 +58,16 @@ export default async function LoginPage({
             Secured
           </span>
           <h1 className="mt-6 text-4xl font-bold leading-[1.12] tracking-[-0.035em] xl:text-5xl">
-            Print &amp; Scan Anywhere.
+            Secure Printing. Zero Setup.
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-6 text-[#e3edf7] xl:text-[15px]">
-            Use one secure workspace to print, scan, and access available devices across SEAOIL offices.
+            Access approved office printers from one secure workspace—no driver installation, no complicated setup, and every print job tracked.
           </p>
 
           <div className="mt-9 grid max-w-lg gap-3 sm:grid-cols-3">
-            <FeatureItem icon={Printer} label="Print & scan anywhere" />
+            <FeatureItem icon={PackageX} label="No driver installation" />
+            <FeatureItem icon={CircleCheckBig} label="Easy printer access" />
             <FeatureItem icon={BarChart3} label="Track print jobs" />
-            <FeatureItem icon={LockKeyhole} label="Secure access" />
           </div>
         </div>
 
@@ -107,7 +107,7 @@ export default async function LoginPage({
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#507aa2]">Account sign in</p>
               <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-[#014171] sm:text-3xl">Welcome back</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Sign in with your SEAOIL employee account to print and scan from available devices wherever you work.
+                Sign in with your SEAOIL employee account to access approved office printers and securely manage your print jobs.
               </p>
             </div>
 

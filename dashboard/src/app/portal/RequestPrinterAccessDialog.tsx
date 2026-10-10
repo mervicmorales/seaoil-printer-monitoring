@@ -47,14 +47,14 @@ export default function RequestPrinterAccessDialog({
           printer.floor,
           printer.departmentName,
           printer.subunitName,
-          printer.ipAddress,
+          employee.role === "support" ? printer.ipAddress : null,
         ].some((value) => value?.toLowerCase().includes(normalized)))
       : scope.printers;
 
     return [...matchingPrinters].sort(
       (left, right) => Number(right.alreadyAccessible) - Number(left.alreadyAccessible),
     );
-  }, [query, scope.printers]);
+  }, [employee.role, query, scope.printers]);
 
   useEffect(() => {
     if (!open) return;
@@ -230,7 +230,9 @@ export default function RequestPrinterAccessDialog({
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search by serial number, model, floor, department, or IP address"
+                    placeholder={employee.role === "support"
+                      ? "Search by serial number, model, floor, department, or IP address"
+                      : "Search by serial number, model, floor, or department"}
                     className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 text-sm text-slate-700 shadow-sm outline-none transition focus:border-[#014171] focus:ring-2 focus:ring-[#014171]/15"
                   />
                 </label>
@@ -247,7 +249,9 @@ export default function RequestPrinterAccessDialog({
                   <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-500">
                     {scope.printers.length === 0
                       ? "Connect to the office network and make sure the monitoring agent is online, then reopen this window."
-                      : "Try another serial number, model, floor, department, or IP address."}
+                      : employee.role === "support"
+                        ? "Try another serial number, model, floor, department, or IP address."
+                        : "Try another serial number, model, floor, or department."}
                   </p>
                 </div>
               ) : (
@@ -269,7 +273,7 @@ export default function RequestPrinterAccessDialog({
                               ? <Badge color="yellow">Pending</Badge>
                               : <Badge color="blue">Requestable</Badge>}
                         </div>
-                        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-xs">
+                        <dl className={`mt-4 grid gap-3 border-t border-slate-100 pt-4 text-xs ${employee.role === "support" ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-3"}`}>
                           <RequestDetail
                             icon={MapPin}
                             label="Office"
@@ -277,7 +281,7 @@ export default function RequestPrinterAccessDialog({
                           />
                           <RequestDetail icon={Printer} label="Department" value={printer.departmentName} />
                           <RequestDetail icon={Building2} label="Sub-unit" value={printer.subunitName} />
-                          <RequestDetail icon={Wifi} label="IP Address" value={printer.ipAddress} mono />
+                          {employee.role === "support" && <RequestDetail icon={Wifi} label="IP Address" value={printer.ipAddress} mono />}
                         </dl>
                         <button
                           type="button"

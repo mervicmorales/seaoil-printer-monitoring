@@ -43,6 +43,7 @@ export type EmployeePrinterRequestScope = {
 export async function getEmployeePrinterRequestScope(
   userId: number,
   requestHeaders: Headers,
+  includeNetworkDetails = false,
 ): Promise<EmployeePrinterRequestScope> {
   const staleSeconds = await getMonitoringStaleSeconds();
   const cutoff = new Date(Date.now() - staleSeconds * 1_000);
@@ -119,7 +120,7 @@ export async function getEmployeePrinterRequestScope(
       agentName: row.agent_name,
       serialNumber: row.serial_number,
       model: row.model,
-      ipAddress: row.ip_address,
+      ipAddress: includeNetworkDetails ? row.ip_address : null,
       floor: row.floor,
       locationName: row.location_name,
       departmentName: row.department_name,

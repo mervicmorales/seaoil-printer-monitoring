@@ -106,8 +106,8 @@ function DataTable({ headings, empty, children }: { headings: string[]; empty: b
   return <div className="flex h-full min-h-0 flex-col">
     <p className="mb-2 flex shrink-0 items-center gap-2 text-xs font-medium text-slate-500 lg:hidden"><span aria-hidden="true">↔</span> Swipe horizontally to view all columns. The first column stays visible.</p>
     <div className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-slate-200 bg-white shadow-[inset_-14px_0_18px_-18px_rgba(15,23,42,0.45)]">
-      <table className="min-w-full text-left text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:z-[1] [&_tbody_td:first-child]:bg-white [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-slate-50">
-        <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-[0.08em] text-slate-500"><tr>{headings.map((heading, index) => <th key={heading} className={`whitespace-nowrap px-4 py-3 ${index === headings.length - 1 ? "w-40 text-right" : ""}`}>{heading}</th>)}</tr></thead>
+      <table className="min-w-full text-left text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:z-[1] [&_tbody_td:first-child]:bg-app-surface [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-app-surface-subtle">
+        <thead className="sticky top-0 z-10 border-b border-app-border bg-app-surface-subtle text-[11px] uppercase tracking-[0.08em] text-app-muted"><tr>{headings.map((heading, index) => <th key={heading} className={`whitespace-nowrap px-4 py-3 ${index === headings.length - 1 ? "w-40 text-right" : ""}`}>{heading}</th>)}</tr></thead>
         <tbody className="divide-y divide-slate-100">{children}{empty && <tr><td colSpan={headings.length} className="px-4 py-12 text-center text-sm text-slate-400">No matching records.</td></tr>}</tbody>
       </table>
     </div>

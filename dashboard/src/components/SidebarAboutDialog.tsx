@@ -108,9 +108,9 @@ export default function SidebarAboutDialog({
         aria-modal="true"
         aria-labelledby="sidebar-about-title"
         aria-describedby="sidebar-about-description"
-        className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)]"
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-[0_28px_80px_rgba(15,23,42,0.28)]"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/75 px-5 py-4 sm:px-6">
+        <div className="flex items-start justify-between gap-4 border-b border-app-border bg-app-surface-raised px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden">
               <Image
@@ -137,7 +137,7 @@ export default function SidebarAboutDialog({
             type="button"
             onClick={closeDialog}
             aria-label="Close About"
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7DA8D0]"
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-app-border bg-app-surface text-app-muted shadow-sm transition hover:border-app-border-strong hover:bg-app-surface-raised hover:text-app-ink focus:outline-none focus:ring-2 focus:ring-app-focus"
           >
             <MorphIcon icon={X} size={17} strokeWidth={2} reducedMotion="user" />
           </button>
@@ -150,7 +150,7 @@ export default function SidebarAboutDialog({
 
           <div className="mt-5 space-y-2.5">
             {content.features.map((feature) => (
-              <div key={feature.label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3">
+              <div key={feature.label} className="flex items-center gap-3 rounded-xl border border-app-border bg-app-surface-subtle px-3.5 py-3">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-[#014171]">
                   <MorphIcon icon={feature.icon} size={15} strokeWidth={2} reducedMotion="user" />
                 </span>

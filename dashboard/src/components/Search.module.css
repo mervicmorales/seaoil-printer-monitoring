@@ -5,10 +5,10 @@
   max-width: min(280px, calc(100vw - 2rem));
   height: 40px;
   overflow: hidden;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--app-border-strong);
   border-radius: 999px;
-  background: white;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 7%);
+  background: var(--app-surface);
+  box-shadow: 0 1px 2px rgb(var(--app-shadow) / 7%);
   cursor: text;
   transition:
     width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
@@ -21,8 +21,8 @@
 .search:focus-within,
 .search:has(.field:not(:placeholder-shown)) {
   width: 280px;
-  border-color: var(--seaoil-blue);
-  box-shadow: 0 0 0 3px rgb(1 65 113 / 10%);
+  border-color: var(--app-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-focus) 18%, transparent);
 }
 
 .lens {
@@ -34,7 +34,7 @@
   height: 18px;
   translate: 0 -50%;
   fill: none;
-  stroke: #64748b;
+  stroke: var(--app-muted);
   stroke-width: 1.7;
   stroke-linecap: round;
   pointer-events: none;
@@ -43,7 +43,7 @@
 
 .search:hover .lens,
 .search:focus-within .lens {
-  stroke: #014171;
+  stroke: var(--app-primary);
 }
 
 .field {
@@ -53,7 +53,7 @@
   border: 0;
   background: transparent;
   padding: 0 14px 0 48px;
-  color: #10243a;
+  color: var(--app-ink);
   font: inherit;
   font-size: 13px;
   outline: none;
@@ -68,7 +68,7 @@
 }
 
 .field::placeholder {
-  color: #94a3b8;
+  color: var(--app-muted);
 }
 
 .field::-webkit-search-cancel-button {

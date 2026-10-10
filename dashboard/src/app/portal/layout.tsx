@@ -33,7 +33,7 @@ export default async function EmployeePortalLayout({ children }: { children: Rea
       accountId={String(session.id)}
       initialSkin={isBlobSkin(blobSkinCookie) ? blobSkinCookie : "violet"}
     >
-      <div className="flex min-h-screen bg-[#f4f6f9]">
+      <div className="flex min-h-screen bg-app-canvas">
         <Sidebar
           logoUrl={AUTH_LOGO_URL}
           accountName={accountName || "SEAOIL Employee"}

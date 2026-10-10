@@ -25,6 +25,7 @@ export default function EmployeePrinterCard({
   monitoring,
   alerts,
   consumables,
+  showNetworkDetails = false,
 }: {
   printer: {
     serialNumber: string;
@@ -40,6 +41,7 @@ export default function EmployeePrinterCard({
   monitoring: { label: string; color: BadgeColor };
   alerts: PrinterAlert[];
   consumables: CompactConsumable[];
+  showNetworkDetails?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"details" | "consumables">("details");
 
@@ -86,8 +88,8 @@ export default function EmployeePrinterCard({
               <PrinterDetail label="Location" value={printer.floor} />
               <PrinterDetail label="Department" value={printer.departmentName} />
               <PrinterDetail label="Sub-unit" value={printer.subunitName} />
-              <PrinterDetail label="IP Address" value={printer.ipAddress} mono />
-              <PrinterDetail label="MAC Address" value={printer.macAddress} mono />
+              {showNetworkDetails && <PrinterDetail label="IP Address" value={printer.ipAddress} mono />}
+              {showNetworkDetails && <PrinterDetail label="MAC Address" value={printer.macAddress} mono />}
               <div>
                 <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Asset Status</dt>
                 <dd className="mt-1.5"><Badge color={statusBadgeColor(printer.status)}>{printer.status}</Badge></dd>

@@ -68,15 +68,16 @@ export async function AvailablePrintersPageContent({
 
   if (!employee) redirect("/login");
 
-  const requestScope = await getEmployeePrinterRequestScope(session.id, await headers());
+  const showNetworkDetails = accountRole === "support";
+  const requestScope = await getEmployeePrinterRequestScope(session.id, await headers(), showNetworkDetails);
 
   const availablePrinters = employee.primaryLocationId
     ? await db.select({
         id: printers.id,
         serialNumber: printers.serialNumber,
         model: printers.model,
-        ipAddress: printers.ipAddress,
-        macAddress: printers.macAddress,
+        ipAddress: showNetworkDetails ? printers.ipAddress : sql<string | null>`null`,
+        macAddress: showNetworkDetails ? printers.macAddress : sql<string | null>`null`,
         status: printers.status,
         floor: printers.floor,
         locationName: locations.name,
@@ -222,6 +223,7 @@ export async function AvailablePrintersPageContent({
             return <EmployeePrinterCard
               key={printer.id}
               printer={printer}
+              showNetworkDetails={showNetworkDetails}
               monitoring={monitoring}
               alerts={alerts}
               consumables={consumablesByPrinter.get(printer.id) ?? []}

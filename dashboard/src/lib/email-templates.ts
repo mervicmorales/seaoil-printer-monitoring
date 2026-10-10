@@ -407,7 +407,7 @@ export function buildPrinterAccessRequestCompose({
     `Model: ${printerModel || "Not provided"}`,
     `Office: ${location || "Not provided"}`,
     `Department: ${department || "Not provided"}`,
-    `IP Address: ${ipAddress || "Not provided"}`,
+    ...(ipAddress ? [`IP Address: ${ipAddress}`] : []),
     `Monitoring Agent: ${agentName}`,
     "",
     "REQUEST INFORMATION",

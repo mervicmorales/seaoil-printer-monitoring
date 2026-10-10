@@ -21,8 +21,8 @@ export default function Tabs({
       <div
         role="tablist"
         className={`${variant === "segmented"
-          ? "mb-4 grid grid-flow-col auto-cols-fr gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1"
-          : "mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200"
+          ? "mb-4 grid grid-flow-col auto-cols-fr gap-1 overflow-x-auto rounded-xl bg-app-surface-subtle p-1"
+          : "mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-app-border"
         } ${fillHeight ? "shrink-0" : ""}`}
       >
         {tabs.map((t) => (
@@ -34,11 +34,11 @@ export default function Tabs({
             onClick={() => setActive(t.key)}
             className={`inline-flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition ${variant === "segmented"
               ? `rounded-lg ${active === t.key
-                ? "bg-white text-[#014171] shadow-sm"
-                : "text-slate-500 hover:bg-white/60 hover:text-slate-700"}`
+                ? "bg-app-surface-raised text-app-primary shadow-sm"
+                : "text-app-muted hover:bg-app-surface-raised hover:text-app-ink-soft"}`
               : `-mb-px rounded-t-xl border-b-2 ${active === t.key
-                ? "border-[#014171] bg-sky-50/60 text-[#014171]"
-                : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`
+                ? "border-app-primary bg-app-surface-raised text-app-primary"
+                : "border-transparent text-app-muted hover:bg-app-surface-subtle hover:text-app-ink-soft"}`
             }`}
           >
             {t.icon && <IconGlyph icon={t.icon} size={16} />}

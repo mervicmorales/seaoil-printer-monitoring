@@ -28,6 +28,8 @@ import {
   LogOut,
   Mail,
   Menu,
+  Monitor,
+  Moon,
   Radar,
   ReceiptText,
   ServerCog,
@@ -45,6 +47,7 @@ import {
 } from "lucide";
 import AuthBlob from "@/components/AuthBlob";
 import { useBlobSkin } from "@/components/BlobSkinProvider";
+import { useTheme } from "@/components/ThemeProvider";
 import {
   BLOB_SKINS,
 } from "@/lib/blob-skins";
@@ -186,6 +189,7 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const { blobSkin, setBlobSkin } = useBlobSkin();
+  const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(initialCollapsed ?? false);
   const [printersOpen, setPrintersOpen] = useState(
@@ -231,12 +235,6 @@ export default function Sidebar({
   const brandName = brandSubtitle ? `${brandTitle} ${brandSubtitle}` : brandTitle;
 
   useLayoutEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove("dark");
-    root.removeAttribute("data-theme");
-    root.style.removeProperty("color-scheme");
-    window.localStorage.removeItem("seaoil-theme");
-
     if (initialCollapsed === null) {
       let active = true;
       window.queueMicrotask(() => {
@@ -256,7 +254,7 @@ export default function Sidebar({
     if (!rect) return;
     const menuWidth = 256;
     const left = Math.max(12, Math.min(rect.right + 8, window.innerWidth - menuWidth - 12));
-    const top = Math.max(12, Math.min(rect.top, window.innerHeight - 336));
+    const top = Math.max(12, Math.min(rect.top, window.innerHeight - 382));
     setAccountPosition({ top, left });
   }, []);
 
@@ -676,16 +674,37 @@ export default function Sidebar({
               <StaticIcon icon={ShieldCheck} size={18} />
               Security settings
             </Link>
-            <button
-              type="button"
-              role="menuitem"
-              disabled
-              aria-label="Light Mode"
-              className="mt-1 flex h-10 w-full cursor-not-allowed items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-slate-400"
-            >
-              <StaticIcon icon={Sun} size={18} />
-              <span>Light Mode</span>
-            </button>
+            <div className="mt-1 border-y border-slate-100 px-2 py-2.5" role="group" aria-label="Appearance">
+              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Appearance
+              </p>
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
+                {([
+                  ["light", "Light", Sun],
+                  ["dark", "Dark", Moon],
+                  ["system", "System", Monitor],
+                ] as const).map(([value, label, icon]) => {
+                  const selected = theme === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={selected}
+                      onClick={() => setTheme(value)}
+                      className={`flex min-w-0 flex-col items-center gap-1 rounded-md px-1 py-1.5 text-[10px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#7DA8D0] ${
+                        selected
+                          ? "bg-white text-[#014171] shadow-sm"
+                          : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                      }`}
+                    >
+                      <StaticIcon icon={icon} size={16} />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <button
               ref={signOutButtonRef}
               type="button"

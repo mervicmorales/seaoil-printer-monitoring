@@ -151,7 +151,7 @@ export default function PrintFilePreview({
                     <iframe
                       src={`${previewUrl}#toolbar=0&navpanes=0`}
                       title={`Preview of ${file.name}`}
-                      className={`h-full min-h-0 rounded-lg border-0 bg-white shadow-xl ring-1 ring-slate-900/10 ${orientation === "landscape" ? "w-full max-w-5xl" : "w-full max-w-3xl"}`}
+                      className={`paper-surface h-full min-h-0 rounded-lg border-0 shadow-xl ring-1 ring-slate-900/10 ${orientation === "landscape" ? "w-full max-w-5xl" : "w-full max-w-3xl"}`}
                     />
                   )}
                   {previewKind === "image" && previewUrl && (
@@ -161,11 +161,11 @@ export default function PrintFilePreview({
                       alt={`Preview of ${file.name}`}
                       loading="lazy"
                       decoding="async"
-                      className={`rounded-lg bg-white object-contain shadow-xl ring-1 ring-slate-900/10 ${orientation === "landscape" ? "aspect-[1.414/1] w-full max-w-5xl" : "aspect-[1/1.414] w-full max-w-3xl"}`}
+                      className={`paper-surface rounded-lg object-contain shadow-xl ring-1 ring-slate-900/10 ${orientation === "landscape" ? "aspect-[1.414/1] w-full max-w-5xl" : "aspect-[1/1.414] w-full max-w-3xl"}`}
                     />
                   )}
                   {previewKind === "text" && (
-                    <pre className={`min-h-[55rem] whitespace-pre-wrap rounded-lg bg-white p-10 text-sm text-slate-800 shadow-xl ring-1 ring-slate-900/10 ${orientation === "landscape" ? "w-full max-w-5xl" : "w-full max-w-3xl"}`}>
+                    <pre className={`paper-surface min-h-[55rem] whitespace-pre-wrap rounded-lg p-10 text-sm shadow-xl ring-1 ring-slate-900/10 ${orientation === "landscape" ? "w-full max-w-5xl" : "w-full max-w-3xl"}`}>
                       {textPreview || "Loading preview…"}
                     </pre>
                   )}

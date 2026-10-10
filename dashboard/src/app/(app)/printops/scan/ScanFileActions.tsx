@@ -154,9 +154,9 @@ function ScanPreviewDialog({
         <div className="min-h-0 flex-1 bg-slate-200 p-2 sm:p-5">
           {isImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt={`Preview of ${scan.name}`} loading="lazy" decoding="async" className="mx-auto h-full max-w-full rounded-lg bg-white object-contain shadow-lg" />
+            <img src={previewUrl} alt={`Preview of ${scan.name}`} loading="lazy" decoding="async" className="paper-surface mx-auto h-full max-w-full rounded-lg object-contain shadow-lg" />
           ) : (
-            <iframe src={`${previewUrl}#toolbar=1&navpanes=0`} title={`Preview of ${scan.name}`} className="h-full w-full rounded-lg border-0 bg-white shadow-lg" />
+            <iframe src={`${previewUrl}#toolbar=1&navpanes=0`} title={`Preview of ${scan.name}`} className="paper-surface h-full w-full rounded-lg border-0 shadow-lg" />
           )}
         </div>
 
