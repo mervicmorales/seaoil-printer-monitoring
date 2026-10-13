@@ -76,7 +76,7 @@ export default function AgentDetailView({
       {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}. Existing information remains visible.</div>}
 
       <div className={`grid shrink-0 grid-cols-2 lg:grid-cols-4 ${embedded ? "mb-3 gap-2" : "mb-5 gap-3"}`}>
-        <StatCard label="Connectivity" value={<ConnectivityBadge status={agent.connectivity} />} accent={agent.connectivity === "online" ? "#059669" : "#dc2626"} icon={Network} compact />
+        <StatCard label="Connectivity" value={<ConnectivityBadge agent={agent} />} accent={!agent.lastSeen ? "#d97706" : agent.connectivity === "online" ? "#059669" : "#dc2626"} icon={Network} compact />
         <StatCard label="Installed version" value={<span className="font-mono text-xl">{agent.installedVersion || "Unknown"}</span>} icon={Server} compact />
         <StatCard label="Update status" value={<UpdateBadge status={agent.updateStatus} />} accent={agent.updateStatus === "update-available" ? "#d97706" : "#059669"} icon={PackageCheck} compact />
         <StatCard label="Assigned printers" value={agent.assignedPrinterCount} icon={Printer} compact />

@@ -228,7 +228,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           storageKey={`seaoil-overview-dashboard-v1-user-${session.id}`}
           widgets={[
           { id: "accounts", title: "Account Status", content: (
-        <section aria-labelledby="accounts-heading" className="order-1 flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-5">
+        <section aria-labelledby="accounts-heading" className="@container order-1 flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-5">
           <FlatPanelHeader id="accounts-heading" title="Account Status" subtitle="Current organization-wide account status" icon={UserRoundCheck} href="/manage/registrations" />
           <AccountStatusVisual active={activeAccounts} pendingVerification={pendingEmailVerification} pendingApproval={pendingApproval} />
         </section>
@@ -249,7 +249,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           { id: "expenses", title: "Toner Costs", content: <TonerExpensesPanel initialData={expenses} initialScope={scope} /> },
 
           { id: "inventory", title: "Toner Stock", content: (
-        <section aria-labelledby="inventory-heading" className="order-6 flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-4">
+        <section aria-labelledby="inventory-heading" className="@container order-6 flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:col-span-4">
           <FlatPanelHeader id="inventory-heading" title="Toner Stock" subtitle={`${inventory.length} tracked toner types`} icon={Droplets} href="/toner-monitoring" />
           <div className="grid grid-cols-2 divide-x divide-slate-200 border-b border-slate-200">
             <MiniMetric label="Units on hand" value={onHand} color="text-[#014171]" />
@@ -272,7 +272,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
 }
 
 function FlatPanelHeader({ id, title, subtitle, icon, href, actions }: { id: string; title: string; subtitle: string; icon: IconNode; href?: string; actions?: ReactNode }) {
-  return <div className="flex min-h-[4.25rem] flex-col justify-between gap-3 border-t-2 border-t-[#7c3aed] border-b border-slate-200 px-4 py-2.5 sm:flex-row sm:items-center"><div className="flex min-w-0 items-center gap-2.5"><span className="shrink-0 text-[#014171]"><IconGlyph icon={icon} size={16} /></span><div className="min-w-0"><h2 id={id} className="truncate text-base font-bold text-slate-800">{title}</h2><p className="truncate text-xs text-slate-500">{subtitle}</p></div></div><div className="shrink-0">{actions ?? (href && <Link href={href} className="inline-flex items-center gap-1 text-xs font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={11} /></Link>)}</div></div>;
+  return <div className="flex min-h-[4.25rem] flex-col justify-between gap-2 border-t-2 border-t-[#7c3aed] border-b border-slate-200 px-4 py-2.5 @min-[22rem]:flex-row @min-[22rem]:items-center @min-[22rem]:gap-3"><div className="flex min-w-0 items-center gap-2.5"><span className="shrink-0 text-[#014171]"><IconGlyph icon={icon} size={16} /></span><div className="min-w-0"><h2 id={id} className="break-words text-base font-bold leading-5 text-slate-800 @min-[22rem]:truncate">{title}</h2><p className="mt-0.5 break-words text-xs leading-4 text-slate-500 @min-[22rem]:truncate">{subtitle}</p></div></div><div className="shrink-0">{actions ?? (href && <Link href={href} className="inline-flex items-center gap-1 text-xs font-bold text-[#0b70a8] hover:text-[#014171]">View details <IconGlyph icon={ExternalLink} size={11} /></Link>)}</div></div>;
 }
 
 function AccountStatusVisual({ active, pendingVerification, pendingApproval }: { active: number; pendingVerification: number; pendingApproval: number }) {
@@ -318,12 +318,10 @@ function StockLevel({ name, stock, threshold, critical, trend }: { name: string;
 
   return (
     <div className={`flex flex-col justify-center px-4 py-2.5 ${styles.row}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0"><p className="truncate text-xs font-bold text-slate-800">{name}</p><p className="mt-0.5 text-xs text-slate-500">Critical {critical} · Low {threshold}</p></div>
-        <div className="flex shrink-0 items-center gap-2.5">
-          <StockSparkline values={trend} label={`${name} inventory during the last 30 days`} className={styles.trend} />
-          <div className="text-right"><p className="text-sm font-bold tabular-nums text-[#014171]">{integer.format(stock)}</p><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-[0.05em] ${styles.badge}`}>{styles.label}</span></div>
-        </div>
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1.5 @min-[22rem]:grid-cols-[minmax(0,1fr)_4.75rem_auto] @min-[22rem]:items-center @min-[22rem]:gap-x-2.5">
+        <div className="min-w-0"><p className="break-words text-xs font-bold leading-4 text-slate-800 @min-[22rem]:truncate">{name}</p><p className="mt-0.5 text-xs leading-4 text-slate-500">Critical {critical} · Low {threshold}</p></div>
+        <StockSparkline values={trend} label={`${name} inventory during the last 30 days`} className={`col-span-2 w-full ${styles.trend} @min-[22rem]:col-span-1 @min-[22rem]:col-start-2 @min-[22rem]:row-start-1`} />
+        <div className="col-start-2 row-start-1 text-right @min-[22rem]:col-start-3"><p className="text-sm font-bold tabular-nums text-[#014171]">{integer.format(stock)}</p><span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em] @min-[22rem]:text-xs ${styles.badge}`}>{styles.label}</span></div>
       </div>
       <div className="relative mt-2 h-2.5 rounded-full bg-white/90 ring-1 ring-inset ring-slate-200" role="img" aria-label={`${name}: ${stock} units on hand, critical at ${critical}, low at ${threshold}`}>
         <span className={`absolute inset-y-0 left-0 rounded-full ${styles.bar}`} style={{ width: `${fill}%` }} />
@@ -347,7 +345,7 @@ function StockSparkline({ values, label, className }: { values: number[]; label:
   const latestPoint = points.split(" ").at(-1)?.split(",") ?? [width - inset, height / 2];
 
   return (
-    <div className={`w-14 sm:w-[4.75rem] ${className}`} role="img" aria-label={`${label}. Started at ${values[0] ?? 0} units and ended at ${values.at(-1) ?? 0} units.`}>
+    <div className={`min-w-0 ${className}`} role="img" aria-label={`${label}. Started at ${values[0] ?? 0} units and ended at ${values.at(-1) ?? 0} units.`}>
       <p className="mb-0.5 text-right text-[7px] font-bold uppercase tracking-[0.08em] text-slate-400">30d trend</p>
       <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true" className="h-7 w-full overflow-visible">
         <line x1={inset} y1={height - inset} x2={width - inset} y2={height - inset} stroke="currentColor" strokeOpacity="0.14" strokeWidth="1" />

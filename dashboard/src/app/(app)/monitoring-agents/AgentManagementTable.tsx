@@ -9,15 +9,19 @@ import type { AgentSummary } from "@/lib/agent-management";
 import Search from "@/components/Search";
 import RecordTableToolbar from "@/components/RecordTableToolbar";
 import PrinterColumnFilter, { type PrinterColumnFilterOption } from "@/app/(app)/printers/PrinterColumnFilter";
+import CreateMonitoringAgentButton, { type MonitoringAgentOfficeOption } from "./CreateMonitoringAgentButton";
+import DeleteMonitoringAgentButton from "./DeleteMonitoringAgentButton";
 
 const REFRESH_INTERVAL_MS = 45_000;
 
 export default function AgentManagementTable({
   initialAgents,
   initialGeneratedAt,
+  offices,
 }: {
   initialAgents: AgentSummary[];
   initialGeneratedAt: string;
+  offices: MonitoringAgentOfficeOption[];
 }) {
   const [agents, setAgents] = useState(initialAgents);
   const [generatedAt, setGeneratedAt] = useState(initialGeneratedAt);
@@ -68,7 +72,7 @@ export default function AgentManagementTable({
   const counts = useMemo(() => ({
     total: agents.length,
     online: agents.filter((agent) => agent.connectivity === "online").length,
-    offline: agents.filter((agent) => agent.connectivity === "offline").length,
+    offline: agents.filter((agent) => displayAgentStatus(agent) === "offline").length,
     updates: agents.filter((agent) => agent.updateStatus === "update-available").length,
   }), [agents]);
   const agentOptions = useMemo(() => uniqueFilterOptions(agents.map((agent) => ({
@@ -76,8 +80,8 @@ export default function AgentManagementTable({
     label: agent.name,
   }))), [agents]);
   const statusOptions = useMemo(() => uniqueFilterOptions(agents.map((agent) => ({
-    value: agent.connectivity,
-    label: agent.connectivity === "online" ? "Online" : "Offline",
+    value: displayAgentStatus(agent),
+    label: displayAgentStatus(agent) === "pending" ? "Awaiting Installation" : agent.connectivity === "online" ? "Online" : "Offline",
   }))), [agents]);
   const filteredAgents = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -91,13 +95,13 @@ export default function AgentManagementTable({
           agent.installedVersion,
         ].some((value) => value?.toLocaleLowerCase().includes(normalized)))
         && (agentFilters.length === 0 || agentFilters.includes(agent.name))
-        && (statusFilters.length === 0 || statusFilters.includes(agent.connectivity))
+        && (statusFilters.length === 0 || statusFilters.includes(displayAgentStatus(agent)))
       ))
       .sort((left, right) => {
         if (sort === "agent_asc") return left.name.localeCompare(right.name, undefined, { numeric: true });
         if (sort === "agent_desc") return right.name.localeCompare(left.name, undefined, { numeric: true });
-        if (sort === "status_asc") return left.connectivity.localeCompare(right.connectivity);
-        if (sort === "status_desc") return right.connectivity.localeCompare(left.connectivity);
+        if (sort === "status_asc") return displayAgentStatus(left).localeCompare(displayAgentStatus(right));
+        if (sort === "status_desc") return displayAgentStatus(right).localeCompare(displayAgentStatus(left));
         return 0;
       });
   }, [agentFilters, agents, query, sort, statusFilters]);
@@ -146,8 +150,9 @@ export default function AgentManagementTable({
             placeholder="Search agents"
             ariaLabel="Search monitoring agents"
           />
+          <CreateMonitoringAgentButton offices={offices} onCreated={() => void refresh()} />
         </RecordTableToolbar>
-        <div className={filteredAgents.length > 10 ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain" : "overflow-x-hidden"}>
+        <div className={filteredAgents.length > 10 ? "min-h-0 flex-1 overflow-auto overscroll-contain" : "overflow-x-auto"}>
         {filteredAgents.length === 0 ? (
           <EmptyState
             message={query || agentFilters.length || statusFilters.length ? "No monitoring agents match the current search and filters." : "No monitoring agents registered"}
@@ -158,14 +163,14 @@ export default function AgentManagementTable({
             ) : undefined}
           />
         ) : (
-          <table className="w-full table-fixed text-left text-sm">
+          <table className="w-full min-w-[1040px] table-fixed text-left text-sm">
             <colgroup>
-              <col className="w-[28%]" />
-              <col className="w-[12%]" />
-              <col className="w-[20%]" />
-              <col className="w-[20%]" />
-              <col className="w-[14%]" />
-              <col className="w-[6%]" />
+              <col className="w-[24%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
+              <col className="w-[19%]" />
+              <col className="w-[13%]" />
+              <col className="w-[8%]" />
             </colgroup>
             <thead className="bg-slate-50/95 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               <tr className="border-b border-slate-200">
@@ -182,7 +187,7 @@ export default function AgentManagementTable({
                 <th className="px-4 py-3">Version / Update</th>
                 <th className="px-4 py-3">Platform / Hostname</th>
                 <th className="px-4 py-3">Last Seen</th>
-                <th className="px-3 py-3"><span className="sr-only">View</span></th>
+                <th className="px-3 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -192,7 +197,7 @@ export default function AgentManagementTable({
                     <p className="font-semibold text-slate-800">{agent.location || "Unassigned office"}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{agent.name} · {agent.assignedPrinterCount} printer{agent.assignedPrinterCount === 1 ? "" : "s"}</p>
                   </td>
-                  <td className="px-4 py-3 align-top"><ConnectivityBadge status={agent.connectivity} /></td>
+                  <td className="px-4 py-3 align-top"><ConnectivityBadge agent={agent} /></td>
                   <td className="px-4 py-3 align-top">
                     <p className="truncate font-mono text-xs font-semibold text-slate-700" title={agent.installedVersion || "Unknown"}>{agent.installedVersion || "Unknown"}</p>
                     <p className="mt-1 truncate font-mono text-[10px] text-slate-400" title={`Latest ${agent.latestVersion}`}>Latest {agent.latestVersion}</p>
@@ -205,9 +210,18 @@ export default function AgentManagementTable({
                   </td>
                   <td className="px-4 py-3 align-top text-slate-700" title={formatDateTime(agent.lastSeen)}><time suppressHydrationWarning>{formatRelativeTime(agent.lastSeen)}</time></td>
                   <td className="px-3 py-3 text-right align-top">
-                    <Link href={`/monitoring-agents/${agent.id}`} aria-label={`View ${agent.name}`} title="View monitoring agent" className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50">
-                      <IconGlyph icon={Eye} size={16} />
-                    </Link>
+                    <div className="inline-flex items-center justify-end gap-1">
+                      <Link href={`/monitoring-agents/${agent.id}`} aria-label={`View ${agent.name}`} title="View monitoring agent" className="inline-flex size-9 items-center justify-center rounded-lg text-[#014171] transition hover:bg-sky-50">
+                        <IconGlyph icon={Eye} size={16} />
+                      </Link>
+                      <DeleteMonitoringAgentButton
+                        agentId={agent.id}
+                        agentName={agent.name}
+                        onDeleted={(deletedAgentId) => {
+                          setAgents((current) => current.filter((item) => item.id !== deletedAgentId));
+                        }}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -234,8 +248,14 @@ function uniqueFilterOptions(options: PrinterColumnFilterOption[]) {
     .sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
 }
 
-export function ConnectivityBadge({ status }: { status: AgentSummary["connectivity"] }) {
+export function ConnectivityBadge({ agent }: { agent: AgentSummary }) {
+  const status = displayAgentStatus(agent);
+  if (status === "pending") return <Badge color="orange">Awaiting Installation</Badge>;
   return <Badge color={status === "online" ? "green" : "red"}>{status === "online" ? "Online" : "Offline"}</Badge>;
+}
+
+function displayAgentStatus(agent: AgentSummary): "pending" | AgentSummary["connectivity"] {
+  return agent.lastSeen ? agent.connectivity : "pending";
 }
 
 export function UpdateBadge({ status }: { status: AgentSummary["updateStatus"] }) {

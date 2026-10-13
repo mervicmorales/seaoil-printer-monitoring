@@ -120,6 +120,12 @@ Monitoring agents authenticate with independent bearer tokens. The stable
 agent key in each payload selects the registered agent, but it does not
 authenticate by itself. Only a bcrypt hash is stored in PostgreSQL.
 
+Admins can provision an agent from **Printers → Monitoring Agents → Add
+agent**. Select an active office and generate the credentials, then copy the
+key and token immediately. The plaintext token is returned once and cannot be
+retrieved later. The new record remains **Awaiting installation** until its
+first authenticated connection reports runtime details.
+
 Create an agent and copy the token shown once into that office's `.env`:
 
 ```bash

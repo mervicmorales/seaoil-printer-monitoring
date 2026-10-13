@@ -271,7 +271,7 @@ export default async function PrintersPage({
     : "/printers";
 
   return (
-    <div>
+    <div className="flex h-[calc(100dvh-103px)] min-h-0 flex-col overflow-hidden sm:h-[calc(100dvh-111px)]">
       <PageHeader
         parentTitle="Printers"
         title="Printer Records"
@@ -286,7 +286,7 @@ export default async function PrintersPage({
 
       <SuccessBanner message={firstParam(params.success) || undefined} showInline={false} />
 
-      <TableCard className={`flex flex-col overflow-hidden ${rows.length > 10 ? "max-h-[calc(100dvh-10rem)]" : ""}`}>
+      <TableCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <PrinterRecordsToolbar
           query={query}
           sort={sort}
@@ -299,7 +299,7 @@ export default async function PrintersPage({
           selectedStatuses={statusFilters}
           canAddPrinter={Boolean(access.printer_records)}
         />
-        <div className={`${rows.length > 10 ? "min-h-0 flex-1 overflow-y-auto" : ""} overflow-x-auto overscroll-contain [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10`}>
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10">
           <>
           <div className="divide-y divide-slate-100 lg:hidden">
             {rows.length === 0 ? (
@@ -368,7 +368,7 @@ export default async function PrintersPage({
           </div>
 
           <div className="hidden lg:block">
-          <table className="w-full min-w-[1040px] table-fixed text-left text-sm">
+          <table className="w-full table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[19%]" />
               <col className="w-[13%]" />
