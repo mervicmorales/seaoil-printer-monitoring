@@ -34,7 +34,11 @@ COPY package.json package-lock.json ./
 COPY scripts ./scripts
 COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
 RUN npm prune --omit=dev --include=optional \
-  && test -f node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node \
+  && case "$(dpkg --print-architecture)" in \
+    amd64) test -f node_modules/@next/swc-linux-x64-gnu/next-swc.linux-x64-gnu.node ;; \
+    arm64) test -f node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node ;; \
+    *) echo "Unsupported container architecture: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+  esac \
   && npm cache clean --force
 COPY --from=builder --chown=node:node /app/.next ./.next
 COPY --from=builder --chown=node:node /app/public ./public

@@ -114,9 +114,6 @@ services:
   monitoring-retention:
     image: seaoil-printer-monitoring-dashboard:coolify
     pull_policy: never
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
     restart: unless-stopped
     command: ["node", "scripts/monitoring-retention-worker.mjs"]
     environment:

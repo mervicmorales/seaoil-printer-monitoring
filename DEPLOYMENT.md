@@ -10,12 +10,14 @@ definition. The production definition runs:
 - a monitoring-retention worker that aggregates and prunes history nightly;
 - the PrintDash agent on internal port 3003 with persistent data and scan volumes.
 
-The three repository-built services use explicit local image names ending in
-`:coolify`. Coolify builds and tags these images from the temporary Git checkout.
-Its later `docker compose up -d` step reuses the tagged images and does not need
-the `dashboard/` or `printdash-agent/` source directories in Coolify's persistent
-application directory. `pull_policy: never` also prevents Compose from trying to
-pull these private, host-local images from a registry.
+The repository-built services use explicit local image names ending in
+`:coolify`. Coolify builds and tags the dashboard and database-initializer images
+from the temporary Git checkout. The monitoring-retention service reuses the
+dashboard image instead of building the same source a second time. Coolify's
+later `docker compose up -d` step reuses the tagged images and does not need the
+`dashboard/` source directory in its persistent application directory.
+`pull_policy: never` also prevents Compose from trying to pull these private,
+host-local images from a registry.
 
 The production volumes are external and must retain these names:
 
