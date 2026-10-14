@@ -22,7 +22,8 @@ services:
     pull_policy: never
     build:
       context: ./dashboard
-      dockerfile: Dockerfile.migrate
+      dockerfile: Dockerfile
+      target: migrator
     restart: "no"
     environment:
       NODE_ENV: production

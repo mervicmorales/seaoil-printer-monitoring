@@ -13,6 +13,10 @@ RUN --mount=type=cache,target=/root/.npm \
     --fetch-retry-maxtimeout=120000 \
     --fetch-timeout=300000
 
+FROM dependencies AS migrator
+
+COPY . .
+
 FROM dependencies AS builder
 
 COPY . .

@@ -11,10 +11,11 @@ definition. The production definition runs:
 - the PrintDash agent on internal port 3003 with persistent data and scan volumes.
 
 The repository-built services use explicit local image names ending in
-`:coolify`. Coolify builds and tags the dashboard and database-initializer images
-from the temporary Git checkout. The monitoring-retention service reuses the
-dashboard image instead of building the same source a second time. Coolify's
-later `docker compose up -d` step reuses the tagged images and does not need the
+`:coolify`. Coolify builds the dashboard and database initializer as targets of
+the same multi-stage Dockerfile, allowing BuildKit to install and cache their
+shared dependencies once. The monitoring-retention service reuses the dashboard
+image instead of building the same source again. Coolify's later
+`docker compose up -d` step reuses the tagged images and does not need the
 `dashboard/` source directory in its persistent application directory.
 `pull_policy: never` also prevents Compose from trying to pull these private,
 host-local images from a registry.
