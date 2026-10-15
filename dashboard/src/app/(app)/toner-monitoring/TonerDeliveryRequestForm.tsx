@@ -34,7 +34,7 @@ export default function TonerDeliveryRequestForm({
   today,
   showActions = true,
 }: {
-  mode: "delivery" | "request";
+  mode: "purchase" | "request";
   action: (prev: TonerFormState, formData: FormData) => Promise<TonerFormState>;
   tonerTypes: Lookup[];
   organizationOptions: OrganizationFieldOptions;
@@ -64,7 +64,7 @@ export default function TonerDeliveryRequestForm({
 
   return (
     <form
-      id={mode === "delivery" ? "toner-delivery-form" : "toner-request-form"}
+      id={mode === "purchase" ? "toner-purchase-form" : "toner-request-form"}
       action={formAction}
       className="space-y-6"
     >
@@ -73,12 +73,12 @@ export default function TonerDeliveryRequestForm({
       )}
       <section>
         <FormSectionHeader
-          icon={mode === "delivery" ? PackagePlus : Send}
-          title={mode === "delivery" ? "Delivery details" : "Request details"}
-          description={mode === "delivery" ? "Stock receipt and assignment information" : "Toner issue and destination information"}
+          icon={mode === "purchase" ? PackagePlus : Send}
+          title={mode === "purchase" ? "Purchase details" : "Request details"}
+          description={mode === "purchase" ? "Record toner procurement and assignment information" : "Toner issue and destination information"}
         />
         <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
-        <Input label="Date" floatingLabel name="date" type="date" defaultValue={today} required error={state.fieldErrors?.date} />
+        <Input label="Request Date" floatingLabel name="date" type="date" defaultValue={today} required error={state.fieldErrors?.date} />
         <Input
           label="Ticket or R.Q"
           floatingLabel
@@ -97,6 +97,16 @@ export default function TonerDeliveryRequestForm({
           disabled={allRequestTonersOutOfStock || outOfStockToners.length > 0}
           error={state.fieldErrors?.quantity}
         />
+        {mode === "request" && (
+          <Input
+            label="Requestor Name"
+            floatingLabel
+            name="requestorName"
+            placeholder="Enter employee requestor name"
+            required
+            error={state.fieldErrors?.requestorName}
+          />
+        )}
         <OrganizationFields
           options={organizationOptions}
           requiredLocation={mode === "request"}
@@ -160,7 +170,7 @@ export default function TonerDeliveryRequestForm({
       </section>
 
       <div className={showActions ? "sticky bottom-4 z-10 -mx-2 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur sm:flex-row" : "hidden"}>
-        <SubmitButton label={mode === "delivery" ? "Save Delivery" : "Save Request"} disabled={requestBlocked} />
+        <SubmitButton label={mode === "purchase" ? "Save Purchase" : "Save Request"} disabled={requestBlocked} />
         <Link href="/toner-monitoring"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
       </div>
     </form>
@@ -173,7 +183,7 @@ function TonerTypePicker({
   checkedToners,
   onToggle,
 }: {
-  mode: "delivery" | "request";
+  mode: "purchase" | "request";
   tonerTypes: Lookup[];
   checkedToners: number[];
   onToggle: (id: number) => void;

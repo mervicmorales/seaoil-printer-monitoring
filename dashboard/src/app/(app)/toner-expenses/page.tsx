@@ -80,7 +80,7 @@ export default async function TonerExpensesPage({ searchParams }: { searchParams
   return (
     <TonerExpenseExplorer
       records={rows.filter((row) => row.type === "Request").map(toExpenseRecord)}
-      deliveryRecords={rows.filter((row) => row.type === "Delivery").map(toExpenseRecord)}
+      deliveryRecords={rows.filter((row) => row.type === "Purchase" || row.type === "Delivered" || row.type === "Delivery").map(toExpenseRecord)}
       initialFilters={{
         allTime,
         dateFrom: allTime ? "" : (sp.dateFrom ?? `${today.slice(0, 4)}-01-01`),

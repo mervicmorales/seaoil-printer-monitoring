@@ -5,7 +5,8 @@ import { buildInventoryWaterfall } from "./inventory-waterfall.ts";
 
 test("builds daily week movements from the current inventory balance", () => {
   const result = buildInventoryWaterfall(12, "2026-10-01", "7d", [
-    { date: "2026-09-26", type: "Delivery", quantity: 10 },
+    { date: "2026-09-25", type: "Purchase", quantity: 25 },
+    { date: "2026-09-26", type: "Delivered", quantity: 10 },
     { date: "2026-09-28", type: "Request", quantity: 3 },
     { date: "2026-10-01", type: "Request", quantity: 2 },
   ]);
@@ -21,7 +22,7 @@ test("builds daily week movements from the current inventory balance", () => {
 
 test("groups quarter movements by calendar month", () => {
   const result = buildInventoryWaterfall(25, "2026-10-01", "90d", [
-    { date: "2026-07-10", type: "Delivery", quantity: 8 },
+    { date: "2026-07-10", type: "Delivered", quantity: 8 },
     { date: "2026-08-12", type: "Request", quantity: 4 },
     { date: "2026-09-20", type: "Request", quantity: 3 },
   ]);
@@ -32,7 +33,7 @@ test("groups quarter movements by calendar month", () => {
 
 test("groups a year by month and isolates requests for a highlighted department", () => {
   const result = buildInventoryWaterfall(50, "2026-10-04", "12m", [
-    { date: "2025-10-02", type: "Delivery", quantity: 20 },
+    { date: "2025-10-02", type: "Delivered", quantity: 20 },
     { date: "2026-02-12", type: "Request", quantity: 4, departmentKey: "7" },
     { date: "2026-02-14", type: "Request", quantity: 3, departmentKey: "8" },
     { date: "2026-09-20", type: "Request", quantity: 2, departmentKey: "7" },

@@ -77,6 +77,11 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const parsedScope = parseOverviewScope(params);
   const scope = { ...parsedScope, locationId: null, departmentId: null };
   const staleSeconds = await getMonitoringStaleSeconds();
+  const inventoryMovementDate = sql<string>`case
+    when lower(${tonerTransactions.type}) in ('delivered', 'delivery')
+      then coalesce(${tonerTransactions.deliveredDate}, ${tonerTransactions.date})
+    else ${tonerTransactions.date}
+  end`;
 
   const ticketConditions: SQL[] = [inArray(repairTickets.status, ["Open", "In Progress"])];
 
@@ -141,7 +146,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       order by ma.name, ma.id
     `),
     db.select({ id: tonerTypes.id, name: tonerTypes.name, stock: tonerInventory.stock, threshold: tonerInventory.lowStockThreshold, critical: tonerInventory.criticalStockThreshold }).from(tonerTypes).leftJoin(tonerInventory, eq(tonerInventory.tonerTypeId, tonerTypes.id)).where(eq(tonerTypes.showAlertCard, true)).orderBy(asc(tonerTypes.name)),
-    db.select({ tonerTypeId: tonerTransactions.tonerTypeId, type: tonerTransactions.type, date: tonerTransactions.date, quantity: tonerTransactions.quantity, departmentId: tonerTransactions.departmentId, locationId: tonerTransactions.locationId }).from(tonerTransactions).where(gte(tonerTransactions.date, inventoryMovementStart)).orderBy(asc(tonerTransactions.date), asc(tonerTransactions.id)),
+    db.select({ tonerTypeId: tonerTransactions.tonerTypeId, type: tonerTransactions.type, date: inventoryMovementDate, quantity: tonerTransactions.quantity, departmentId: tonerTransactions.departmentId, locationId: tonerTransactions.locationId }).from(tonerTransactions).where(gte(inventoryMovementDate, inventoryMovementStart)).orderBy(asc(inventoryMovementDate), asc(tonerTransactions.id)),
     getOverviewExpenses(scope.period, renderedAt),
     db.select({ status: users.accountStatus, count: sql<number>`count(*)::int` }).from(users).where(userConditions.length ? and(...userConditions) : undefined).groupBy(users.accountStatus),
     db.select({ status: userRegistrationRequests.status, count: sql<number>`count(*)::int` }).from(userRegistrationRequests).where(registrationConditions.length ? and(...registrationConditions) : undefined).groupBy(userRegistrationRequests.status),

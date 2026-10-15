@@ -9,6 +9,7 @@ import { getOrganizationOptions } from "@/lib/organization";
 import EditTransactionForm from "./EditTransactionForm";
 import { updateTransactionAction } from "../../actions";
 import { requireModuleFullAccess } from "@/lib/server-utils";
+import { todayISO } from "@/lib/format";
 
 export async function EditTransactionPage({ params, embedded = false }: { params: Promise<{ id: string }>; embedded?: boolean }) {
   await requireModuleFullAccess("toner_monitoring");
@@ -46,6 +47,7 @@ export async function EditTransactionPage({ params, embedded = false }: { params
           tonerTypes={tonerTypes}
           organizationOptions={organizationOptions}
           itsNames={itsNames}
+          today={todayISO()}
           showActions={!embedded}
         />
       </Card>

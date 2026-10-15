@@ -16,6 +16,7 @@ import {
   userRegistrationRequests,
 } from "@/db/schema";
 import type { ModuleName } from "@/lib/permissions";
+import { normalizeTonerTransactionStatus } from "@/lib/toner-transaction-status";
 
 export type RecentActivityCategory = "toner" | "repair" | "alert" | "account" | "printer" | "agent";
 
@@ -128,12 +129,16 @@ export async function getRecentActivities(access: ModuleAccess, canManageAgents:
   const activities: RecentActivityItem[] = [];
 
   for (const row of tonerRows) {
-    const request = row.type.trim().toLowerCase() === "request";
+    const status = normalizeTonerTransactionStatus(row.type);
     const organization = compactJoin([row.officeName, row.departmentName, row.subunitName]);
     activities.push({
       id: `toner-${row.id}`,
       category: "toner",
-      title: request ? "Toner requested" : "Toner delivery recorded",
+      title: status === "Request"
+        ? "Toner requested"
+        : status === "Purchase"
+          ? "Toner purchase recorded"
+          : "Toner delivered",
       detail: `${row.quantity} × ${row.tonerName}${organization ? ` · ${organization}` : ""}`,
       meta: compactJoin([row.itsName ? `ITS: ${row.itsName}` : null, row.ticketReference ? `Ticket/RQ: ${row.ticketReference}` : null]),
       occurredAt: new Date(row.createdAt),

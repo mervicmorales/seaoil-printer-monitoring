@@ -9,6 +9,12 @@ import { requireModuleFullAccess } from "@/lib/server-utils";
 import { processTonerInventoryAlert } from "@/lib/inventory-alerts";
 import { randomUUID } from "crypto";
 import { validateOrganizationSelection } from "@/lib/organization";
+import { todayISO } from "@/lib/format";
+import {
+  canTransitionTonerTransaction,
+  normalizeTonerTransactionStatus,
+  tonerInventoryDelta,
+} from "@/lib/toner-transaction-status";
 
 function str(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
@@ -43,7 +49,7 @@ async function allTonerTypesAreVisible(tonerTypeIds: number[]) {
   return rows.length === tonerTypeIds.length;
 }
 
-export async function createDeliveryAction(_prev: TonerFormState, formData: FormData): Promise<TonerFormState> {
+export async function createPurchaseAction(_prev: TonerFormState, formData: FormData): Promise<TonerFormState> {
   await requireModuleFullAccess("toner_monitoring");
 
   const date = str(formData.get("date"));
@@ -57,7 +63,7 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
   const itsNameId = num(formData.get("itsNameId"));
 
   const fieldErrors: Record<string, string> = {};
-  if (!date) fieldErrors.date = "Date is required.";
+  if (!date) fieldErrors.date = "Request Date is required.";
   if (!Number.isSafeInteger(quantity) || quantity! <= 0) fieldErrors.quantity = "Quantity must be a positive whole number.";
   if (!tonerTypeIds.length) fieldErrors.tonerTypeIds = "Select at least one toner type.";
   Object.assign(fieldErrors, await validateOrganizationSelection(
@@ -76,7 +82,7 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
     for (const tonerTypeId of [...tonerTypeIds].sort((a, b) => a - b)) {
       await tx.insert(tonerTransactions).values({
         groupId,
-        type: "Delivery",
+        type: "Purchase",
         date: date!,
         ticketReference,
         tonerTypeId,
@@ -88,18 +94,12 @@ export async function createDeliveryAction(_prev: TonerFormState, formData: Form
         itsNameId,
         remarks,
       });
-      await tx.insert(tonerInventory).values({ tonerTypeId, stock: quantity! })
-        .onConflictDoUpdate({
-          target: tonerInventory.tonerTypeId,
-          set: { stock: sql`${tonerInventory.stock} + ${quantity!}` },
-        });
     }
   });
-  await Promise.all(tonerTypeIds.map((tonerTypeId) => processTonerInventoryAlert(tonerTypeId)));
 
   revalidatePath("/toner-monitoring");
   revalidatePath("/overview");
-  redirect("/toner-monitoring?success=Toner delivery recorded and inventory updated.");
+  redirect("/toner-monitoring?success=Toner purchase recorded. Inventory will update when it is marked Delivered.");
 }
 
 export async function createRequestAction(_prev: TonerFormState, formData: FormData): Promise<TonerFormState> {
@@ -108,6 +108,7 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
   const date = str(formData.get("date"));
   const quantity = num(formData.get("quantity"));
   const ticketReference = str(formData.get("ticketReference"));
+  const requestorName = str(formData.get("requestorName"));
   const tonerTypeIds = [...new Set(formData.getAll("tonerTypeIds").map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0))];
   const locationId = num(formData.get("locationId"));
   const departmentId = num(formData.get("departmentId"));
@@ -116,12 +117,13 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
   const itsNameId = num(formData.get("itsNameId"));
 
   const fieldErrors: Record<string, string> = {};
-  if (!date) fieldErrors.date = "Date is required.";
+  if (!date) fieldErrors.date = "Request Date is required.";
   if (!Number.isSafeInteger(quantity) || quantity! <= 0) fieldErrors.quantity = "Quantity must be a positive whole number.";
   if (!tonerTypeIds.length) fieldErrors.tonerTypeIds = "Select at least one toner type.";
   if (!locationId) fieldErrors.locationId = "Office is required.";
   if (!departmentId) fieldErrors.departmentId = "Department is required.";
   if (!itsNameId) fieldErrors.itsNameId = "ITS Name is required.";
+  if (!requestorName) fieldErrors.requestorName = "Requestor Name is required.";
   Object.assign(fieldErrors, await validateOrganizationSelection(
     { locationId, departmentId, subunitId, costCenterId },
     { requireLocation: true, requireDepartment: true, requireSubunitWhenAvailable: true },
@@ -156,6 +158,7 @@ export async function createRequestAction(_prev: TonerFormState, formData: FormD
           type: "Request",
           date: date!,
           ticketReference,
+          requestorName,
           tonerTypeId,
           quantity: quantity!,
           locationId,
@@ -193,6 +196,8 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
   const tonerTypeId = num(formData.get("tonerTypeId"));
   const submittedType = str(formData.get("type"));
   const ticketReference = str(formData.get("ticketReference"));
+  const requestorName = str(formData.get("requestorName"));
+  const deliveredDate = str(formData.get("deliveredDate"));
   const organization = {
     locationId: num(formData.get("locationId")),
     departmentId: num(formData.get("departmentId")),
@@ -203,15 +208,24 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
   if (!date || !Number.isSafeInteger(quantity) || quantity! <= 0 || !Number.isSafeInteger(tonerTypeId) || tonerTypeId! < 1) {
     return { error: "Date, toner type and a positive whole-number quantity are required." };
   }
-  if (submittedType && submittedType !== "Delivery" && submittedType !== "Request") {
+  const normalizedSubmittedType = submittedType ? normalizeTonerTransactionStatus(submittedType) : null;
+  if (submittedType && !normalizedSubmittedType) {
     return { error: "Select a valid transaction type." };
   }
   const organizationErrors = await validateOrganizationSelection(organization, {
-    requireLocation: submittedType === "Request",
-    requireDepartment: submittedType === "Request",
+    requireLocation: normalizedSubmittedType === "Request",
+    requireDepartment: normalizedSubmittedType === "Request",
     requireSubunitWhenAvailable: Boolean(organization.departmentId),
     requireActive: false,
   });
+  if (normalizedSubmittedType === "Request" && !requestorName) {
+    organizationErrors.requestorName = "Requestor Name is required.";
+  }
+  if (normalizedSubmittedType === "Delivered") {
+    if (!deliveredDate) organizationErrors.deliveredDate = "Delivered Date is required.";
+    else if (deliveredDate < date) organizationErrors.deliveredDate = "Delivered Date cannot be earlier than Request Date.";
+    else if (deliveredDate > todayISO()) organizationErrors.deliveredDate = "Delivered Date cannot be in the future.";
+  }
   if (Object.keys(organizationErrors).length) return { fieldErrors: organizationErrors };
 
   let affectedTypes: number[] = [];
@@ -220,12 +234,16 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
       const [existing] = await tx.select().from(tonerTransactions)
         .where(eq(tonerTransactions.id, id!)).for("update");
       if (!existing) throw new Error("TransactionNotFound");
-      const type = submittedType || existing.type;
-      if (type !== "Delivery" && type !== "Request") throw new Error("InvalidTransactionType");
+      const type = normalizedSubmittedType ?? normalizeTonerTransactionStatus(existing.type);
+      if (!type || !canTransitionTonerTransaction(existing.type, type)) throw new Error("InvalidTransactionType");
+      if (type === "Delivered" && !deliveredDate) throw new Error("MissingDeliveredDate");
       const deltas = new Map<number, number>();
-      deltas.set(existing.tonerTypeId, existing.type === "Delivery" ? -existing.quantity : existing.quantity);
-      deltas.set(tonerTypeId!, (deltas.get(tonerTypeId!) ?? 0) + (type === "Delivery" ? quantity! : -quantity!));
-      const ids = [...deltas.keys()].sort((a, b) => a - b);
+      deltas.set(existing.tonerTypeId, -tonerInventoryDelta(existing.type, existing.quantity));
+      deltas.set(tonerTypeId!, (deltas.get(tonerTypeId!) ?? 0) + tonerInventoryDelta(type, quantity!));
+      const ids = [...deltas.entries()]
+        .filter(([, delta]) => delta !== 0)
+        .map(([typeId]) => typeId)
+        .sort((a, b) => a - b);
       for (const typeId of ids) {
         await tx.insert(tonerInventory).values({ tonerTypeId: typeId, stock: 0 })
           .onConflictDoNothing({ target: tonerInventory.tonerTypeId });
@@ -243,7 +261,9 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
         quantity: quantity!,
         tonerTypeId: tonerTypeId!,
         type,
+        deliveredDate: type === "Delivered" ? deliveredDate : null,
         ticketReference,
+        requestorName: type === "Request" ? requestorName : null,
         ...organization,
         itsNameId: num(formData.get("itsNameId")),
         remarks: str(formData.get("remarks")),
@@ -253,6 +273,12 @@ export async function updateTransactionAction(_prev: TonerFormState, formData: F
   } catch (error) {
     if (error instanceof InsufficientTonerStockError) return { error: error.message };
     if (error instanceof Error && error.message === "TransactionNotFound") return { error: "Transaction not found." };
+    if (error instanceof Error && error.message === "InvalidTransactionType") {
+      return { error: "Only a Purchase transaction can be changed to Delivered." };
+    }
+    if (error instanceof Error && error.message === "MissingDeliveredDate") {
+      return { fieldErrors: { deliveredDate: "Delivered Date is required." } };
+    }
     return { error: "Could not update the transaction." };
   }
 
@@ -273,11 +299,15 @@ export async function deleteTransactionAction(formData: FormData) {
       const [existing] = await tx.select().from(tonerTransactions)
         .where(eq(tonerTransactions.id, id!)).for("update");
       if (!existing) return null;
+      const reverseDelta = -tonerInventoryDelta(existing.type, existing.quantity);
+      if (reverseDelta === 0) {
+        await tx.delete(tonerTransactions).where(eq(tonerTransactions.id, id!));
+        return null;
+      }
       const [inventory] = await tx.select({ stock: tonerInventory.stock }).from(tonerInventory)
         .where(eq(tonerInventory.tonerTypeId, existing.tonerTypeId)).for("update");
-      const reverseDelta = existing.type === "Delivery" ? -existing.quantity : existing.quantity;
       if (!inventory || inventory.stock + reverseDelta < 0) {
-        throw new InsufficientTonerStockError("This delivery cannot be deleted because its stock has already been used.");
+        throw new InsufficientTonerStockError("This delivered transaction cannot be deleted because its stock has already been used.");
       }
       await tx.update(tonerInventory).set({ stock: sql`${tonerInventory.stock} + ${reverseDelta}` })
         .where(eq(tonerInventory.tonerTypeId, existing.tonerTypeId));

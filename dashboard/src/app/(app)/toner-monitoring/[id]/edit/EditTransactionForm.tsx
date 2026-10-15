@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ClipboardList, Pencil, type IconNode } from "lucide";
 import { MorphIcon } from "morphicons/react";
@@ -10,6 +10,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import SearchableDropdown from "@/components/SearchableDropdown";
 import OrganizationFields, { type OrganizationFieldOptions } from "@/components/OrganizationFields";
 import type { TonerFormState } from "../../actions";
+import { normalizeTonerTransactionStatus } from "@/lib/toner-transaction-status";
 
 type Lookup = { id: number; name: string };
 
@@ -17,7 +18,9 @@ type Txn = {
   id: number;
   type: string;
   date: string;
+  deliveredDate: string | null;
   ticketReference: string | null;
+  requestorName: string | null;
   tonerTypeId: number;
   quantity: number;
   locationId: number | null;
@@ -43,6 +46,7 @@ export default function EditTransactionForm({
   tonerTypes,
   organizationOptions,
   itsNames,
+  today,
   showActions = true,
 }: {
   action: (prev: TonerFormState, formData: FormData) => Promise<TonerFormState>;
@@ -50,9 +54,18 @@ export default function EditTransactionForm({
   tonerTypes: Lookup[];
   organizationOptions: OrganizationFieldOptions;
   itsNames: Lookup[];
+  today: string;
   showActions?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
+  const normalizedType = normalizeTonerTransactionStatus(txn.type) ?? txn.type;
+  const [selectedType, setSelectedType] = useState(normalizedType);
+  const statusOptions = normalizedType === "Purchase"
+    ? [
+      { value: "Purchase", label: "Purchase" },
+      { value: "Delivered", label: "Delivered" },
+    ]
+    : [{ value: normalizedType, label: normalizedType }];
 
   return (
     <form id="toner-transaction-edit-form" action={formAction} className="space-y-6">
@@ -67,9 +80,31 @@ export default function EditTransactionForm({
           description="Update the toner, quantity, assignment, and reference information"
         />
         <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/35 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
-        <SearchableDropdown label="Status / Type" name="type" defaultValue={txn.type} required placeholder="Search transaction types..." options={[{ value: "Delivery", label: "Delivery" }, { value: "Request", label: "Request" }]} />
-        <Input label="Date" name="date" type="date" defaultValue={txn.date} required />
+        <SearchableDropdown label="Status / Type" name="type" value={selectedType} onValueChange={setSelectedType} required placeholder="Search transaction types..." options={statusOptions} />
+        <Input label="Request Date" name="date" type="date" defaultValue={txn.date} required />
+        {selectedType === "Delivered" && (
+          <Input
+            label="Delivered Date"
+            name="deliveredDate"
+            type="date"
+            min={txn.date}
+            max={today}
+            defaultValue={txn.deliveredDate ?? today}
+            required
+            error={state.fieldErrors?.deliveredDate}
+          />
+        )}
         <Input label="Ticket or R.Q" name="ticketReference" defaultValue={txn.ticketReference ?? ""} placeholder="Enter ticket or R.Q number" />
+        {normalizedType === "Request" && (
+          <Input
+            label="Requestor Name"
+            name="requestorName"
+            defaultValue={txn.requestorName ?? ""}
+            placeholder="Enter employee requestor name"
+            required
+            error={state.fieldErrors?.requestorName}
+          />
+        )}
         <SearchableSelect
           label="Toner Type"
           name="tonerTypeId"

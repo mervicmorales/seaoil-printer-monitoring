@@ -174,8 +174,8 @@ export function Badge({
 
 export function statusBadgeColor(status: string): "green" | "yellow" | "red" | "blue" | "gray" | "orange" {
   const s = status.toLowerCase();
-  if (["active", "operational", "open", "completed", "delivery"].includes(s)) return "green";
-  if (["under repair", "in progress", "request", "pending"].includes(s)) return "yellow";
+  if (["active", "operational", "open", "completed", "delivery", "delivered"].includes(s)) return "green";
+  if (["under repair", "in progress", "request", "purchase", "pending"].includes(s)) return "yellow";
   if (["closed", "resolved"].includes(s)) return "blue";
   if (["disposed", "lost"].includes(s)) return "red";
   if (["spare", "for replacement"].includes(s)) return "blue";

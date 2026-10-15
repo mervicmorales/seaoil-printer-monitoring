@@ -8,7 +8,6 @@ import {
   departments,
   subunits,
   costCenters,
-  itsNames,
 } from "@/db/schema";
 import { and, asc, desc, eq, ilike } from "drizzle-orm";
 import { Droplets, PackagePlus, Pencil, Send } from "lucide";
@@ -22,9 +21,24 @@ import Search from "@/components/Search";
 import RecordTableToolbar from "@/components/RecordTableToolbar";
 import PrinterColumnFilter, { type PrinterColumnFilterOption } from "@/app/(app)/printers/PrinterColumnFilter";
 import RecordPagination, { paginateRecords } from "@/components/RecordPagination";
+import { tonerTransactionStatusLabel } from "@/lib/toner-transaction-status";
 
 export const dynamic = "force-dynamic";
 const BLANK_FILTER_VALUE = "__blank__";
+const TONER_TRANSACTION_PAGE_SIZE = 15;
+
+type InventoryStatus = "Empty" | "Critical" | "Low" | "Healthy";
+
+function inventoryStatus(stock: number, threshold: number, criticalThreshold: number): InventoryStatus {
+  if (stock <= 0) return "Empty";
+  if (stock <= criticalThreshold) return "Critical";
+  if (stock <= threshold) return "Low";
+  return "Healthy";
+}
+
+function inventoryPriority(status: InventoryStatus) {
+  return { Empty: 0, Critical: 1, Low: 2, Healthy: 3 }[status];
+}
 
 function formatTonerDate(value: string | Date | null | undefined) {
   if (!value) return "—";
@@ -78,7 +92,9 @@ export default async function TonerMonitoringPage({
         id: tonerTransactions.id,
         type: tonerTransactions.type,
         date: tonerTransactions.date,
+        deliveredDate: tonerTransactions.deliveredDate,
         ticketReference: tonerTransactions.ticketReference,
+        requestorName: tonerTransactions.requestorName,
         quantity: tonerTransactions.quantity,
         remarks: tonerTransactions.remarks,
         tonerTypeName: tonerTypes.name,
@@ -86,7 +102,6 @@ export default async function TonerMonitoringPage({
         departmentName: departments.name,
         subunitName: subunits.name,
         costCenterCode: costCenters.code,
-        itsName: itsNames.name,
       })
       .from(tonerTransactions)
       .innerJoin(tonerTypes, eq(tonerTransactions.tonerTypeId, tonerTypes.id))
@@ -94,12 +109,14 @@ export default async function TonerMonitoringPage({
       .leftJoin(departments, eq(tonerTransactions.departmentId, departments.id))
       .leftJoin(subunits, eq(tonerTransactions.subunitId, subunits.id))
       .leftJoin(costCenters, eq(tonerTransactions.costCenterId, costCenters.id))
-      .leftJoin(itsNames, eq(tonerTransactions.itsNameId, itsNames.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(tonerTransactions.createdAt), desc(tonerTransactions.id)),
   ]);
 
-  const statusOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: row.type, label: row.type })));
+  const statusOptions = uniqueFilterOptions(baseTxnRows.map((row) => {
+    const status = tonerTransactionStatusLabel(row.type);
+    return { value: status, label: status };
+  }));
   const dateOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: dateFilterValue(row.date), label: formatTonerDate(row.date) })));
   const tonerOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({ value: row.tonerTypeName, label: row.tonerTypeName })));
   const officeOptions = uniqueFilterOptions(baseTxnRows.map((row) => ({
@@ -112,19 +129,25 @@ export default async function TonerMonitoringPage({
   })));
   const txnRows = baseTxnRows
     .filter((row) => (
-      matchesSelected(row.type, statusFilters)
+      matchesSelected(tonerTransactionStatusLabel(row.type), statusFilters)
       && matchesSelected(dateFilterValue(row.date), dateFilters)
       && matchesSelected(row.tonerTypeName, tonerFilters)
       && matchesSelected(row.locationName?.trim() || BLANK_FILTER_VALUE, officeFilters)
       && matchesSelected(row.subunitName?.trim() || BLANK_FILTER_VALUE, subunitFilters)
     ))
     .sort((left, right) => compareTonerRows(left, right, sort));
-  const paginated = paginateRecords(txnRows, firstParam(sp.page));
+  const paginated = paginateRecords(txnRows, firstParam(sp.page), TONER_TRANSACTION_PAGE_SIZE);
   const totalInventoryUnits = inventoryRows.reduce((sum, row) => sum + (row.stock ?? 0), 0);
   const lowStockTypes = inventoryRows.filter((row) => (row.stock ?? 0) <= (row.threshold ?? 5)).length;
+  const prioritizedInventoryRows = [...inventoryRows].sort((left, right) => {
+    const leftStatus = inventoryStatus(left.stock ?? 0, left.threshold ?? 5, left.criticalThreshold ?? 2);
+    const rightStatus = inventoryStatus(right.stock ?? 0, right.threshold ?? 5, right.criticalThreshold ?? 2);
+    return inventoryPriority(leftStatus) - inventoryPriority(rightStatus)
+      || left.name.localeCompare(right.name, undefined, { numeric: true });
+  });
 
   return (
-    <div>
+    <div className="w-full min-w-0 max-w-full overflow-x-clip">
       <PageHeader
         parentTitle="Toners"
         title="Toner Monitoring"
@@ -139,74 +162,63 @@ export default async function TonerMonitoringPage({
         </div>
       )}
 
-      <div className="mb-4 flex items-end justify-between gap-4">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">Inventory</p>
           <h2 className="mt-1 text-lg font-bold tracking-[-0.015em] text-[#014171]">Current toner stock</h2>
         </div>
-        <span className="hidden rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm sm:inline-flex">
-          {inventoryRows.length} toner types
-        </span>
+        <dl className="flex flex-wrap items-center gap-2 text-xs">
+          <InventorySummary value={totalInventoryUnits} label="Total units" />
+          <InventorySummary value={lowStockTypes} label="Need attention" tone={lowStockTypes ? "warning" : "success"} />
+          <InventorySummary value={inventoryRows.length} label="Toner types" />
+        </dl>
       </div>
 
-      <section aria-label="Toner inventory" className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Toner inventory" className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
         {inventoryRows.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-slate-500 sm:col-span-2 lg:col-span-4">
+          <Card className="p-6 text-center text-sm text-slate-500">
             No toner types are currently configured for inventory alerts.
           </Card>
         ) : <>
-        {inventoryRows.map((t) => {
+        {prioritizedInventoryRows.map((t) => {
           const stock = t.stock ?? 0;
           const threshold = t.threshold ?? 5;
           const criticalThreshold = t.criticalThreshold ?? 2;
-          const status = stock <= 0 ? "Empty" : stock <= criticalThreshold ? "Critical" : stock <= threshold ? "Low" : null;
+          const status = inventoryStatus(stock, threshold, criticalThreshold);
           const attentionClasses = status === "Low"
             ? "border-amber-200 bg-amber-50/20"
-            : status
+            : status === "Empty" || status === "Critical"
               ? "border-red-200 bg-red-50/20"
               : "";
-          const accentClass = status === "Low" ? "bg-amber-500" : status ? "bg-red-500" : "bg-emerald-500";
+          const accentClass = status === "Low" ? "bg-amber-500" : status === "Empty" || status === "Critical" ? "bg-red-500" : "bg-emerald-500";
           const iconClass = status === "Low"
             ? "bg-amber-50 text-amber-600"
-            : status
+            : status === "Empty" || status === "Critical"
               ? "bg-red-50 text-red-600"
               : "bg-emerald-50 text-emerald-600";
           return (
-            <Card key={t.id} className={`relative min-h-28 overflow-hidden p-4 ${attentionClasses}`}>
+            <Card key={t.id} className={`relative min-h-[5.75rem] overflow-hidden p-3.5 ${attentionClasses}`}>
               <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${accentClass}`} />
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
-                    <IconGlyph icon={Droplets} size={16} />
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ${iconClass}`}>
+                    <IconGlyph icon={Droplets} size={14} />
                   </span>
-                  <p className="truncate text-sm font-semibold text-[#014171]" title={t.name}>{t.name}</p>
+                  <p className="truncate text-[13px] font-bold text-[#014171]" title={t.name}>{t.name}</p>
                 </div>
-                {status && <Badge color={status === "Low" ? "yellow" : "red"}>{status}</Badge>}
+                <Badge color={status === "Healthy" ? "green" : status === "Low" ? "yellow" : "red"}>{status}</Badge>
               </div>
-              <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-100 pt-3.5">
-                <p className="text-2xl font-bold leading-none tracking-[-0.025em] text-slate-900">{stock} <span className="text-xs font-semibold tracking-normal text-slate-500">on hand</span></p>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Low at {threshold}</p>
+              <div className="mt-3 flex items-end justify-between gap-2">
+                <p className="text-xl font-bold leading-none tracking-[-0.025em] text-slate-900">{stock} <span className="text-[11px] font-semibold tracking-normal text-slate-500">on hand</span></p>
+                <p className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-slate-500">Reorder at {threshold}</p>
               </div>
             </Card>
           );
         })}
-        {inventoryRows.length % 4 === 3 && (
-          <Card className="relative min-h-28 overflow-hidden border-sky-200 bg-gradient-to-br from-sky-50/80 to-white p-4">
-            <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-[#014171]" />
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-white text-[#014171] shadow-sm"><IconGlyph icon={Droplets} size={16} /></span>
-              <p className="text-sm font-semibold text-[#014171]">Inventory summary</p>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-sky-100 pt-3.5">
-              <div><p className="text-xl font-bold leading-none text-slate-900">{totalInventoryUnits}</p><p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total units</p></div>
-              <div><p className={`text-xl font-bold leading-none ${lowStockTypes ? "text-amber-700" : "text-emerald-700"}`}>{lowStockTypes}</p><p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Low-stock types</p></div>
-            </div>
-          </Card>
-        )}
         </>}
       </section>
 
-      <TableCard className="mt-7 flex flex-col overflow-hidden">
+      <TableCard className="mt-4 w-full min-w-0 max-w-full !overflow-clip">
         <RecordTableToolbar count={txnRows.length} label="transaction">
           <AutoSubmitFilterForm
             method="get"
@@ -239,7 +251,7 @@ export default async function TonerMonitoringPage({
             </>
           )}
         </RecordTableToolbar>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="min-w-0 max-w-full overflow-clip">
         {txnRows.length === 0 ? (
           <EmptyState
             message="No toner transactions match the current search and filters."
@@ -259,7 +271,7 @@ export default async function TonerMonitoringPage({
                       {formatTonerDate(t.date)}
                     </time>
                   </div>
-                  <Badge color={statusBadgeColor(t.type)}>{t.type}</Badge>
+                  <TransactionStatus type={t.type} deliveredDate={t.deliveredDate} align="end" />
                 </div>
 
                 <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
@@ -269,7 +281,7 @@ export default async function TonerMonitoringPage({
                   <TransactionField label="Department" value={t.departmentName || "—"} />
                   <TransactionField label="Sub-unit" value={t.subunitName || "—"} />
                   <TransactionField label="Cost Center" value={t.costCenterCode || "—"} />
-                  <TransactionField label="ITS Name" value={t.itsName || "—"} />
+                  <TransactionField label="Requestor Name" value={t.requestorName || "—"} />
                   <TransactionField label="Remarks" value={t.remarks || "—"} />
                 </dl>
 
@@ -293,19 +305,19 @@ export default async function TonerMonitoringPage({
             ))}
           </div>
 
-          <div className="hidden lg:block">
-          <table className="w-full table-fixed text-left text-sm">
-            <caption className="sr-only">Toner delivery and request records</caption>
+          <div className="hidden w-0 min-w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 [scrollbar-gutter:stable] lg:block">
+          <table className="w-[calc(100%+7rem)] min-w-[64rem] max-w-none table-fixed text-left text-sm">
+            <caption className="sr-only">Toner purchase, delivered, and request records</caption>
             <colgroup>
-              <col className="w-[10%]" />
-              <col className="w-[9%]" />
-              <col className="w-[10%]" />
-              <col className="w-[11%]" />
-              <col className="w-[7%]" />
-              <col className="w-[13%]" />
-              <col className="w-[16%]" />
-              <col className="w-[11%]" />
-              <col className="w-[13%]" />
+              <col />
+              <col style={{ width: "10rem" }} />
+              <col />
+              <col />
+              <col />
+              <col />
+              <col style={{ width: "12rem" }} />
+              <col />
+              <col style={{ width: "7rem" }} />
             </colgroup>
             <thead className="border-b border-slate-200 bg-slate-50/95 text-[11px] uppercase tracking-[0.055em] text-slate-500 backdrop-blur-sm">
               <tr className="whitespace-nowrap">
@@ -315,8 +327,8 @@ export default async function TonerMonitoringPage({
                   </FilterableHeading>
                 </th>
                 <th className="px-4 py-2.5">
-                  <FilterableHeading label="Date">
-                    <PrinterColumnFilter label="Date" paramName="date" options={dateOptions} selectedValues={dateFilters} currentSort={sort} sortAscValue="date_asc" sortDescValue="date_desc" sortAscLabel="Oldest first" sortDescLabel="Newest first" />
+                  <FilterableHeading label="Request Date">
+                    <PrinterColumnFilter label="Request Date" paramName="date" options={dateOptions} selectedValues={dateFilters} currentSort={sort} sortAscValue="date_asc" sortDescValue="date_desc" sortAscLabel="Oldest first" sortDescLabel="Newest first" />
                   </FilterableHeading>
                 </th>
                 <th className="px-4 py-3">Ticket or RQ</th>
@@ -336,14 +348,14 @@ export default async function TonerMonitoringPage({
                     <PrinterColumnFilter label="Sub-unit" paramName="subunit" options={subunitOptions} selectedValues={subunitFilters} currentSort={sort} />
                   </FilterableHeading>
                 </th>
-                <th className="px-3 py-3">ITS Name</th>
+                <th className="px-3 py-3">Requestor Name</th>
                 <th className="px-2 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginated.items.map((t) => (
                 <tr key={t.id} className="align-middle transition-colors even:bg-slate-50/25 hover:bg-sky-50/45">
-                  <td className="px-3 py-3.5"><Badge color={statusBadgeColor(t.type)}>{t.type}</Badge></td>
+                  <td className="px-3 py-3.5"><TransactionStatus type={t.type} deliveredDate={t.deliveredDate} /></td>
                   <td className="px-4 py-3.5">
                     <time dateTime={t.date} className="whitespace-nowrap font-semibold tabular-nums text-slate-700">
                       {formatTonerDate(t.date)}
@@ -378,8 +390,8 @@ export default async function TonerMonitoringPage({
                     </p>
                   </td>
                   <td className="px-3 py-3">
-                    <span className="block min-w-0 truncate font-medium text-slate-700" title={t.itsName || ""}>
-                      {t.itsName || <span className="text-slate-300">—</span>}
+                    <span className="block min-w-0 truncate font-medium text-slate-700" title={t.requestorName || ""}>
+                      {t.requestorName || <span className="text-slate-300">—</span>}
                     </span>
                   </td>
                   <td className="px-2 py-3">
@@ -409,8 +421,31 @@ export default async function TonerMonitoringPage({
           </>
         )}
         </div>
-        <RecordPagination pathname="/toner-monitoring" searchParams={sp} page={paginated.page} totalPages={paginated.totalPages} total={txnRows.length} start={paginated.start} />
+        <RecordPagination pathname="/toner-monitoring" searchParams={sp} page={paginated.page} totalPages={paginated.totalPages} total={txnRows.length} start={paginated.start} pageSize={TONER_TRANSACTION_PAGE_SIZE} />
       </TableCard>
+    </div>
+  );
+}
+
+function InventorySummary({
+  value,
+  label,
+  tone = "default",
+}: {
+  value: number;
+  label: string;
+  tone?: "default" | "warning" | "success";
+}) {
+  const valueClass = tone === "warning"
+    ? "text-amber-700"
+    : tone === "success"
+      ? "text-emerald-700"
+      : "text-[#014171]";
+
+  return (
+    <div className="flex items-baseline gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+      <dt className="order-2 font-semibold text-slate-500">{label}</dt>
+      <dd className={`order-1 font-bold tabular-nums ${valueClass}`}>{value}</dd>
     </div>
   );
 }
@@ -452,8 +487,8 @@ function compareTonerRows(
   sort: string,
 ) {
   const values: Record<string, [string, string]> = {
-    status_asc: [left.type, right.type],
-    status_desc: [right.type, left.type],
+    status_asc: [tonerTransactionStatusLabel(left.type), tonerTransactionStatusLabel(right.type)],
+    status_desc: [tonerTransactionStatusLabel(right.type), tonerTransactionStatusLabel(left.type)],
     date_asc: [dateFilterValue(left.date), dateFilterValue(right.date)],
     date_desc: [dateFilterValue(right.date), dateFilterValue(left.date)],
     toner_asc: [left.tonerTypeName, right.tonerTypeName],
@@ -470,6 +505,32 @@ function TransactionField({ label, value, mono = false }: { label: string; value
     <div className="min-w-0">
       <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</dt>
       <dd className={`mt-1 line-clamp-2 text-xs font-medium text-slate-700 ${mono ? "font-mono" : ""}`}>{value}</dd>
+    </div>
+  );
+}
+
+function TransactionStatus({
+  type,
+  deliveredDate,
+  align = "start",
+}: {
+  type: string;
+  deliveredDate: string | Date | null;
+  align?: "start" | "end";
+}) {
+  const label = tonerTransactionStatusLabel(type);
+  return (
+    <div className={`flex flex-col gap-1 ${align === "end" ? "items-end" : "items-start"}`}>
+      <Badge color={statusBadgeColor(label)}>{label}</Badge>
+      {label === "Delivered" && deliveredDate && (
+        <time
+          dateTime={dateFilterValue(deliveredDate)}
+          className="whitespace-nowrap text-[10px] font-medium tabular-nums text-slate-500"
+          title={`Delivered on ${formatTonerDate(deliveredDate)}`}
+        >
+          {formatTonerDate(deliveredDate)}
+        </time>
+      )}
     </div>
   );
 }

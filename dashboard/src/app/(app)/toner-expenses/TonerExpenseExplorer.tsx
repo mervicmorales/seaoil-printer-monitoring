@@ -224,7 +224,7 @@ export default function TonerExpenseExplorer({
         </div>
         <div className="grid grid-cols-1 gap-px bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryMetric label="Estimated request cost" value={summary.totalExpenseCents / 100} format="currency" icon={CircleDollarSign} color="text-[#014171]" description="Requested quantity × current unit cost" />
-          <SummaryMetric label="Estimated delivery value" value={deliverySummary.totalExpenseCents / 100} format="currency" icon={ShoppingCart} color="text-emerald-700" description="Delivered quantity × current unit cost" />
+          <SummaryMetric label="Estimated purchase value" value={deliverySummary.totalExpenseCents / 100} format="currency" icon={ShoppingCart} color="text-emerald-700" description="Purchased quantity × current unit cost" />
           <SummaryMetric label="Units requested" value={summary.totalUnits} icon={PackageCheck} color="text-violet-700" description={`${integer.format(summary.requestLines)} request ${pluralize(summary.requestLines, "record")}`} />
           <SummaryMetric label="Units delivered" value={deliverySummary.totalUnits} icon={Truck} color="text-sky-700" description={`${integer.format(deliverySummary.requestLines)} delivery ${pluralize(deliverySummary.requestLines, "record")}`} />
         </div>

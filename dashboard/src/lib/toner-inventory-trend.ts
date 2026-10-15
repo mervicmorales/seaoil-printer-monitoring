@@ -14,7 +14,11 @@ export function buildStockTrend(
   for (const movement of movements) {
     if (!dayKeys.includes(movement.date)) continue;
     const type = movement.type.trim().toLowerCase();
-    const delta = type === "delivery" ? movement.quantity : type === "request" ? -movement.quantity : 0;
+    const delta = type === "delivered" || type === "delivery"
+      ? movement.quantity
+      : type === "request"
+        ? -movement.quantity
+        : 0;
     dailyDeltas.set(movement.date, (dailyDeltas.get(movement.date) ?? 0) + delta);
   }
 

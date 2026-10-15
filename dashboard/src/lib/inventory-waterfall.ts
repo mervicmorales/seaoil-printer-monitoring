@@ -49,7 +49,7 @@ export function buildInventoryWaterfall(
     : rollingStartDate(endDate, period === "7d" ? 7 : period === "30d" ? 30 : 90);
   const startKey = isoDate(startDate);
   const periodMovements = movements.filter((movement) => movement.date >= startKey && movement.date <= today);
-  const delivered = sumType(periodMovements, "delivery");
+  const delivered = sumDelivered(periodMovements);
   const requested = sumType(periodMovements, "request");
   const highlightedRequested = highlight
     ? sumHighlightedRequests(periodMovements, highlight)
@@ -71,7 +71,7 @@ export function buildInventoryWaterfall(
 
   for (const bucket of buckets) {
     const rows = periodMovements.filter((movement) => movement.date >= bucket.from && movement.date <= bucket.to);
-    const bucketDeliveries = sumType(rows, "delivery");
+    const bucketDeliveries = sumDelivered(rows);
     const bucketRequests = sumType(rows, "request");
     const delta = bucketDeliveries - bucketRequests;
     const nextStock = Math.max(0, runningStock + delta);
@@ -150,6 +150,13 @@ function buildBuckets(startDate: Date, endDate: Date, period: InventoryMovementP
 
 function sumType(movements: readonly InventoryMovementRecord[], type: string) {
   return movements.reduce((sum, movement) => movement.type.trim().toLowerCase() === type ? sum + movement.quantity : sum, 0);
+}
+
+function sumDelivered(movements: readonly InventoryMovementRecord[]) {
+  return movements.reduce((sum, movement) => {
+    const type = movement.type.trim().toLowerCase();
+    return type === "delivered" || type === "delivery" ? sum + movement.quantity : sum;
+  }, 0);
 }
 
 function sumHighlightedRequests(movements: readonly InventoryMovementRecord[], highlight: InventoryMovementHighlight) {

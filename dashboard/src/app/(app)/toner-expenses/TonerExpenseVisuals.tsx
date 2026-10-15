@@ -73,7 +73,7 @@ export function ExpenseFlowVisual({
     <section aria-labelledby="expense-flow-heading" className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white xl:h-[30rem]">
       <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div>
-          <h2 id="expense-flow-heading" className="text-base font-bold text-[#014171]">Delivery vs. Request Cost</h2>
+          <h2 id="expense-flow-heading" className="text-base font-bold text-[#014171]">Purchase vs. Request Cost</h2>
           <p className="mt-1 text-xs text-slate-500">Estimated delivery value compared with estimated request cost.</p>
         </div>
         <div role="group" aria-label="Expense trend period" className="flex w-fit shrink-0 items-center rounded-full border border-slate-200 bg-slate-50 p-1 shadow-sm">
@@ -99,7 +99,7 @@ export function ExpenseFlowVisual({
           <div className="mb-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs font-bold text-slate-700">{activePoint.fullLabel}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-semibold text-slate-500">
-              <span><i className="mr-1.5 inline-block size-2 rounded-sm bg-emerald-500 align-middle" />Delivered <strong className="ml-1 tabular-nums text-emerald-700">{money.format(activePoint.deliveryCents / 100)}</strong></span>
+              <span><i className="mr-1.5 inline-block size-2 rounded-sm bg-emerald-500 align-middle" />Purchased <strong className="ml-1 tabular-nums text-emerald-700">{money.format(activePoint.deliveryCents / 100)}</strong></span>
               <span><i className="mr-1.5 inline-block size-2 rounded-full bg-[#014171] align-middle" />Requested <strong className="ml-1 tabular-nums text-[#014171]">{money.format(activePoint.requestCents / 100)}</strong></span>
             </div>
           </div>
@@ -156,7 +156,7 @@ export function ExpenseFlowVisual({
               ))}
             </svg>
           </div>
-          <p className="mt-2 text-[10px] leading-4 text-slate-500">Delivery value is an estimate based on each toner type&apos;s current configured unit cost, not the historical amount paid.</p>
+          <p className="mt-2 text-[10px] leading-4 text-slate-500">Purchase value is an estimate based on each toner type&apos;s current configured unit cost, not the historical amount paid.</p>
         </div>
       ) : (
         <EmptyVisual>No priced delivery or request activity is available for this period.</EmptyVisual>

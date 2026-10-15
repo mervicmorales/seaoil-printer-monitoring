@@ -829,9 +829,11 @@ export const replacementHistory = pgTable("replacement_history", {
 export const tonerTransactions = pgTable("toner_transactions", {
   id: serial("id").primaryKey(),
   groupId: text("group_id").notNull(),
-  type: text("type").notNull(), // 'Delivery' | 'Request'
+  type: text("type").notNull(), // 'Purchase' | 'Delivered' | 'Request'
   date: date("date").notNull(),
+  deliveredDate: date("delivered_date"),
   ticketReference: text("ticket_reference"),
+  requestorName: text("requestor_name"),
   tonerTypeId: integer("toner_type_id")
     .notNull()
     .references(() => tonerTypes.id, { onDelete: "cascade" }),

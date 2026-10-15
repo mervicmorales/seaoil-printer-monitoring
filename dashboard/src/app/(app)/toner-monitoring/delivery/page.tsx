@@ -1,5 +1,5 @@
-import { DeliveryTonerPage } from "./content";
+import { PurchaseTonerPage } from "./content";
 
 export default function Page() {
-  return <DeliveryTonerPage />;
+  return <PurchaseTonerPage />;
 }

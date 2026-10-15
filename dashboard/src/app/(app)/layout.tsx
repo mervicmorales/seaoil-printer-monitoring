@@ -51,7 +51,7 @@ export default async function AppLayout({
       accountId={String(session.id)}
       initialSkin={isBlobSkin(blobSkinCookie) ? blobSkinCookie : "violet"}
     >
-      <div className="flex min-h-screen bg-transparent">
+      <div className="flex min-h-screen w-full min-w-0 max-w-full bg-transparent">
         <AgentStatusNotifications />
         <Sidebar
           logoUrl={AUTH_LOGO_URL}
@@ -62,14 +62,14 @@ export default async function AppLayout({
           moduleAccess={access}
           userRole={session.role}
         />
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
+        <div className="flex min-h-screen min-w-0 max-w-full flex-1 flex-col lg:pl-0">
           <AppHeader
             notifications={recentNotifications.map((n) => ({
               ...n,
               createdAt: n.createdAt.toISOString(),
             }))}
           />
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-7">{children}</main>
+          <main className="min-w-0 max-w-full flex-1 px-4 py-6 sm:px-8 sm:py-7">{children}</main>
         </div>
         <PageHeaderPlacement inAppHeader={false}>{modal}</PageHeaderPlacement>
       </div>

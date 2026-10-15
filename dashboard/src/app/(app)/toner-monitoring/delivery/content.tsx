@@ -2,12 +2,12 @@ import { PageHeader, Card, IconGlyph, PrimaryButton } from "@/components/ui";
 import { PackageCheck } from "lucide";
 import { getItsNames, getVisibleTonerTypes } from "@/lib/lookups";
 import { getOrganizationOptions } from "@/lib/organization";
-import { createDeliveryAction } from "../actions";
+import { createPurchaseAction } from "../actions";
 import TonerDeliveryRequestForm from "../TonerDeliveryRequestForm";
 import { requireModuleFullAccess } from "@/lib/server-utils";
 import { todayISO } from "@/lib/format";
 
-export async function DeliveryTonerPage({
+export async function PurchaseTonerPage({
   embedded = false,
 }: {
   embedded?: boolean;
@@ -22,23 +22,23 @@ export async function DeliveryTonerPage({
   return (
     <div>
       <PageHeader
-        title="Add Toner"
-        subtitle="Record toner stock received from a delivery."
+        title="Purchase Toner"
+        subtitle="Record a toner purchase before it is delivered."
         actions={embedded ? (
           <PrimaryButton
             type="submit"
-            form="toner-delivery-form"
+            form="toner-purchase-form"
             className="!h-8 !min-h-8 rounded-lg px-3 py-0 text-xs shadow-none"
           >
             <IconGlyph icon={PackageCheck} size={14} />
-            Save Delivery
+            Save Purchase
           </PrimaryButton>
         ) : undefined}
       />
       <Card className="p-5 sm:p-6">
         <TonerDeliveryRequestForm
-          mode="delivery"
-          action={createDeliveryAction}
+          mode="purchase"
+          action={createPurchaseAction}
           tonerTypes={tonerTypes}
           organizationOptions={organizationOptions}
           itsNames={itsNames}

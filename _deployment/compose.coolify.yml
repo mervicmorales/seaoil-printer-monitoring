@@ -36,6 +36,8 @@ services:
       - -c
       - >-
         node scripts/migrate-office-naming.mjs &&
+        node scripts/add-toner-requestor-name.mjs &&
+        node scripts/add-toner-delivered-date.mjs &&
         npx drizzle-kit push --config=drizzle.docker.config.ts --force &&
         node scripts/migrate-notifications-registration-smtp.mjs &&
         node scripts/migrate-monitoring-assignments.mjs &&

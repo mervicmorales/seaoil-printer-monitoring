@@ -201,7 +201,7 @@ export default function DitherInventoryGrowthChart({
       </div>
       <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[8px] font-semibold text-slate-500">
         <Legend color="bg-[#014171]" label="Stock balance" />
-        <Legend color="bg-emerald-500" label="Delivery" />
+        <Legend color="bg-emerald-500" label="Delivered" />
         <Legend color="bg-rose-500" label="Request" />
         {highlightedScopeLabel && <Legend color="bg-[#ffd100]" label={`${highlightedScopeLabel}: ${integer.format(highlightedRequested)} requested`} />}
       </div>
