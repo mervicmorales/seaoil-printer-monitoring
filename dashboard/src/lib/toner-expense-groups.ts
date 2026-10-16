@@ -12,21 +12,24 @@ export type TonerExpenseViewRecord = TonerExpenseRecord & {
 export type TonerRequestGroup = {
   key: string;
   name: string;
-  officeNames: string[];
   requestLines: number;
   units: number;
   expenseCents: number;
   tonerTypes: TonerRequestGroup[];
 };
 
-export type DepartmentRequestGroup = TonerRequestGroup & {
-  costCenters: TonerRequestGroup[];
+export type CostCenterRequestGroup = TonerRequestGroup & {
+  offices: TonerRequestGroup[];
 };
 
-type MutableGroup = Omit<TonerRequestGroup, "tonerTypes" | "officeNames"> & {
-  offices: Map<string, string>;
+export type DepartmentRequestGroup = TonerRequestGroup & {
+  costCenters: CostCenterRequestGroup[];
+};
+
+type MutableGroup = Omit<TonerRequestGroup, "tonerTypes"> & {
   tonerTypes: Map<string, MutableGroup>;
   costCenters?: Map<string, MutableGroup>;
+  offices?: Map<string, MutableGroup>;
 };
 
 export function groupTonerRequests(records: readonly TonerExpenseViewRecord[]): DepartmentRequestGroup[] {
@@ -35,24 +38,33 @@ export function groupTonerRequests(records: readonly TonerExpenseViewRecord[]): 
   for (const record of records) {
     const departmentKey = record.departmentId === null ? "unassigned" : String(record.departmentId);
     const costCenterKey = record.costCenterId == null ? "unassigned" : String(record.costCenterId);
+    const officeKey = record.locationId === null ? "unassigned" : String(record.locationId);
     const tonerKey = String(record.tonerTypeId);
-    const department = getGroup(departments, departmentKey, record.departmentName?.trim() || "Unassigned department", true);
-    const costCenter = getGroup(department.costCenters!, costCenterKey, record.costCenterCode?.trim() || "Unassigned cost center");
+    const department = getGroup(departments, departmentKey, record.departmentName?.trim() || "Unassigned department", { withCostCenters: true });
+    const costCenter = getGroup(department.costCenters!, costCenterKey, record.costCenterCode?.trim() || "Unassigned cost center", { withOffices: true });
+    const office = getGroup(costCenter.offices!, officeKey, record.locationName?.trim() || "Unassigned office");
 
     addRecord(department, record);
     addRecord(costCenter, record);
+    addRecord(office, record);
     addRecord(getGroup(department.tonerTypes, tonerKey, record.tonerTypeName), record);
     addRecord(getGroup(costCenter.tonerTypes, tonerKey, record.tonerTypeName), record);
+    addRecord(getGroup(office.tonerTypes, tonerKey, record.tonerTypeName), record);
   }
 
   return [...departments.values()].map((department) => ({
     ...withoutMaps(department),
     tonerTypes: finishGroups(department.tonerTypes),
-    costCenters: finishGroups(department.costCenters!),
+    costCenters: finishCostCenterGroups(department.costCenters!),
   })).sort(compareGroups);
 }
 
-function getGroup(map: Map<string, MutableGroup>, key: string, name: string, withCostCenters = false) {
+function getGroup(
+  map: Map<string, MutableGroup>,
+  key: string,
+  name: string,
+  options: { withCostCenters?: boolean; withOffices?: boolean } = {},
+) {
   const existing = map.get(key);
   if (existing) return existing;
   const group: MutableGroup = {
@@ -61,17 +73,15 @@ function getGroup(map: Map<string, MutableGroup>, key: string, name: string, wit
     requestLines: 0,
     units: 0,
     expenseCents: 0,
-    offices: new Map(),
     tonerTypes: new Map(),
-    costCenters: withCostCenters ? new Map() : undefined,
+    costCenters: options.withCostCenters ? new Map() : undefined,
+    offices: options.withOffices ? new Map() : undefined,
   };
   map.set(key, group);
   return group;
 }
 
 function addRecord(group: MutableGroup, record: TonerExpenseViewRecord) {
-  const officeKey = record.locationId === null ? "unassigned" : String(record.locationId);
-  group.offices.set(officeKey, record.locationName?.trim() || "Unassigned office");
   group.requestLines += 1;
   group.units += record.quantity;
   group.expenseCents += record.quantity * record.unitCostCents;
@@ -84,11 +94,18 @@ function finishGroups(groups: Map<string, MutableGroup>): TonerRequestGroup[] {
   })).sort(compareGroups);
 }
 
+function finishCostCenterGroups(groups: Map<string, MutableGroup>): CostCenterRequestGroup[] {
+  return [...groups.values()].map((group) => ({
+    ...withoutMaps(group),
+    tonerTypes: finishGroups(group.tonerTypes),
+    offices: finishGroups(group.offices!),
+  })).sort(compareGroups);
+}
+
 function withoutMaps(group: MutableGroup) {
   return {
     key: group.key,
     name: group.name,
-    officeNames: [...group.offices.values()].sort((left, right) => left.localeCompare(right)),
     requestLines: group.requestLines,
     units: group.units,
     expenseCents: group.expenseCents,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Building2,
   ChevronDown,
   CircleDollarSign,
   Filter,
@@ -21,6 +22,7 @@ import { tonerExpenseExportPreview } from "@/lib/toner-expense-export";
 import { summarizeTonerExpenses } from "@/lib/toner-expenses";
 import {
   groupTonerRequests,
+  type CostCenterRequestGroup,
   type TonerExpenseViewRecord,
   type TonerRequestGroup,
 } from "@/lib/toner-expense-groups";
@@ -81,6 +83,7 @@ export default function TonerExpenseExplorer({
   const deliverySummary = useMemo(() => summarizeTonerExpenses(filteredDeliveryRecords), [filteredDeliveryRecords]);
   const grouped = useMemo(() => groupTonerRequests(filteredRecords), [filteredRecords]);
   const costCenterCount = useMemo(() => new Set(filteredRecords.map((record) => record.costCenterId == null ? "unassigned" : String(record.costCenterId))).size, [filteredRecords]);
+  const officeCount = useMemo(() => new Set(filteredRecords.map((record) => record.locationId === null ? "unassigned" : String(record.locationId))).size, [filteredRecords]);
   const priceCoverage = summary.requestLines ? Math.round((summary.pricedRequestLines / summary.requestLines) * 100) : 0;
   const deliveryPriceCoverage = deliverySummary.requestLines ? Math.round((deliverySummary.pricedRequestLines / deliverySummary.requestLines) * 100) : 0;
   const unpricedTonerTypes = useMemo(() => [...new Set([...summary.unpricedTonerTypes, ...deliverySummary.unpricedTonerTypes])].sort((left, right) => left.localeCompare(right)), [deliverySummary.unpricedTonerTypes, summary.unpricedTonerTypes]);
@@ -249,22 +252,22 @@ export default function TonerExpenseExplorer({
         <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
           <div>
             <h2 className="text-base font-bold text-[#014171]">Requests by Department</h2>
-            <p className="mt-1 text-xs text-slate-500">Select a department row to see every requested cost center and its toner types.</p>
+            <p className="mt-1 text-xs text-slate-500">Expand a department and cost center to see toner costing for each office.</p>
           </div>
           <div className="flex shrink-0 items-center gap-2 text-xs text-slate-500"><IconGlyph icon={CircleDollarSign} size={14} /><span>{integer.format(costCenterCount)} {pluralize(costCenterCount, "cost center")} in this view</span></div>
         </div>
 
         <div className="flex flex-col gap-1 border-b border-slate-200 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <span>Showing <strong className="text-slate-800">{grouped.length}</strong> {pluralize(grouped.length, "department")}, <strong className="text-slate-800">{costCenterCount}</strong> {pluralize(costCenterCount, "cost center")}, and <strong className="text-slate-800">{summary.tonerTypes.length}</strong> {pluralize(summary.tonerTypes.length, "toner type")}</span>
+          <span>Showing <strong className="text-slate-800">{grouped.length}</strong> {pluralize(grouped.length, "department")}, <strong className="text-slate-800">{costCenterCount}</strong> {pluralize(costCenterCount, "cost center")}, <strong className="text-slate-800">{officeCount}</strong> {pluralize(officeCount, "office")}, and <strong className="text-slate-800">{summary.tonerTypes.length}</strong> {pluralize(summary.tonerTypes.length, "toner type")}</span>
           <span>{activeFilters} active filter{activeFilters === 1 ? "" : "s"}</span>
         </div>
 
         {grouped.length ? (
           <div className="max-h-[38rem] overflow-auto overscroll-contain">
             <table className="w-full min-w-[760px] table-fixed text-left text-[13px]">
-              <colgroup><col className="w-[28%]" /><col className="w-[36%]" /><col className="w-[11%]" /><col className="w-[10%]" /><col className="w-[15%]" /></colgroup>
+              <colgroup><col className="w-[32%]" /><col className="w-[32%]" /><col className="w-[11%]" /><col className="w-[10%]" /><col className="w-[15%]" /></colgroup>
               <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 text-[11px] font-bold uppercase tracking-[0.07em] text-slate-500 backdrop-blur-sm">
-                <tr><th className="px-5 py-3">Department / Cost Center</th><th className="px-3 py-3">Toner type requests</th><th className="px-3 py-3 text-right">Records</th><th className="px-3 py-3 text-right">Units</th><th className="px-5 py-3 text-right">Estimated expense</th></tr>
+                <tr><th className="px-5 py-3">Department / Cost Center / Office</th><th className="px-3 py-3">Toner type requests</th><th className="px-3 py-3 text-right">Records</th><th className="px-3 py-3 text-right">Units</th><th className="px-5 py-3 text-right">Estimated expense</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {grouped.map((department) => {
@@ -343,10 +346,12 @@ function CostCenterRows({
   expanded,
   onToggle,
 }: {
-  costCenter: TonerRequestGroup;
+  costCenter: CostCenterRequestGroup;
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const onlyHasTaipanOffice = costCenter.offices.length > 0 && costCenter.offices.every(isTaipanOffice);
+
   return (
     <>
       <tr className="border-t border-sky-100 bg-sky-50/35">
@@ -355,7 +360,11 @@ function CostCenterRows({
             <span className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition ${expanded ? "border-[#4f7fa9] bg-[#4f7fa9] text-white" : "-rotate-90 border-sky-200 bg-white text-[#4f7fa9] group-hover:border-[#4f7fa9]"}`}><IconGlyph icon={ChevronDown} size={12} /></span>
             <span className="min-w-0">
               <span className="block truncate font-semibold text-slate-700">{costCenter.name}</span>
-              <span className="mt-0.5 block truncate text-[11px] text-slate-500" title={officeLabel(costCenter)}>{officeLabel(costCenter)}</span>
+              <span className="mt-0.5 block text-[11px] text-slate-500">
+                {onlyHasTaipanOffice
+                  ? `${expanded ? "Hide" : "View"} toner costing`
+                  : `${costCenter.offices.length} ${pluralize(costCenter.offices.length, "office")} · ${expanded ? "Hide offices" : "View offices"}`}
+              </span>
             </span>
           </button>
         </td>
@@ -364,18 +373,50 @@ function CostCenterRows({
         <NumberCell value={costCenter.units} />
         <td className="px-5 py-3 text-right font-semibold tabular-nums text-slate-700">{currency.format(costCenter.expenseCents / 100)}</td>
       </tr>
-      {expanded && costCenter.tonerTypes.map((tonerType) => (
-        <tr key={`${costCenter.key}-${tonerType.key}`} className="border-t border-slate-100 bg-white">
-          <td className="px-5 py-3 pl-24 text-[11px] font-bold uppercase tracking-[0.07em] text-slate-400">Toner costing</td>
-          <td className="px-3 py-3">
+      {expanded && costCenter.offices.map((office) => isTaipanOffice(office)
+        ? <TonerCostingRows key={`${costCenter.key}-${office.key}`} group={office} />
+        : <OfficeRows key={`${costCenter.key}-${office.key}`} office={office} />)}
+    </>
+  );
+}
+
+function OfficeRows({ office }: { office: TonerRequestGroup }) {
+  return (
+    <>
+      <tr className="border-t border-slate-200 bg-slate-50/75">
+        <td className="px-5 py-3 pl-24">
+          <div className="flex min-w-0 items-center gap-2.5 border-l-2 border-sky-200 pl-3">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white text-[#014171] shadow-sm ring-1 ring-slate-200"><IconGlyph icon={Building2} size={12} /></span>
+            <span className="min-w-0">
+              <span className="block truncate font-semibold text-slate-700">{office.name}</span>
+            </span>
+          </div>
+        </td>
+        <td className="px-3 py-3"><TonerPills rows={office.tonerTypes} /></td>
+        <NumberCell value={office.requestLines} />
+        <NumberCell value={office.units} />
+        <td className="px-5 py-3 text-right font-bold tabular-nums text-[#014171]">{currency.format(office.expenseCents / 100)}</td>
+      </tr>
+      <TonerCostingRows group={office} nestedUnderOffice />
+    </>
+  );
+}
+
+function TonerCostingRows({ group, nestedUnderOffice = false }: { group: TonerRequestGroup; nestedUnderOffice?: boolean }) {
+  return (
+    <>
+      {group.tonerTypes.map((tonerType) => (
+        <tr key={`${group.key}-${tonerType.key}`} className="border-t border-slate-100 bg-white">
+          <td className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.07em] text-slate-400 ${nestedUnderOffice ? "pl-32" : "pl-24"}`}>Toner costing</td>
+          <td className="px-3 py-2.5">
             <div className="flex flex-col gap-0.5">
               <span className="font-bold text-slate-700">{tonerType.name}</span>
               <span className="text-[11px] text-slate-500">{formatUnitCost(tonerType)} per unit</span>
             </div>
           </td>
-          <NumberCell value={tonerType.requestLines} />
-          <NumberCell value={tonerType.units} />
-          <td className="px-5 py-3 text-right font-bold tabular-nums text-[#014171]">{currency.format(tonerType.expenseCents / 100)}</td>
+          <NumberCell value={tonerType.requestLines} compact />
+          <NumberCell value={tonerType.units} compact />
+          <td className="px-5 py-2.5 text-right font-semibold tabular-nums text-slate-700">{currency.format(tonerType.expenseCents / 100)}</td>
         </tr>
       ))}
     </>
@@ -390,7 +431,7 @@ function SummaryMetric({ label, value, format = "integer", icon, color, descript
   return <div className="flex min-h-32 flex-col justify-between bg-white p-4 sm:p-5"><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-[0.07em] text-slate-500">{label}</p><span className={`flex size-8 items-center justify-center rounded-lg bg-slate-50 ${color}`}><IconGlyph icon={icon} size={16} /></span></div><div className="mt-4"><p className="text-2xl font-bold tracking-[-0.03em] text-slate-900"><AnimatedNumber value={value} format={format} /></p><p className="mt-1 text-[10px] leading-4 text-slate-500">{description}</p></div></div>;
 }
 
-function NumberCell({ value, strong = false }: { value: number; strong?: boolean }) { return <td className={`px-3 py-3.5 text-right tabular-nums ${strong ? "font-bold text-slate-800" : "text-slate-600"}`}>{integer.format(value)}</td>; }
+function NumberCell({ value, strong = false, compact = false }: { value: number; strong?: boolean; compact?: boolean }) { return <td className={`px-3 text-right tabular-nums ${compact ? "py-2.5" : "py-3.5"} ${strong ? "font-bold text-slate-800" : "text-slate-600"}`}>{integer.format(value)}</td>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.06em] text-slate-500">{label}</span>{children}</label>; }
 
 function FilterField({ label, value, onChange, options, includeUnassigned = false }: { label: string; value: string; onChange: (value: string) => void; options: LookupOption[]; includeUnassigned?: boolean }) {
@@ -410,5 +451,5 @@ function matchesFilters(record: TonerExpenseViewRecord, filters: FilterState) {
 
 function matchesLookup(filter: string, value: number | null) { return !filter || (filter === "unassigned" ? value === null : String(value) === filter); }
 function formatUnitCost(row: TonerRequestGroup) { return currency.format(row.units > 0 ? row.expenseCents / row.units / 100 : 0); }
-function officeLabel(row: TonerRequestGroup) { return row.officeNames.join(", ") || "Unassigned office"; }
+function isTaipanOffice(office: TonerRequestGroup) { return ["taipan", "taipan office"].includes(office.name.trim().toLowerCase()); }
 function pluralize(value: number, noun: string) { return value === 1 ? noun : `${noun}s`; }
